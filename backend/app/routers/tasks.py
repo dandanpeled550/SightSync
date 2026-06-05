@@ -1,4 +1,4 @@
-"""Tasks router — Sprint 2 Task Data Layer."""
+"""Tasks router — Sprint 2 Task Data Layer + Sprint 3 Cascade endpoints."""
 import datetime
 from typing import List, Optional
 
@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app.models import DailyLog, Task, TaskDependency, TaskLogEntry
+from app.services.cascade import CascadeResult, apply_cascade, preview_cascade
 
 router = APIRouter(tags=["tasks"])
 
@@ -238,3 +239,59 @@ def list_task_entries(log_id: int, db: Session = Depends(get_db)):
     if not log:
         raise HTTPException(status_code=404, detail="Daily log not found")
     return db.query(TaskLogEntry).filter(TaskLogEntry.daily_log_id == log_id).all()
+
+
+# ── Cascade Delay Engine (Sprint 3) ──────────────────────────────────────────
+
+class CascadeRequest(BaseModel):
+    new_start_date: datetime.date
+
+
+class CascadeResultOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    task_id: int
+    task_name: str
+    old_start_date: datetime.date
+    new_start_date: datetime.date
+    old_end_date: datetime.date
+    new_end_date: datetime.date
+    days_shifted: int
+
+
+def _cascade_result_to_out(r: CascadeResult) -> CascadeResultOut:
+    return CascadeResultOut(
+        task_id=r.task_id,
+        task_name=r.task_name,
+        old_start_date=r.old_start_date,
+        new_start_date=r.new_start_date,
+        old_end_date=r.old_end_date,
+        new_end_date=r.new_end_date,
+        days_shifted=r.days_shifted,
+    )
+
+
+@router.post("/tasks/{task_id}/cascade-preview", response_model=List[CascadeResultOut])
+def cascade_preview(task_id: int, body: CascadeRequest, db: Session = Depends(get_db)):
+    """Preview cascade delays without writing to the DB."""
+    task = db.query(Task).filter(Task.id == task_id).first()
+    if not task:
+        raise HTTPException(status_code=404, detail="Task not found")
+    try:
+        results = preview_cascade(db, task_id, body.new_start_date, task.project_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc))
+    return [_cascade_result_to_out(r) for r in results]
+
+
+@router.post("/tasks/{task_id}/cascade-apply", response_model=List[CascadeResultOut])
+def cascade_apply(task_id: int, body: CascadeRequest, db: Session = Depends(get_db)):
+    """Apply cascade delays and persist new dates to the DB."""
+    task = db.query(Task).filter(Task.id == task_id).first()
+    if not task:
+        raise HTTPException(status_code=404, detail="Task not found")
+    try:
+        results = apply_cascade(db, task_id, body.new_start_date, task.project_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc))
+    return [_cascade_result_to_out(r) for r in results]
