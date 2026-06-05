@@ -1,0 +1,83 @@
+import api from './client'
+
+export interface Task {
+  id: number
+  project_id: number
+  name: string
+  description: string | null
+  level_tag: string
+  trade_tag: string | null
+  start_date: string
+  duration_days: number
+  end_date: string
+  status: string
+  source: string
+  notes: string | null
+}
+
+export interface TaskLogEntry {
+  id: number
+  daily_log_id: number
+  task_id: number
+  action: string
+  new_date: string | null
+  reason: string | null
+}
+
+export interface CascadeResult {
+  task_id: number
+  task_name: string
+  old_start_date: string
+  new_start_date: string
+  old_end_date: string
+  new_end_date: string
+  days_shifted: number
+}
+
+export async function fetchTodayTasks(projectId: number): Promise<Task[]> {
+  const res = await api.get<Task[]>(`/projects/${projectId}/tasks/today`)
+  return res.data
+}
+
+export async function fetchAllTasks(projectId: number): Promise<Task[]> {
+  const res = await api.get<Task[]>(`/projects/${projectId}/tasks`)
+  return res.data
+}
+
+export async function markTaskDone(
+  logId: number,
+  taskId: number,
+  reason?: string,
+): Promise<TaskLogEntry> {
+  const res = await api.post<TaskLogEntry>(`/daily-logs/${logId}/task-entries`, {
+    task_id: taskId,
+    action: 'done',
+    reason: reason ?? null,
+  })
+  return res.data
+}
+
+export async function markTaskNotDone(
+  logId: number,
+  taskId: number,
+  newDate: string,
+  reason?: string,
+): Promise<TaskLogEntry> {
+  const res = await api.post<TaskLogEntry>(`/daily-logs/${logId}/task-entries`, {
+    task_id: taskId,
+    action: 'not_done',
+    new_date: newDate,
+    reason: reason ?? null,
+  })
+  return res.data
+}
+
+export async function fetchCascadePreview(
+  taskId: number,
+  newStartDate: string,
+): Promise<CascadeResult[]> {
+  const res = await api.post<CascadeResult[]>(`/tasks/${taskId}/cascade-preview`, {
+    new_start_date: newStartDate,
+  })
+  return res.data
+}
