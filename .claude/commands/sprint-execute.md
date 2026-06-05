@@ -10,54 +10,72 @@ Read `Sprints/FULL_PRODUCT_EXECUTION_PLAN.md` — find the sprint's section. Not
 
 ## Steps
 
-1. **Spawn parallel streams**
-   For each parallel stream, use the Agent tool with `isolation: "worktree"`.
-   Each agent prompt must be self-contained and include:
-   - "Read CLAUDE.md and backend/CLAUDE.md (or frontend/CLAUDE.md) before writing any code."
-   - The stream's exact file ownership list (copy from plan)
-   - The complete spec for every file to create/modify (copy from plan)
-   - The stream's completion gate verbatim
-   Launch ALL parallel streams in a single message (multiple Agent tool calls simultaneously).
+### 1. Spawn parallel streams
 
-2. **Run sequential streams**
-   After parallel streams complete and their branches are merged to the sprint branch:
-   - For FE streams gated on Render: call /render-verify first, confirm the gate endpoint returns 200, then spawn the FE agent
-   - Run sequential streams one at a time in the current session
+For each parallel stream, use the Agent tool with `isolation: "worktree"`.
+Each agent prompt must be self-contained and include:
+- "Read CLAUDE.md and backend/CLAUDE.md (or frontend/CLAUDE.md) before writing any code."
+- The stream's exact file ownership list (copy from plan)
+- The complete spec for every file to create/modify (copy from plan)
+- The stream's completion gate verbatim
+- **"When your work is done, stage ALL your changes with `git add -A` and commit them with a message matching `feat(<scope>): <description>`. Do this BEFORE reporting done."**
 
-3. **Merge and test**
-   After all streams report done:
-   - Run `cd backend && .venv/bin/python -m pytest tests/ -v`
-   - Run `cd frontend && npm run build`
-   - If CI fails, fix on the sprint branch before proceeding
+Launch ALL parallel streams in a single message (multiple Agent tool calls simultaneously).
 
-4. **Create sprint PR**
-   ```
-   gh pr create --title "Sprint N — <Sprint Name>" --body "$(cat <<'EOF'
-   ## Summary
-   - [one bullet per stream]
-   - [new endpoints or screens added]
+### 2. Merge each completed worktree into main
 
-   ## Test plan
-   - [ ] Backend tests pass
-   - [ ] Frontend build clean
-   - [ ] Render deploy verified
+After EACH stream agent reports done, immediately merge its worktree branch into the local main branch.
 
-   🤖 Generated with Claude Code
-   EOF
-   )"
-   ```
+For each worktree:
+```bash
+# From the project root:
+git merge <worktree-branch-name> --no-ff -m "merge(<scope>): <stream description>"
+git worktree remove .claude/worktrees/<worktree-id> --force
+git branch -d <worktree-branch-name>
+```
 
-5. **Deploy and verify**
-   After PR merges to main:
-   - Monitor Render auto-deploy (check dashboard)
-   - Run /render-verify when deploy completes
+Do NOT wait for all streams to finish before merging — merge each as it completes.
 
-6. **Sprint review**
-   Run /sprint-review to produce the structured report and pause for user approval.
-   Do NOT proceed to the next sprint until the user explicitly says "go ahead", "proceed", or equivalent.
+### 3. Run sequential streams
+
+After parallel streams are merged, run sequential streams one at a time in the current session.
+For FE streams gated on Render: call /render-verify first, confirm the gate endpoint returns 200, then spawn the FE agent (also with `isolation: "worktree"`, and with the same commit-before-done instruction).
+
+### 4. Run full test suite
+
+After all worktrees are merged to main:
+```bash
+cd backend && .venv/bin/python -m pytest tests/ -v
+cd frontend && npm install && npm run build
+```
+
+Fix any failures before proceeding.
+
+### 5. Run local migration if backend changed
+
+```bash
+cd backend && .venv/bin/alembic upgrade head
+```
+
+### 6. Push main
+
+```bash
+git push origin main
+```
+
+### 7. Verify Render deployment
+
+After Render auto-deploys (~3 min), run /render-verify to confirm production is healthy.
+
+### 8. Sprint review
+
+Run /sprint-review to produce the structured report and pause for user approval.
+Do NOT proceed to the next sprint until the user explicitly says "go ahead", "proceed", or equivalent.
+
+---
 
 ## Security constraints (always enforce)
 - Never commit `.env` files
-- Never commit `backend/sightsync.db`, `backend/railway.toml`, `frontend/tsconfig.tsbuildinfo`
+- Never commit `backend/sightsync.db`, `backend/*.db`, `backend/railway.toml`
 - `ANTHROPIC_API_KEY` is never hardcoded — set it in Render dashboard only
 - Mock `anthropic.Anthropic()` in ALL unit tests — never call the real API in tests
