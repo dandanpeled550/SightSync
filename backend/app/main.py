@@ -4,7 +4,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import settings
-from app.routers import health
+from app.routers import health, weather
 
 
 @asynccontextmanager
@@ -27,3 +27,4 @@ app.add_middleware(
 )
 
 app.include_router(health.router)
+app.include_router(weather.router)
