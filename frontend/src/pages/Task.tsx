@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import ScreenShell from '../components/ScreenShell'
+import ScreenShell, { IconBtn } from '../components/ScreenShell'
 import { colors, radius } from '../constants/theme'
 import { fetchTodayLog } from '../api/daily_log'
 import {
@@ -22,7 +22,7 @@ const REASON_CODES = [
 ]
 
 function formatDate(iso: string): string {
-  const d = new Date(iso)
+  const d = new Date(iso + 'T00:00:00')
   return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
 }
 
@@ -125,7 +125,13 @@ export default function Task() {
   const subtitle = isNew ? '' : (task?.level_tag ?? '')
 
   return (
-    <ScreenShell title={title} subtitle={subtitle}>
+    <ScreenShell
+      title={title}
+      subtitle={subtitle}
+      leftAction={<IconBtn onClick={() => navigate(-1)}>‹</IconBtn>}
+      rightAction={<span style={{ fontSize: '20px', color: colors.muted, cursor: 'pointer' }}>⋮</span>}
+      hideBottomNav
+    >
       <div style={{ padding: '16px' }}>
 
         {loadingTask && (
@@ -150,19 +156,20 @@ export default function Task() {
 
         {(!loadingTask && !taskError) && (
           <>
-            {/* Done / Not done toggle row */}
+            {/* Done / Not done segment */}
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '18px' }}>
               <button
                 onClick={() => navigate('/')}
                 style={{
                   height: '52px',
                   border: 'none',
-                  borderRadius: radius.btn,
+                  borderRadius: '17px',
                   background: colors.greenSoft,
                   color: '#087d35',
                   fontWeight: 800,
                   fontSize: '14px',
                   cursor: 'pointer',
+                  letterSpacing: '-0.01em',
                 }}
               >
                 ✓ Done
@@ -171,12 +178,13 @@ export default function Task() {
                 style={{
                   height: '52px',
                   border: 'none',
-                  borderRadius: radius.btn,
+                  borderRadius: '17px',
                   background: colors.redSoft,
                   color: '#dc2626',
                   fontWeight: 800,
                   fontSize: '14px',
                   cursor: 'pointer',
+                  letterSpacing: '-0.01em',
                 }}
               >
                 × Not done
@@ -184,52 +192,53 @@ export default function Task() {
             </div>
 
             {/* Why not completed */}
-            <div style={{ fontWeight: 900, fontSize: '13px', color: colors.text, marginBottom: '8px' }}>
+            <p style={{ margin: '0 0 8px', fontWeight: 900, fontSize: '13px', letterSpacing: '-0.01em', color: colors.text }}>
               Why not completed?
-            </div>
+            </p>
 
             <div style={{
               border: `1px solid ${colors.line}`,
               borderRadius: radius.card,
               padding: '4px 12px',
-              marginBottom: '16px',
+              marginBottom: '18px',
               background: colors.surface,
             }}>
-              {REASON_CODES.map(reason => (
+              {REASON_CODES.map((reason, idx) => (
                 <div
                   key={reason}
                   onClick={() => setSelectedReason(reason)}
                   style={{
                     display: 'flex',
                     alignItems: 'center',
-                    justifyContent: 'space-between',
-                    borderBottom: `1px solid ${colors.line}`,
+                    borderBottom: idx < REASON_CODES.length - 1 ? `1px solid ${colors.line}` : 'none',
                     padding: '13px 4px',
                     fontSize: '13px',
                     cursor: 'pointer',
                     color: colors.text,
                   }}
                 >
-                  <span>
-                    <span style={{
-                      display: 'inline-block',
-                      width: '17px',
-                      height: '17px',
-                      borderRadius: '50%',
-                      border: selectedReason === reason ? `5px solid ${colors.blue}` : `1.5px solid ${colors.mutedLight}`,
-                      verticalAlign: '-3px',
-                      marginRight: '8px',
-                    }} />
-                    {reason}
-                  </span>
+                  <span style={{
+                    display: 'inline-block',
+                    width: '17px',
+                    height: '17px',
+                    borderRadius: '50%',
+                    border: selectedReason === reason
+                      ? `5px solid ${colors.blue}`
+                      : `1.5px solid ${colors.mutedLight}`,
+                    verticalAlign: '-3px',
+                    marginRight: '10px',
+                    flexShrink: 0,
+                    transition: 'border 0.1s',
+                  }} />
+                  {reason}
                 </div>
               ))}
             </div>
 
             {/* New Date picker */}
-            <div style={{ fontWeight: 900, fontSize: '13px', color: colors.text, marginBottom: '8px' }}>
-              New Date
-            </div>
+            <p style={{ margin: '0 0 8px', fontWeight: 900, fontSize: '13px', letterSpacing: '-0.01em', color: colors.text }}>
+              New date
+            </p>
             <input
               type="date"
               min={todayStr}
@@ -303,9 +312,9 @@ export default function Task() {
             )}
 
             {/* Notes */}
-            <div style={{ fontWeight: 900, fontSize: '13px', color: colors.text, marginBottom: '8px' }}>
+            <p style={{ margin: '0 0 8px', fontWeight: 900, fontSize: '13px', letterSpacing: '-0.01em', color: colors.text }}>
               Notes
-            </div>
+            </p>
             <textarea
               placeholder="Add a note…"
               value={notes}

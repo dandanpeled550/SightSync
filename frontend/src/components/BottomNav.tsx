@@ -1,5 +1,5 @@
 import { useNavigate, useLocation } from 'react-router-dom'
-import { colors, bottomNavStyle } from '../constants/theme'
+import { colors } from '../constants/theme'
 
 const HIDDEN_ON = ['/task', '/summary', '/export', '/onboard']
 
@@ -18,7 +18,19 @@ export default function BottomNav() {
   if (hide) return null
 
   return (
-    <div style={bottomNavStyle}>
+    <div style={{
+      position: 'absolute',
+      bottom: 0,
+      left: 0,
+      right: 0,
+      display: 'grid',
+      gridTemplateColumns: 'repeat(4, 1fr)',
+      padding: '10px 14px 12px',
+      borderTop: `1px solid ${colors.line}`,
+      background: 'rgba(255,255,255,0.95)',
+      backdropFilter: 'blur(8px)',
+      zIndex: 10,
+    }}>
       {tabs.map(tab => {
         const active = tab.path === '/' ? pathname === '/' : pathname.startsWith(tab.path)
         return (
@@ -35,10 +47,17 @@ export default function BottomNav() {
               gap: '3px',
               padding: '4px 0',
               color: active ? colors.blue : colors.muted,
+              transition: 'color 0.15s',
             }}
           >
-            <span style={{ fontSize: '20px' }}>{tab.icon}</span>
-            <span style={{ fontSize: '11px', fontWeight: active ? 600 : 400 }}>{tab.label}</span>
+            <span style={{ fontSize: '20px', lineHeight: 1 }}>{tab.icon}</span>
+            <span style={{
+              fontSize: '11px',
+              fontWeight: active ? 800 : 500,
+              letterSpacing: active ? '-0.01em' : 0,
+            }}>
+              {tab.label}
+            </span>
           </button>
         )
       })}

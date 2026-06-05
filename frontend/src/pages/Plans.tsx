@@ -1,48 +1,36 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import ScreenShell from '../components/ScreenShell'
+import ScreenShell, { IconBtn } from '../components/ScreenShell'
 import { colors, radius } from '../constants/theme'
 import { fetchAllTasks, type Task } from '../api/tasks'
 
 const PROJECT_ID = 1
 
-const STATUS_COLORS: Record<string, { bg: string; text: string; label: string }> = {
-  pending:     { bg: '#f1f5f9', text: '#64748b', label: 'Pending' },
-  in_progress: { bg: colors.blueSoft, text: colors.blueDeep, label: 'In Progress' },
-  done:        { bg: colors.greenSoft, text: colors.green, label: 'Done' },
-}
-
-const TRADE_COLORS: Record<string, { bg: string; text: string }> = {
-  electrical: { bg: colors.orangeSoft, text: '#b45309' },
-  plumbing:   { bg: colors.blueSoft, text: colors.blueDeep },
-  concrete:   { bg: colors.greenSoft, text: colors.green },
-  framing:    { bg: '#faf5ff', text: '#7c3aed' },
-  safety:     { bg: colors.redSoft, text: colors.red },
-  cleanup:    { bg: '#f0fdf4', text: '#15803d' },
-  materials:  { bg: colors.orangeSoft, text: '#b45309' },
-  inspection: { bg: colors.blueSoft, text: colors.blueDeep },
-}
-
-function getTradePillStyle(trade: string | null): { bg: string; text: string } {
+// Pill color per trade
+function getPillStyle(trade: string | null): { bg: string; text: string } {
   if (!trade) return { bg: '#f1f5f9', text: '#64748b' }
-  const lower = trade.toLowerCase()
-  for (const key of Object.keys(TRADE_COLORS)) {
-    if (lower.includes(key)) return TRADE_COLORS[key]
-  }
-  return { bg: '#f1f5f9', text: '#64748b' }
+  const l = trade.toLowerCase()
+  if (l.includes('electrical')) return { bg: colors.orangeSoft, text: '#b45309' }
+  if (l.includes('plumbing'))   return { bg: colors.blueSoft,   text: colors.blueDeep }
+  if (l.includes('concrete'))   return { bg: colors.greenSoft,  text: '#087d35' }
+  if (l.includes('framing'))    return { bg: '#faf5ff',          text: '#7c3aed' }
+  if (l.includes('safety'))     return { bg: colors.redSoft,    text: colors.red }
+  return { bg: colors.orangeSoft, text: '#b45309' }
 }
 
 function formatDate(iso: string): string {
-  const d = new Date(iso)
+  const d = new Date(iso + 'T00:00:00')
   return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
 }
 
+const TABS = ['Weekly', 'Monthly', 'Schedule']
+
 export default function Plans() {
-  const navigate = useNavigate()
-  const [tasks, setTasks] = useState<Task[]>([])
+  const navigate    = useNavigate()
+  const [tasks, setTasks]     = useState<Task[]>([])
   const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-  const [expandedLevels, setExpandedLevels] = useState<Set<string>>(new Set())
+  const [error, setError]     = useState<string | null>(null)
+  const [activeTab, setActiveTab] = useState(0)
 
   useEffect(() => {
     setLoading(true)
@@ -50,9 +38,7 @@ export default function Plans() {
     async function load() {
       try {
         const all = await fetchAllTasks(PROJECT_ID)
-        const tasks = Array.isArray(all) ? all : []
-        setTasks(tasks)
-        setExpandedLevels(new Set(tasks.map(t => t.level_tag)))
+        setTasks(Array.isArray(all) ? all : [])
       } catch (err: unknown) {
         setError(err instanceof Error ? err.message : 'Failed to load tasks')
       } finally {
@@ -62,29 +48,49 @@ export default function Plans() {
     load()
   }, [])
 
-  // Group tasks by level_tag preserving insertion order
-  const levelGroups: Map<string, Task[]> = new Map()
-  for (const task of tasks) {
-    if (!levelGroups.has(task.level_tag)) levelGroups.set(task.level_tag, [])
-    levelGroups.get(task.level_tag)!.push(task)
-  }
-
-  function toggleLevel(level: string) {
-    setExpandedLevels(prev => {
-      const next = new Set(prev)
-      if (next.has(level)) next.delete(level)
-      else next.add(level)
-      return next
-    })
-  }
+  // Sort by start_date for the timeline view
+  const sorted = [...tasks].sort(
+    (a, b) => new Date(a.start_date).getTime() - new Date(b.start_date).getTime()
+  )
 
   return (
-    <ScreenShell title="Plans & Deliveries" subtitle="All tasks">
-      <div style={{ padding: '16px' }}>
+    <ScreenShell
+      title="Plans & deliveries"
+      subtitle="This week"
+      leftAction={<IconBtn onClick={() => navigate(-1)}>‹</IconBtn>}
+    >
+      {/* Tabs */}
+      <div style={{
+        display: 'grid',
+        gridTemplateColumns: 'repeat(3, 1fr)',
+        borderBottom: `1px solid ${colors.line}`,
+        padding: '0 18px',
+      }}>
+        {TABS.map((tab, i) => (
+          <button
+            key={tab}
+            onClick={() => setActiveTab(i)}
+            style={{
+              background: 'none',
+              border: 'none',
+              padding: '13px 0',
+              fontSize: '13px',
+              fontWeight: activeTab === i ? 800 : 500,
+              color: activeTab === i ? colors.blueDeep : '#475467',
+              borderBottom: `2px solid ${activeTab === i ? colors.blue : 'transparent'}`,
+              cursor: 'pointer',
+              letterSpacing: activeTab === i ? '-0.01em' : 0,
+            }}
+          >
+            {tab}
+          </button>
+        ))}
+      </div>
 
+      <div style={{ padding: '14px 18px 0' }}>
         {loading && (
-          <div style={{ textAlign: 'center', color: colors.muted, padding: '40px 0', fontSize: '14px' }}>
-            Loading tasks…
+          <div style={{ padding: '48px 0', textAlign: 'center', color: colors.muted, fontSize: '14px' }}>
+            Loading…
           </div>
         )}
 
@@ -101,115 +107,116 @@ export default function Plans() {
           </div>
         )}
 
-        {!loading && !error && tasks.length === 0 && (
-          <div style={{ textAlign: 'center', color: colors.muted, padding: '60px 20px', fontSize: '14px' }}>
+        {!loading && !error && sorted.length === 0 && (
+          <div style={{ padding: '60px 20px', textAlign: 'center', color: colors.muted, fontSize: '14px' }}>
             No tasks found. Upload a schedule to get started.
           </div>
         )}
 
-        {!loading && !error && Array.from(levelGroups.entries()).map(([level, levelTasks]) => {
-          const isExpanded = expandedLevels.has(level)
-          const doneCnt = levelTasks.filter(t => t.status === 'done').length
-          const totalCnt = levelTasks.length
+        {/* Timeline events */}
+        {!loading && !error && sorted.map(task => {
+          const d   = new Date(task.start_date + 'T00:00:00')
+          const day = d.getDate()
+          const dow = d.toLocaleDateString('en-US', { weekday: 'short' }).toUpperCase()
+          const pill = getPillStyle(task.trade_tag)
+
+          const isToday = task.start_date === new Date().toISOString().split('T')[0]
 
           return (
-            <div key={level} style={{ marginBottom: '8px' }}>
-              {/* Level header */}
-              <button
-                onClick={() => toggleLevel(level)}
-                style={{
-                  width: '100%',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '10px',
-                  padding: '13px 14px',
-                  background: isExpanded ? colors.blueSoft : colors.surface2,
-                  border: `1px solid ${isExpanded ? '#bfdbfe' : colors.line}`,
-                  borderRadius: isExpanded ? `${radius.card} ${radius.card} 0 0` : radius.card,
-                  cursor: 'pointer',
-                  textAlign: 'left',
-                }}
-              >
-                <span style={{ fontSize: '16px' }}>🏗</span>
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontWeight: 800, fontSize: '14px', color: isExpanded ? colors.blueDeep : colors.text }}>
-                    {level}
-                  </div>
-                  <div style={{ fontSize: '12px', color: colors.muted }}>
-                    {doneCnt}/{totalCnt} done
-                  </div>
-                </div>
-                <span style={{ fontSize: '16px', color: colors.muted, transform: isExpanded ? 'rotate(90deg)' : 'none', display: 'inline-block', transition: 'transform 0.2s' }}>›</span>
-              </button>
-
-              {/* Task rows */}
-              {isExpanded && (
-                <div style={{
-                  border: `1px solid ${colors.line}`,
-                  borderTop: 'none',
-                  borderRadius: `0 0 ${radius.card} ${radius.card}`,
-                  overflow: 'hidden',
-                  background: colors.surface,
-                  marginBottom: '4px',
+            <div
+              key={task.id}
+              onClick={() => navigate(`/task/${task.id}`)}
+              style={{
+                display: 'grid',
+                gridTemplateColumns: '54px 1fr auto',
+                gap: '12px',
+                alignItems: 'center',
+                padding: '12px',
+                border: `1px solid ${colors.line}`,
+                borderRadius: '20px',
+                marginBottom: '10px',
+                cursor: 'pointer',
+                background: '#fff',
+                transition: 'background 0.1s',
+              }}
+              onMouseEnter={e => (e.currentTarget.style.background = colors.surface2)}
+              onMouseLeave={e => (e.currentTarget.style.background = '#fff')}
+            >
+              {/* Date box */}
+              <div style={{
+                height: '52px',
+                borderRadius: '16px',
+                background: isToday ? colors.blueSoft : '#f8fafc',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '1px',
+              }}>
+                <span style={{
+                  fontSize: '9px',
+                  color: isToday ? colors.blue : colors.muted,
+                  fontWeight: 700,
+                  letterSpacing: '0.04em',
                 }}>
-                  {levelTasks.map((task, idx) => {
-                    const tradePill = getTradePillStyle(task.trade_tag)
-                    const statusStyle = STATUS_COLORS[task.status] ?? STATUS_COLORS['pending']
+                  {dow}
+                </span>
+                <span style={{
+                  fontSize: '20px',
+                  fontWeight: 900,
+                  letterSpacing: '-0.04em',
+                  color: isToday ? colors.blue : colors.text,
+                  lineHeight: 1,
+                }}>
+                  {day}
+                </span>
+              </div>
 
-                    return (
-                      <div
-                        key={task.id}
-                        onClick={() => navigate(`/task/${task.id}`)}
-                        style={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: '10px',
-                          padding: '12px 14px',
-                          borderBottom: idx < levelTasks.length - 1 ? `1px solid ${colors.line}` : 'none',
-                          cursor: 'pointer',
-                          background: colors.surface,
-                        }}
-                        onMouseEnter={e => (e.currentTarget.style.background = colors.surface2)}
-                        onMouseLeave={e => (e.currentTarget.style.background = colors.surface)}
-                      >
-                        <div style={{ flex: 1, minWidth: 0 }}>
-                          <div style={{ fontWeight: 600, fontSize: '14px', color: colors.text, marginBottom: '4px' }}>
-                            {task.name}
-                          </div>
-                          <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', alignItems: 'center' }}>
-                            {task.trade_tag && (
-                              <span style={{
-                                fontSize: '11px',
-                                fontWeight: 700,
-                                borderRadius: radius.pill,
-                                padding: '3px 8px',
-                                background: tradePill.bg,
-                                color: tradePill.text,
-                              }}>
-                                {task.trade_tag}
-                              </span>
-                            )}
-                            <span style={{ fontSize: '11px', color: colors.mutedLight }}>
-                              {formatDate(task.start_date)} → {formatDate(task.end_date)}
-                            </span>
-                          </div>
-                        </div>
-                        <span style={{
-                          fontSize: '11px',
-                          fontWeight: 800,
-                          borderRadius: radius.pill,
-                          padding: '5px 9px',
-                          background: statusStyle.bg,
-                          color: statusStyle.text,
-                          whiteSpace: 'nowrap',
-                        }}>
-                          {statusStyle.label}
-                        </span>
-                      </div>
-                    )
-                  })}
+              {/* Task info */}
+              <div style={{ minWidth: 0 }}>
+                <div style={{
+                  fontWeight: 800,
+                  fontSize: '14px',
+                  letterSpacing: '-0.02em',
+                  color: colors.text,
+                  marginBottom: '2px',
+                  whiteSpace: 'nowrap',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                }}>
+                  {task.name}
                 </div>
-              )}
+                <div style={{ fontSize: '12px', color: colors.muted }}>
+                  {task.level_tag}
+                  {task.trade_tag ? ` · ${formatDate(task.start_date)} – ${formatDate(task.end_date)}` : ''}
+                </div>
+              </div>
+
+              {/* Trade pill */}
+              {task.trade_tag ? (
+                <span style={{
+                  fontSize: '11px',
+                  fontWeight: 800,
+                  borderRadius: '999px',
+                  padding: '7px 9px',
+                  background: pill.bg,
+                  color: pill.text,
+                  whiteSpace: 'nowrap',
+                }}>
+                  {task.trade_tag}
+                </span>
+              ) : isToday ? (
+                <span style={{
+                  fontSize: '11px',
+                  fontWeight: 800,
+                  borderRadius: '999px',
+                  padding: '7px 9px',
+                  background: colors.orangeSoft,
+                  color: '#b45309',
+                }}>
+                  Today
+                </span>
+              ) : null}
             </div>
           )
         })}
