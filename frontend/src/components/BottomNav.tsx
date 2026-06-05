@@ -19,18 +19,21 @@ export default function BottomNav() {
 
   return (
     <div style={{
-      position: 'absolute',
+      position: 'fixed',
       bottom: 0,
       left: 0,
       right: 0,
-      display: 'grid',
-      gridTemplateColumns: 'repeat(4, 1fr)',
-      padding: '10px 14px 12px',
       borderTop: `1px solid ${colors.line}`,
       background: 'rgba(255,255,255,0.95)',
       backdropFilter: 'blur(8px)',
       zIndex: 10,
     }}>
+      <div style={{
+        display: 'grid',
+        gridTemplateColumns: 'repeat(4, 1fr)',
+        maxWidth: '720px',
+        padding: '10px 14px 12px',
+      }}>
       {tabs.map(tab => {
         const active = tab.path === '/' ? pathname === '/' : pathname.startsWith(tab.path)
         return (
@@ -61,6 +64,7 @@ export default function BottomNav() {
           </button>
         )
       })}
+      </div>
     </div>
   )
 }

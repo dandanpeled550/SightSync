@@ -64,7 +64,8 @@ export default function Plans() {
         display: 'grid',
         gridTemplateColumns: 'repeat(3, 1fr)',
         borderBottom: `1px solid ${colors.line}`,
-        padding: '0 18px',
+        padding: '0 24px',
+        maxWidth: '720px',
       }}>
         {TABS.map((tab, i) => (
           <button
@@ -87,7 +88,7 @@ export default function Plans() {
         ))}
       </div>
 
-      <div style={{ padding: '14px 18px 0' }}>
+      <div style={{ padding: '14px 24px 0', maxWidth: '720px' }}>
         {loading && (
           <div style={{ padding: '48px 0', textAlign: 'center', color: colors.muted, fontSize: '14px' }}>
             Loading…

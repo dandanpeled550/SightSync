@@ -74,7 +74,7 @@ export default function Site() {
       subtitle="Choose level"
       leftAction={<IconBtn onClick={() => navigate(-1)}>‹</IconBtn>}
     >
-      <div style={{ padding: '4px 18px', paddingBottom: '90px' }}>
+      <div style={{ padding: '16px 24px', paddingBottom: '90px', maxWidth: '720px' }}>
 
         {loading && (
           <div style={{ padding: '48px 0', textAlign: 'center', color: colors.muted, fontSize: '14px' }}>
@@ -258,10 +258,11 @@ export default function Site() {
 
       {/* Apply filters button */}
       <div style={{
-        position: 'absolute',
+        position: 'fixed',
         bottom: '72px',
-        left: '18px',
-        right: '18px',
+        left: '24px',
+        right: '24px',
+        maxWidth: '672px',
       }}>
         <button
           onClick={handleApply}

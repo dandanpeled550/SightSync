@@ -132,7 +132,7 @@ export default function Task() {
       rightAction={<span style={{ fontSize: '20px', color: colors.muted, cursor: 'pointer' }}>⋮</span>}
       hideBottomNav
     >
-      <div style={{ padding: '16px' }}>
+      <div style={{ padding: '16px 24px', maxWidth: '720px' }}>
 
         {loadingTask && (
           <div style={{ textAlign: 'center', color: colors.muted, padding: '40px 0', fontSize: '14px' }}>

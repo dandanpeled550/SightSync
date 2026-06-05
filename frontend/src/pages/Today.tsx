@@ -111,7 +111,7 @@ export default function Today() {
         ) : undefined
       }
     >
-      <div style={{ padding: '4px 18px 0' }}>
+      <div style={{ padding: '16px 24px 0', maxWidth: '720px' }}>
         <p style={{
           margin: '0 0 12px',
           fontWeight: 900,
@@ -240,7 +240,7 @@ export default function Today() {
       <button
         onClick={() => navigate('/task/new')}
         style={{
-          position: 'absolute',
+          position: 'fixed',
           bottom: '72px',
           left: '50%',
           transform: 'translateX(-50%)',

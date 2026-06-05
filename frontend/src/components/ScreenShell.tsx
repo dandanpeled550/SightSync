@@ -21,12 +21,10 @@ export default function ScreenShell({
 }: ScreenShellProps) {
   return (
     <div style={{
-      maxWidth: '390px',
+      width: '100%',
       minHeight: '100vh',
-      margin: '0 auto',
       background: 'linear-gradient(180deg,#fff,#fbfdff)',
       position: 'relative',
-      overflow: 'hidden',
     }}>
       {/* Top bar — 52px, icon | title block | right */}
       <div style={{
@@ -35,7 +33,8 @@ export default function ScreenShell({
         alignItems: 'center',
         justifyContent: 'space-between',
         gap: '10px',
-        padding: '0 18px',
+        padding: '0 24px',
+        borderBottom: `1px solid #e8edf5`,
         flexShrink: 0,
       }}>
         {/* Left slot */}
