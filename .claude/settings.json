@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Write(.claude/commands/**)",
+      "Edit(.claude/commands/**)",
+      "Read(.claude/commands/**)"
+    ]
+  }
+}

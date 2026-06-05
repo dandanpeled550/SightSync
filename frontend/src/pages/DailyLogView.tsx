@@ -48,7 +48,11 @@ export default function DailyLogView() {
       <div style={s.nav}>
         <button style={s.arrow} onClick={() => navigate(-1)}>← Prev</button>
         <span style={s.dateLabel}>{formatDate(currentDate)}</span>
-        <button style={s.arrow} onClick={() => navigate(1)} disabled={isToday}>Next →</button>
+        <button
+          style={{ ...s.arrow, ...(isToday ? s.arrowDisabled : {}) }}
+          onClick={() => navigate(1)}
+          disabled={isToday}
+        >Next →</button>
       </div>
 
       {status === 'loading' && <p style={s.muted}>Loading…</p>}
@@ -80,6 +84,7 @@ export default function DailyLogView() {
 const s: Record<string, React.CSSProperties> = {
   nav: { display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '1.5rem' },
   arrow: { padding: '0.35rem 0.8rem', border: '1px solid #ddd', borderRadius: '6px', background: '#fff', cursor: 'pointer', fontSize: '0.88rem', color: '#333' },
+  arrowDisabled: { opacity: 0.35, cursor: 'not-allowed' },
   dateLabel: { flex: 1, textAlign: 'center', fontWeight: 600, color: '#333', fontSize: '0.95rem' },
   muted: { color: '#888', fontSize: '0.9rem' },
   error: { color: '#c0392b' },

@@ -182,6 +182,7 @@ All relationships use cascading deletes from Project downward.
 - **Upsert pattern** — `POST /daily-logs/today` and attendance use upsert (update if exists, create if not). Prefer this over separate create/update endpoints when applicable.
 - **Resilient error storage** — weather fetch errors are stored in `DailyLog.weather_error` and never cause the request to fail. Follow this pattern for any optional external data.
 - **Migrations** — every model change requires a new Alembic migration: `cd backend && .venv/bin/alembic revision --autogenerate -m "description"` then `upgrade head`.
+- **`end_date` computation** — always compute in the router: `end_date = start_date + timedelta(days=duration_days)`. Do not use DB-level triggers or computed columns.
 
 ---
 
@@ -193,6 +194,7 @@ All relationships use cascading deletes from Project downward.
 | `FRONTEND_URL` | Backend `.env` | Used for CORS; defaults to `http://localhost:5173` |
 | `SECRET_KEY` | Backend `.env` | Defaults to `dev-secret-change-me` (change for prod) |
 | `VITE_API_URL` | Frontend `.env` | Backend base URL; defaults to `http://localhost:8000` |
+| `ANTHROPIC_API_KEY` | Backend `.env` / Render env | Required for Sprint 4+ AI features; leave empty for local/CI to use mock paths |
 
 Never commit `.env` files. On Render, `DATABASE_URL` and `FRONTEND_URL` are injected automatically via the Blueprint.
 
@@ -209,7 +211,7 @@ Seeded by `backend/seed.py` (idempotent — safe to re-run):
 
 ---
 
-## Sprint 1 Status
+## Sprint 1 Status — All Complete
 
 | # | Feature | Status |
 |---|---|---|
@@ -218,20 +220,26 @@ Seeded by `backend/seed.py` (idempotent — safe to re-run):
 | 2 | Crew Management + Daily Attendance | ✅ Done |
 | 3 | Safety Incident Documentation | ✅ Done |
 | 4 | Materials Used Logging | ✅ Done |
-| 5 | **UI Views — Dashboard + Entry Form** | ⬜ **Next** |
+| 5 | UI Views — Dashboard + Entry Form | ✅ Done |
 
-### Feature 5 — What Needs to Be Built
+67 backend tests passing. Frontend: DailyLogView (dashboard + entry form), all four blocks integrated.
 
-**View A — Daily Log Dashboard (read-only)**
-- All four blocks rendered together: WeatherBlock, CrewAttendanceBlock, SafetyBlock, MaterialsBlock
-- `SafetyBlock` and `MaterialsBlock` are built but not yet integrated into `App.tsx`
-- Date navigation to view past logs
+---
 
-**View B — Data Entry Form (edit)**
-- Date selector (defaults to today)
-- All four blocks in edit mode (not `readOnly`)
-- Single save action persists everything
-- Weather: option to trigger manual re-fetch
+## Sprint 2–6 Scope (Backend-Only Until Mockups Arrive)
+
+**Note: Frontend work is deferred pending UI mockups from the user. All sprints below are backend-only until mockups arrive.**
+
+| Sprint | Name | Goal |
+|---|---|---|
+| S0 | Agent Setup & Infrastructure | CLAUDE.md files, CI, git cleanup |
+| S2 | Task Data Layer | Task, TaskDependency, TaskLogEntry models + CRUD |
+| S3 | Cascade Delay Engine | BFS cascade preview/apply service |
+| S4 | Excel Upload + AI Task Extraction | openpyxl + Claude extraction + confirm flow |
+| S5 | Log Submission + AI Summary + PDF | submit flag, AI narrative, reportlab PDF |
+| S6 | Today View Backend + Task Marking | task-today filter + not_done validation |
+
+Full plan: `Sprints/FULL_PRODUCT_EXECUTION_PLAN.md`
 
 ---
 
@@ -281,9 +289,9 @@ Do not implement these until explicitly added to the brief:
 - Frontend components: `frontend/src/components/`. Pages: `frontend/src/pages/`. API layer: `frontend/src/api/`.
 
 ### Plan agents
-- Sprint 1 Feature 5 (UI Views) is the immediate next task. See the "Sprint 1 Status" section above.
-- Do not re-plan completed features. Start from Feature 5.
-- `App.tsx` is the integration point for all block components.
+- Sprint 1 is fully complete. The next sprint is Sprint 2 (Task Data Layer).
+- Do not re-plan Sprint 1 features. See `Sprints/FULL_PRODUCT_EXECUTION_PLAN.md` for Sprint 2+ scope.
+- Frontend sprints are deferred — do not plan frontend work until the user provides UI mockups.
 
 ### Review / security agents
 - Check for hardcoded `project_id=1` — it is intentional for Sprint 1, not a bug.

@@ -11,4 +11,11 @@ export default defineConfig({
     outDir: 'dist',
     sourcemap: false,
   },
+  test: {
+    environment: 'jsdom',
+    globals: true,
+    setupFiles: ['./src/test/setup.ts'],
+    passWithNoTests: true,
+    coverage: { provider: 'v8', thresholds: { lines: 60 } },
+  },
 })
