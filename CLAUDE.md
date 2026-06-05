@@ -194,7 +194,7 @@ All relationships use cascading deletes from Project downward.
 | `FRONTEND_URL` | Backend `.env` | Used for CORS; defaults to `http://localhost:5173` |
 | `SECRET_KEY` | Backend `.env` | Defaults to `dev-secret-change-me` (change for prod) |
 | `VITE_API_URL` | Frontend `.env` | Backend base URL; defaults to `http://localhost:8000` |
-| `ANTHROPIC_API_KEY` | Backend `.env` / Render env | Required for Sprint 4+ AI features; leave empty for local/CI to use mock paths |
+| `ANTHROPIC_API_KEY` | Backend `.env` | Claude API key for AI extraction + summary. Optional locally — endpoints degrade gracefully if absent. Required on Render. |
 
 Never commit `.env` files. On Render, `DATABASE_URL` and `FRONTEND_URL` are injected automatically via the Blueprint.
 
@@ -226,9 +226,9 @@ Seeded by `backend/seed.py` (idempotent — safe to re-run):
 
 ---
 
-## Sprint 2–6 Scope (Backend-Only Until Mockups Arrive)
+## Sprint 2–6 Scope
 
-**Note: Frontend work is deferred pending UI mockups from the user. All sprints below are backend-only until mockups arrive.**
+**Frontend phases are gated on backend sprints. Phase 1 (shell + design system) runs in parallel with backend Sprint 2. See `Sprints/FULL_PRODUCT_EXECUTION_PLAN.md` for the full plan. UI source of truth: `Sprints/site_diary_app_clickable_demo.html`.**
 
 | Sprint | Name | Goal |
 |---|---|---|
@@ -255,15 +255,18 @@ Full plan: `Sprints/FULL_PRODUCT_EXECUTION_PLAN.md`
 
 ---
 
-## Out of Scope (Sprint 1)
+## Out of Scope (all sprints)
 
 Do not implement these until explicitly added to the brief:
 - Authentication / login (single hardcoded user)
-- AI summaries, pattern insights, cascade alerts
-- PDF export
 - Photo uploads (model field exists; UI is a stub)
 - Multi-project support
-- Visual polish, branding, responsive design beyond functional
+
+The following are NOW IN SCOPE in Sprints 3–5:
+- AI summaries → Sprint 5
+- Cascade alerts → Sprint 3
+- PDF export → Sprint 5
+- Mobile-first UI polish → Frontend Phase 1 (parallel with Sprint 2)
 
 ---
 
@@ -291,7 +294,7 @@ Do not implement these until explicitly added to the brief:
 ### Plan agents
 - Sprint 1 is fully complete. The next sprint is Sprint 2 (Task Data Layer).
 - Do not re-plan Sprint 1 features. See `Sprints/FULL_PRODUCT_EXECUTION_PLAN.md` for Sprint 2+ scope.
-- Frontend sprints are deferred — do not plan frontend work until the user provides UI mockups.
+- Frontend Phase 1 (shell + design system) runs in parallel with backend Sprint 2. Phases 2–5 are gated on their respective backend sprints. See `Sprints/FULL_PRODUCT_EXECUTION_PLAN.md` for full frontend phase plan.
 
 ### Review / security agents
 - Check for hardcoded `project_id=1` — it is intentional for Sprint 1, not a bug.
