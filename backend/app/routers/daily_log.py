@@ -30,6 +30,8 @@ class DailyLogOut(BaseModel):
     project_id: int
     date: str
     weather: WeatherOut
+    submitted: bool
+    ai_summary: Optional[str]
 
 
 def _serialize(log: DailyLog) -> DailyLogOut:
@@ -45,6 +47,8 @@ def _serialize(log: DailyLog) -> DailyLogOut:
             wind_speed=log.weather_wind_speed,
             error=log.weather_error,
         ),
+        submitted=log.submitted if log.submitted is not None else False,
+        ai_summary=log.ai_summary,
     )
 
 
