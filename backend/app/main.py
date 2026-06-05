@@ -4,7 +4,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import settings
-from app.routers import health, weather, daily_log, crew, incidents, materials
+from app.routers import health, weather, daily_log, crew, incidents, materials, tasks
 
 
 @asynccontextmanager
@@ -28,3 +28,4 @@ app.include_router(daily_log.router)
 app.include_router(crew.router)
 app.include_router(incidents.router)
 app.include_router(materials.router)
+app.include_router(tasks.router)
