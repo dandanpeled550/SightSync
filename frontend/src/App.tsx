@@ -1,72 +1,44 @@
-import { useEffect, useState } from 'react'
-import { fetchTodayLog, DailyLog } from './api/daily_log'
-import WeatherBlock from './components/WeatherBlock'
-import CrewAttendanceBlock from './components/CrewAttendanceBlock'
+import DailyLogView from './pages/DailyLogView'
+import LogEntryForm from './pages/LogEntryForm'
 import CrewManagement from './pages/CrewManagement'
+import { useState } from 'react'
 
-type View = 'log' | 'crew'
+type View = 'log' | 'entry' | 'crew'
 
-function App() {
+const NAV: { id: View; label: string }[] = [
+  { id: 'log', label: "Today's Log" },
+  { id: 'entry', label: 'Log Entry' },
+  { id: 'crew', label: 'Crew' },
+]
+
+export default function App() {
   const [view, setView] = useState<View>('log')
-  const [log, setLog] = useState<DailyLog | null>(null)
-  const [logStatus, setLogStatus] = useState<'loading' | 'success' | 'error'>('loading')
-  const [logError, setLogError] = useState('')
-
-  useEffect(() => {
-    fetchTodayLog()
-      .then((data) => { setLog(data); setLogStatus('success') })
-      .catch((err) => {
-        setLogError(err?.response?.data?.detail ?? "Could not load today's log.")
-        setLogStatus('error')
-      })
-  }, [])
 
   return (
-    <div style={{ fontFamily: 'sans-serif', padding: '2rem', maxWidth: '800px' }}>
-      {/* Nav */}
+    <div style={{ fontFamily: 'sans-serif', padding: '2rem', maxWidth: '860px' }}>
       <div style={s.nav}>
         <strong style={s.brand}>simple.</strong>
-        {(['log', 'crew'] as View[]).map((v) => (
+        {NAV.map(({ id, label }) => (
           <button
-            key={v}
-            style={{ ...s.navBtn, ...(view === v ? s.navBtnActive : {}) }}
-            onClick={() => setView(v)}
+            key={id}
+            style={{ ...s.navBtn, ...(view === id ? s.active : {}) }}
+            onClick={() => setView(id)}
           >
-            {v === 'log' ? "Today's Log" : 'Crew'}
+            {label}
           </button>
         ))}
       </div>
 
-      {/* Today's Log */}
-      {view === 'log' && (
-        <div>
-          <p style={s.dateLine}>
-            {new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
-          </p>
-          {logStatus === 'loading' && <p>Loading today's log...</p>}
-          {logStatus === 'error' && <p style={s.error}>{logError}</p>}
-          {logStatus === 'success' && log && (
-            <>
-              <WeatherBlock weather={log.weather} date={log.date} />
-              <CrewAttendanceBlock logId={log.id} />
-            </>
-          )}
-        </div>
-      )}
-
-      {/* Crew registry */}
-      {view === 'crew' && <CrewManagement />}
+      {view === 'log'   && <DailyLogView />}
+      {view === 'entry' && <LogEntryForm />}
+      {view === 'crew'  && <CrewManagement />}
     </div>
   )
 }
 
 const s: Record<string, React.CSSProperties> = {
-  nav: { display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1.5rem', borderBottom: '2px solid #eee', paddingBottom: '0.75rem' },
-  brand: { marginRight: '0.5rem', fontSize: '1.1rem', color: '#1a1a2e' },
+  nav: { display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1.75rem', borderBottom: '2px solid #eee', paddingBottom: '0.75rem' },
+  brand: { marginRight: '0.75rem', fontSize: '1.1rem', color: '#1a1a2e', letterSpacing: '-0.5px' },
   navBtn: { padding: '0.35rem 0.9rem', border: '1px solid #ddd', borderRadius: '6px', background: '#fff', cursor: 'pointer', fontSize: '0.9rem', color: '#555' },
-  navBtnActive: { background: '#1a1a2e', color: '#fff', borderColor: '#1a1a2e' },
-  dateLine: { color: '#888', margin: '0 0 1.5rem', fontSize: '0.9rem' },
-  error: { color: '#c0392b' },
+  active: { background: '#1a1a2e', color: '#fff', borderColor: '#1a1a2e' },
 }
-
-export default App

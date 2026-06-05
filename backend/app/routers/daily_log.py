@@ -79,6 +79,26 @@ async def get_or_create_today(db: Session = Depends(get_db)) -> DailyLogOut:
     return _serialize(log)
 
 
+@router.post("/{log_id}/refetch-weather", response_model=DailyLogOut)
+async def refetch_weather(log_id: int, db: Session = Depends(get_db)) -> DailyLogOut:
+    log = db.query(DailyLog).filter(DailyLog.id == log_id).first()
+    if not log:
+        raise HTTPException(status_code=404, detail="Daily log not found")
+
+    project = db.query(Project).filter(Project.id == log.project_id).first()
+    try:
+        weather = await fetch_weather_for_location(project.latitude, project.longitude)
+        for key, val in weather.items():
+            setattr(log, key, val)
+        log.weather_error = None
+    except Exception as exc:
+        log.weather_error = str(exc)
+
+    db.commit()
+    db.refresh(log)
+    return _serialize(log)
+
+
 @router.get("/{date}", response_model=DailyLogOut)
 def get_log_by_date(date: str, db: Session = Depends(get_db)) -> DailyLogOut:
     try:

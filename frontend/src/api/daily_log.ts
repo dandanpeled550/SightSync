@@ -25,3 +25,8 @@ export async function fetchLogByDate(date: string): Promise<DailyLog> {
   const res = await api.get<DailyLog>(`/daily-logs/${date}`)
   return res.data
 }
+
+export async function refetchWeather(logId: number): Promise<DailyLog> {
+  const res = await api.post<DailyLog>(`/daily-logs/${logId}/refetch-weather`)
+  return res.data
+}
