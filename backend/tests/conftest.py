@@ -130,3 +130,83 @@ def seeded_client(SessionFactory):
         c.log_id = log_id  # type: ignore[attr-defined]
         yield c
     app.dependency_overrides.clear()
+
+
+@pytest.fixture()
+def seeded_client_with_tasks(SessionFactory):
+    """TestClient with a pre-seeded Project, DailyLog, 3 Tasks, and 2 Dependencies.
+
+    Exposes .project_id, .log_id, .task_ids (list of 3), and .dep_ids (list of 2).
+    """
+    from app.models import Task, TaskDependency
+
+    seed_session = SessionFactory()
+    try:
+        project, log = _seed_project_and_log(seed_session)
+        project_id = project.id
+        log_id = log.id
+
+        today = datetime.date.today()
+
+        task1 = Task(
+            project_id=project_id,
+            name="Pour Foundation Concrete",
+            level_tag="Level 1",
+            trade_tag="Concrete",
+            start_date=today - datetime.timedelta(days=2),
+            duration_days=5,
+            end_date=(today - datetime.timedelta(days=2)) + datetime.timedelta(days=5),
+            status="in_progress",
+            source="manual",
+        )
+        task2 = Task(
+            project_id=project_id,
+            name="Install Electrical Conduits",
+            level_tag="Level 4",
+            trade_tag="Electrical",
+            start_date=today,
+            duration_days=3,
+            end_date=today + datetime.timedelta(days=3),
+            status="pending",
+            source="manual",
+        )
+        task3 = Task(
+            project_id=project_id,
+            name="Plumbing Rough-In",
+            level_tag="Level 5",
+            trade_tag="Plumbing",
+            start_date=today + datetime.timedelta(days=10),
+            duration_days=4,
+            end_date=today + datetime.timedelta(days=14),
+            status="pending",
+            source="manual",
+        )
+        seed_session.add_all([task1, task2, task3])
+        seed_session.flush()
+
+        dep1 = TaskDependency(task_id=task2.id, depends_on_task_id=task1.id, lag_days=0)
+        dep2 = TaskDependency(task_id=task3.id, depends_on_task_id=task2.id, lag_days=1)
+        seed_session.add_all([dep1, dep2])
+        seed_session.flush()
+
+        task_ids = [task1.id, task2.id, task3.id]
+        dep_ids = [dep1.id, dep2.id]
+        seed_session.commit()
+    finally:
+        seed_session.close()
+
+    def override_get_db():
+        db = SessionFactory()
+        try:
+            yield db
+        finally:
+            db.close()
+
+    app.dependency_overrides[get_db] = override_get_db
+    with TestClient(app) as c:
+        c.project_id = project_id  # type: ignore[attr-defined]
+        c.log_id = log_id  # type: ignore[attr-defined]
+        c.task_ids = task_ids  # type: ignore[attr-defined]
+        c.dep_ids = dep_ids  # type: ignore[attr-defined]
+        yield c
+    app.dependency_overrides.clear()
