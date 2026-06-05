@@ -4,7 +4,6 @@ from typing import List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, ConfigDict
-from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.database import get_db
@@ -229,6 +228,17 @@ def create_task_entry(log_id: int, body: TaskLogEntryCreate, db: Session = Depen
     if body.action == "not_done" and body.new_date is None:
         raise HTTPException(status_code=422, detail="new_date is required when action is 'not_done'")
 
+    task = db.query(Task).filter(Task.id == body.task_id, Task.project_id == log.project_id).first()
+    if not task:
+        raise HTTPException(status_code=404, detail="task_id not found in this project")
+
+    existing = db.query(TaskLogEntry).filter(
+        TaskLogEntry.daily_log_id == log_id,
+        TaskLogEntry.task_id == body.task_id,
+    ).first()
+    if existing:
+        raise HTTPException(status_code=409, detail="Task entry already exists for this log and task")
+
     entry = TaskLogEntry(
         daily_log_id=log_id,
         task_id=body.task_id,
@@ -237,11 +247,15 @@ def create_task_entry(log_id: int, body: TaskLogEntryCreate, db: Session = Depen
         reason=body.reason,
     )
     db.add(entry)
-    try:
-        db.commit()
-    except IntegrityError:
-        db.rollback()
-        raise HTTPException(status_code=409, detail="Task entry already exists for this log and task")
+
+    # Reflect the mark on the task itself so tasks/today stays accurate
+    if body.action == "done":
+        task.status = "done"
+    else:
+        task.start_date = body.new_date
+        task.end_date = body.new_date + datetime.timedelta(days=task.duration_days)
+
+    db.commit()
     db.refresh(entry)
     return entry
 
