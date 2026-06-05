@@ -51,27 +51,26 @@ export default function Today() {
 
   useEffect(() => {
     let cancelled = false
-    setLoading(true)
-    setError(null)
 
-    fetchTodayLog()
-      .then(log => {
+    async function load() {
+      setLoading(true)
+      setError(null)
+      try {
+        const log = await fetchTodayLog()
         if (cancelled) return
         setLogId(log.id)
-        return fetchTodayTasks(PROJECT_ID)
-      })
-      .then(todayTasks => {
+        const todayTasks = await fetchTodayTasks(PROJECT_ID)
         if (cancelled) return
-        setTasks(todayTasks ?? [])
-      })
-      .catch(err => {
+        setTasks(Array.isArray(todayTasks) ? todayTasks : [])
+      } catch (err: unknown) {
         if (cancelled) return
-        setError(err?.message ?? 'Failed to load today\'s tasks')
-      })
-      .finally(() => {
+        setError(err instanceof Error ? err.message : 'Failed to load today\'s tasks')
+      } finally {
         if (!cancelled) setLoading(false)
-      })
+      }
+    }
 
+    load()
     return () => { cancelled = true }
   }, [])
 

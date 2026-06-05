@@ -66,14 +66,19 @@ export default function Task() {
       return
     }
     setLoadingTask(true)
-    fetchAllTasks(PROJECT_ID)
-      .then(all => {
-        const found = all.find(t => t.id === numId) ?? null
+    ;(async () => {
+      try {
+        const all = await fetchAllTasks(PROJECT_ID)
+        const list = Array.isArray(all) ? all : []
+        const found = list.find(t => t.id === numId) ?? null
         setTask(found)
         if (!found) setTaskError('Task not found')
-      })
-      .catch(err => setTaskError(err?.message ?? 'Failed to load task'))
-      .finally(() => setLoadingTask(false))
+      } catch (err: unknown) {
+        setTaskError(err instanceof Error ? err.message : 'Failed to load task')
+      } finally {
+        setLoadingTask(false)
+      }
+    })()
   }, [taskId, isNew])
 
   // Fetch cascade preview when newDate changes

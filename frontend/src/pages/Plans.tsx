@@ -47,15 +47,19 @@ export default function Plans() {
   useEffect(() => {
     setLoading(true)
     setError(null)
-    fetchAllTasks(PROJECT_ID)
-      .then(all => {
-        setTasks(all)
-        // auto-expand all groups initially
-        const levels = new Set(all.map(t => t.level_tag))
-        setExpandedLevels(levels)
-      })
-      .catch(err => setError(err?.message ?? 'Failed to load tasks'))
-      .finally(() => setLoading(false))
+    async function load() {
+      try {
+        const all = await fetchAllTasks(PROJECT_ID)
+        const tasks = Array.isArray(all) ? all : []
+        setTasks(tasks)
+        setExpandedLevels(new Set(tasks.map(t => t.level_tag)))
+      } catch (err: unknown) {
+        setError(err instanceof Error ? err.message : 'Failed to load tasks')
+      } finally {
+        setLoading(false)
+      }
+    }
+    load()
   }, [])
 
   // Group tasks by level_tag preserving insertion order

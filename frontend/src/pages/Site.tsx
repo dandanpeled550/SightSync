@@ -36,10 +36,17 @@ export default function Site() {
   useEffect(() => {
     setLoading(true)
     setError(null)
-    fetchAllTasks(PROJECT_ID)
-      .then(all => setTasks(all))
-      .catch(err => setError(err?.message ?? 'Failed to load tasks'))
-      .finally(() => setLoading(false))
+    async function load() {
+      try {
+        const all = await fetchAllTasks(PROJECT_ID)
+        setTasks(Array.isArray(all) ? all : [])
+      } catch (err: unknown) {
+        setError(err instanceof Error ? err.message : 'Failed to load tasks')
+      } finally {
+        setLoading(false)
+      }
+    }
+    load()
   }, [])
 
   // Auto-scroll to highlighted level when tasks load
