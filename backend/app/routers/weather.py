@@ -14,6 +14,7 @@ class DailyForecast(BaseModel):
     min_temp: float
     weather_code: int
     precipitation: float
+    wind_speed: float
 
 
 class WeatherResponse(BaseModel):
@@ -47,7 +48,7 @@ async def get_weather(city: str = Query(..., min_length=1, max_length=100)) -> W
                 params={
                     "latitude": lat,
                     "longitude": lon,
-                    "daily": "temperature_2m_max,temperature_2m_min,weathercode,precipitation_sum",
+                    "daily": "temperature_2m_max,temperature_2m_min,weathercode,precipitation_sum,windspeed_10m_max",
                     "timezone": "auto",
                     "forecast_days": 7,
                 },
@@ -67,6 +68,7 @@ async def get_weather(city: str = Query(..., min_length=1, max_length=100)) -> W
                         min_temp=daily["temperature_2m_min"][i],
                         weather_code=daily["weathercode"][i],
                         precipitation=daily["precipitation_sum"][i] or 0.0,
+                        wind_speed=daily["windspeed_10m_max"][i] or 0.0,
                     )
                     for i in range(7)
                 ],
