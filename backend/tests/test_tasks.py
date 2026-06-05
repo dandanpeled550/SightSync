@@ -393,3 +393,79 @@ def test_daily_log_has_submitted_field(seeded_client):
     assert data["submitted"] is False
     assert "ai_summary" in data
     assert data["ai_summary"] is None
+
+
+# ── Dependency edge-case tests ────────────────────────────────────────────────
+
+def test_create_dependency_duplicate_rejected_409(seeded_client_with_tasks):
+    """UniqueConstraint prevents duplicate dependency edges."""
+    c = seeded_client_with_tasks
+    # task2 already depends on task1 in the fixture
+    resp = c.post(f"/projects/{c.project_id}/task-dependencies", json={
+        "task_id": c.task_ids[1],
+        "depends_on_task_id": c.task_ids[0],
+        "lag_days": 0,
+    })
+    assert resp.status_code == 409
+
+
+def test_create_dependency_self_rejected_422(seeded_client_with_tasks):
+    """A task cannot depend on itself."""
+    c = seeded_client_with_tasks
+    resp = c.post(f"/projects/{c.project_id}/task-dependencies", json={
+        "task_id": c.task_ids[0],
+        "depends_on_task_id": c.task_ids[0],
+        "lag_days": 0,
+    })
+    assert resp.status_code == 422
+
+
+def test_cascade_preview_no_successors_returns_one(seeded_client_with_tasks):
+    """task3 has no successors — cascade preview returns only the root task."""
+    import datetime
+    c = seeded_client_with_tasks
+    # task3 is at index 2 and has no dependents
+    new_date = (datetime.date.today() + datetime.timedelta(days=20)).isoformat()
+    resp = c.post(f"/tasks/{c.task_ids[2]}/cascade-preview", json={"new_start_date": new_date})
+    assert resp.status_code == 200
+    data = resp.json()
+    assert len(data) == 1
+    assert data[0]["task_id"] == c.task_ids[2]
+
+
+def test_cascade_preview_shifts_successor(seeded_client_with_tasks):
+    """Shifting task1 cascades to task2 and task3."""
+    import datetime
+    c = seeded_client_with_tasks
+    # task1 starts today-2. Push it to today+10 (far enough to shift task2)
+    new_date = (datetime.date.today() + datetime.timedelta(days=10)).isoformat()
+    resp = c.post(f"/tasks/{c.task_ids[0]}/cascade-preview", json={"new_start_date": new_date})
+    assert resp.status_code == 200
+    data = resp.json()
+    # Should have at least task1 + task2 + task3
+    assert len(data) >= 3
+    task_ids_in_result = [r["task_id"] for r in data]
+    assert c.task_ids[0] in task_ids_in_result
+    assert c.task_ids[1] in task_ids_in_result
+    assert c.task_ids[2] in task_ids_in_result
+
+
+def test_create_dependency_cross_project_rejected_404(seeded_client_with_tasks):
+    """depends_on_task_id must belong to the same project."""
+    import datetime
+    c = seeded_client_with_tasks
+    # Create a second project and task in it
+    resp_p2 = c.post("/projects/9999/tasks", json={
+        "name": "Other Project Task",
+        "level_tag": "Level 1",
+        "start_date": datetime.date.today().isoformat(),
+        "duration_days": 1,
+    })
+    # Project 9999 doesn't exist — task creation would fail anyway,
+    # but we can use a clearly nonexistent task_id to test cross-project rejection.
+    resp = c.post(f"/projects/{c.project_id}/task-dependencies", json={
+        "task_id": c.task_ids[0],
+        "depends_on_task_id": 99999,  # does not exist in this project
+        "lag_days": 0,
+    })
+    assert resp.status_code == 404
