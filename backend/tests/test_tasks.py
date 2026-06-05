@@ -260,15 +260,53 @@ def test_create_dependency_201(seeded_client_with_tasks):
 
 def test_create_dependency_duplicate_409(seeded_client_with_tasks):
     c = seeded_client_with_tasks
-    # dep_ids[0] is already task2 -> task1; recreating should 409
-    dep = c.get(f"/projects/{c.project_id}/tasks").json()
-    # Re-create the existing dep
     r = c.post(f"/projects/{c.project_id}/task-dependencies", json={
         "task_id": c.task_ids[1],
         "depends_on_task_id": c.task_ids[0],
         "lag_days": 0,
     })
     assert r.status_code == 409
+
+
+def test_create_dependency_self_returns_422(seeded_client_with_tasks):
+    """A task cannot depend on itself."""
+    c = seeded_client_with_tasks
+    r = c.post(f"/projects/{c.project_id}/task-dependencies", json={
+        "task_id": c.task_ids[0],
+        "depends_on_task_id": c.task_ids[0],
+    })
+    assert r.status_code == 422
+
+
+def test_create_dependency_nonexistent_task_id_returns_404(seeded_client_with_tasks):
+    """Nonexistent task_id must return 404, not 409."""
+    c = seeded_client_with_tasks
+    r = c.post(f"/projects/{c.project_id}/task-dependencies", json={
+        "task_id": 99999,
+        "depends_on_task_id": c.task_ids[0],
+    })
+    assert r.status_code == 404
+
+
+def test_create_dependency_nonexistent_depends_on_returns_404(seeded_client_with_tasks):
+    """Nonexistent depends_on_task_id must return 404, not 409."""
+    c = seeded_client_with_tasks
+    r = c.post(f"/projects/{c.project_id}/task-dependencies", json={
+        "task_id": c.task_ids[0],
+        "depends_on_task_id": 99999,
+    })
+    assert r.status_code == 404
+
+
+def test_create_dependency_wrong_project_returns_404(seeded_client_with_tasks):
+    """Tasks that exist but belong to a different project must return 404."""
+    c = seeded_client_with_tasks
+    wrong_project_id = 99999
+    r = c.post(f"/projects/{wrong_project_id}/task-dependencies", json={
+        "task_id": c.task_ids[0],
+        "depends_on_task_id": c.task_ids[1],
+    })
+    assert r.status_code == 404
 
 
 def test_delete_dependency_204(seeded_client_with_tasks):

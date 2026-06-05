@@ -177,17 +177,31 @@ def delete_task(task_id: int, db: Session = Depends(get_db)):
 
 @router.post("/projects/{project_id}/task-dependencies", response_model=TaskDependencyOut, status_code=201)
 def create_task_dependency(project_id: int, body: TaskDependencyCreate, db: Session = Depends(get_db)):
+    if body.task_id == body.depends_on_task_id:
+        raise HTTPException(status_code=422, detail="A task cannot depend on itself")
+
+    task = db.query(Task).filter(Task.id == body.task_id, Task.project_id == project_id).first()
+    if not task:
+        raise HTTPException(status_code=404, detail="task_id not found in this project")
+
+    depends_on = db.query(Task).filter(Task.id == body.depends_on_task_id, Task.project_id == project_id).first()
+    if not depends_on:
+        raise HTTPException(status_code=404, detail="depends_on_task_id not found in this project")
+
+    existing = db.query(TaskDependency).filter(
+        TaskDependency.task_id == body.task_id,
+        TaskDependency.depends_on_task_id == body.depends_on_task_id,
+    ).first()
+    if existing:
+        raise HTTPException(status_code=409, detail="Dependency already exists")
+
     dep = TaskDependency(
         task_id=body.task_id,
         depends_on_task_id=body.depends_on_task_id,
         lag_days=body.lag_days,
     )
     db.add(dep)
-    try:
-        db.commit()
-    except IntegrityError:
-        db.rollback()
-        raise HTTPException(status_code=409, detail="Dependency already exists")
+    db.commit()
     db.refresh(dep)
     return dep
 
