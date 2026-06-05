@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Site Diary App — Clickable UI Demo</title>
+  <style>
+    :root{
+      --bg:#ffffff;--surface:#ffffff;--surface2:#f7faff;--text:#111827;--muted:#667085;--line:#e8edf5;
+      --blue:#2563eb;--blue2:#1d4ed8;--blueSoft:#edf5ff;--green:#139a4b;--greenSoft:#eaf8ef;
+      --red:#ef4444;--redSoft:#fff1f1;--orange:#f59e0b;--orangeSoft:#fff7e6;--shadow:0 24px 70px rgba(15,23,42,.10);
+      --r:28px;--phoneW:390px;--phoneH:780px;
+    }
+    *{box-sizing:border-box} body{margin:0;background:radial-gradient(circle at top,#f8fbff,#fff 42%);font-family:Inter,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif;color:var(--text);direction:ltr}
+    .app{min-height:100vh;display:grid;grid-template-columns:280px 1fr;gap:30px;padding:32px;align-items:start}.side{position:sticky;top:32px;background:#fff;border:1px solid var(--line);border-radius:24px;padding:18px;box-shadow:0 12px 35px rgba(15,23,42,.06)}
+    .brand{display:flex;align-items:center;gap:12px;margin-bottom:18px}.logo{width:44px;height:44px;border-radius:15px;background:linear-gradient(145deg,#2563eb,#60a5fa);display:grid;place-items:center;color:white;font-weight:900}.brand h1{font-size:18px;margin:0;letter-spacing:-.03em}.brand p{margin:2px 0 0;color:var(--muted);font-size:12px}.navlist{display:grid;gap:8px}.navbtn{width:100%;border:0;background:#fff;text-align:left;padding:12px 13px;border-radius:15px;display:flex;gap:10px;align-items:center;color:#344054;font-weight:700;cursor:pointer}.navbtn small{display:block;color:var(--muted);font-weight:500}.navbtn.active{background:var(--blueSoft);color:#174ea6}.hint{margin-top:18px;padding:14px;border-radius:18px;background:#f8fafc;color:#475467;font-size:13px;line-height:1.45}.stage{display:grid;place-items:center;min-height:calc(100vh - 64px)}.phone{width:var(--phoneW);height:var(--phoneH);background:linear-gradient(180deg,#fff,#fbfdff);border:1px solid var(--line);border-radius:38px;box-shadow:var(--shadow);padding:18px;display:flex;flex-direction:column;overflow:hidden;position:relative}.screen{display:none;height:100%;flex-direction:column}.screen.active{display:flex}.top{height:52px;display:flex;align-items:center;justify-content:space-between;gap:10px}.icon{width:40px;height:40px;border:0;background:#fff;border-radius:14px;display:grid;place-items:center;font-size:20px;cursor:pointer}.icon:hover{background:#f5f8ff}.title{text-align:left;flex:1}.title h2{font-size:19px;margin:0;letter-spacing:-.04em}.title p{font-size:12px;margin:3px 0 0;color:var(--muted)}.content{flex:1;overflow:auto;padding:2px 0 10px;scrollbar-width:none}.content::-webkit-scrollbar{display:none}.bottom{display:flex;gap:9px;padding-top:12px}.btn{height:52px;border:0;border-radius:17px;background:linear-gradient(180deg,#3b82f6,#2563eb);color:white;font-weight:800;font-size:14px;cursor:pointer;box-shadow:0 10px 20px rgba(37,99,235,.2);width:100%}.btn.soft{background:#eef5ff;color:#1557c0;box-shadow:none}.btn.green{background:var(--greenSoft);color:#087d35;box-shadow:none}.btn.red{background:var(--redSoft);color:#dc2626;box-shadow:none}.hero{height:100%;display:flex;flex-direction:column;justify-content:center;gap:24px}.illo{width:112px;height:112px;border-radius:34px;background:linear-gradient(145deg,#eaf2ff,#fff);border:1px solid var(--line);display:grid;place-items:center;font-size:54px;margin:0 auto 8px}.big{font-size:31px;line-height:1.05;letter-spacing:-.06em;margin:0}.copy{font-size:14px;line-height:1.5;color:#475467;margin:0}.card{border:1px solid var(--line);border-radius:22px;background:#fff;padding:14px;margin:12px 0}.upload{display:flex;align-items:center;gap:12px;padding:14px;border:1px solid var(--line);border-radius:18px;margin-bottom:10px;cursor:pointer}.upload:hover{background:#f8fbff}.chev{margin-left:auto;color:#98a2b3}.tree{padding:8px 0}.tree-row,.row{display:flex;align-items:center;gap:10px;padding:12px;border-radius:16px}.tree-row:hover,.row.active{background:#f8fbff}.dot{width:10px;height:10px;border-radius:50%;background:var(--blue)}.greenDot{background:#22c55e}.orangeDot{background:#f59e0b}.redDot{background:#ef4444}.mutedDot{background:#cbd5e1}.spacer{flex:1}.tabs{display:grid;grid-template-columns:repeat(3,1fr);border-bottom:1px solid var(--line);margin-bottom:14px}.tab{padding:13px;text-align:center;font-size:13px;color:#475467;border-bottom:2px solid transparent}.tab.active{font-weight:800;color:#1557c0;border-bottom-color:var(--blue)}.timeline{display:grid;gap:10px}.event{display:grid;grid-template-columns:54px 1fr auto;gap:12px;align-items:center;padding:12px;border:1px solid var(--line);border-radius:20px}.date{height:52px;border-radius:16px;background:#f8fafc;display:grid;place-items:center;font-size:19px;font-weight:900}.date small{font-size:9px;color:#667085;display:block}.event b,.task b{font-size:14px}.pill{font-size:11px;font-weight:800;border-radius:999px;padding:7px 9px;background:var(--blueSoft);color:#1557c0}.pill.orange{background:var(--orangeSoft);color:#b45309}.pill.green{background:var(--greenSoft);color:#087d35}.task{display:grid;grid-template-columns:42px 1fr 44px 44px;gap:9px;align-items:center;border:1px solid var(--line);border-radius:20px;padding:10px;margin-bottom:10px}.taskIcon{width:42px;height:42px;border-radius:16px;display:grid;place-items:center;background:var(--orangeSoft)}.taskIcon.blue{background:var(--blueSoft)}.taskIcon.green{background:var(--greenSoft)}.mark{height:44px;border-radius:14px;display:grid;place-items:center;font-weight:900;cursor:pointer}.yes{background:var(--greenSoft);color:var(--green);border:1px solid #c7ead3}.no{background:var(--redSoft);color:var(--red);border:1px solid #ffd0d0}.appnav{margin:0 -18px -18px;padding:10px 14px 12px;border-top:1px solid var(--line);display:grid;grid-template-columns:repeat(4,1fr);background:rgba(255,255,255,.95)}.appnav button{border:0;background:transparent;color:#667085;font-size:11px;font-weight:700;cursor:pointer}.appnav button.active{color:var(--blue)}.fab{position:absolute;bottom:60px;left:50%;transform:translateX(-50%);width:58px;height:58px;border-radius:50%;display:grid;place-items:center;background:linear-gradient(180deg,#3b82f6,#2563eb);color:#fff;font-size:30px;box-shadow:0 12px 28px rgba(37,99,235,.28);cursor:pointer}.seg{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:12px 0 18px}.reason{display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--line);padding:13px 4px;font-size:13px}.radio{width:17px;height:17px;border-radius:50%;border:1.5px solid #98a2b3;display:inline-block;vertical-align:-3px;margin-right:8px}.radio.on{border:5px solid var(--blue)}.input{min-height:48px;border:1px solid var(--line);border-radius:15px;padding:13px;color:#667085;font-size:13px}.photos{display:flex;gap:8px}.photo{width:68px;height:56px;border-radius:12px;background:linear-gradient(135deg,#d1d5db,#64748b);position:relative;overflow:hidden}.photo:after{content:"";position:absolute;inset:0;background:linear-gradient(45deg,transparent 45%,rgba(255,255,255,.45) 46%,transparent 55%)}.addphoto{width:68px;height:56px;border:1px solid var(--line);border-radius:12px;display:grid;place-items:center;font-size:25px}.building{display:grid;grid-template-columns:1fr 110px;gap:18px;align-items:center;margin-top:35px}.tower{height:310px;border:2px solid #cbd5e1;border-radius:16px;background:repeating-linear-gradient(to bottom,#fff 0,#fff 47px,#e2e8f0 48px,#e2e8f0 50px);position:relative}.tower:before,.tower:after{content:"";position:absolute;top:0;bottom:0;width:2px;background:#cbd5e1}.tower:before{left:33%}.tower:after{right:33%}.level{display:flex;align-items:center;gap:9px;padding:12px;border-radius:16px;font-size:13px}.level.active{background:var(--blueSoft);font-weight:900;color:#1557c0}.alert{display:grid;grid-template-columns:42px 1fr auto;gap:12px;align-items:center;border:1px solid var(--line);border-radius:20px;padding:14px;margin:12px 0}.stats{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:14px}.stat{border:1px solid var(--line);border-radius:20px;padding:16px;min-height:100px}.stat b{display:block;font-size:27px;letter-spacing:-.04em;margin-top:6px}.summary{background:linear-gradient(180deg,#f8fbff,#fff);border:1px solid var(--line);border-radius:22px;padding:22px;font-size:15px;line-height:1.6;color:#26384f;margin-top:14px}.kpis{display:grid;grid-template-columns:repeat(3,1fr);border:1px solid var(--line);border-radius:18px;overflow:hidden}.kpi{text-align:center;padding:14px;border-right:1px solid var(--line);font-size:12px}.kpi:last-child{border-right:0}.kpi b{font-size:24px;display:block}.barrow{display:grid;grid-template-columns:12px 1fr auto;gap:9px;align-items:center;margin:13px 0}.bar{height:7px;border-radius:99px;background:#e5e7eb}.bar:before{content:"";display:block;width:70%;height:100%;border-radius:99px;background:#94a3b8}.gallery{display:grid;grid-template-columns:repeat(2,70px);gap:8px}.caption{font-size:12px;color:var(--muted);line-height:1.45;margin-top:14px;background:#f8fafc;border-radius:16px;padding:12px}.screenName{position:fixed;bottom:22px;right:32px;color:#98a2b3;font-size:12px}.grid2{display:grid;grid-template-columns:1fr 140px;gap:16px}.ltr{text-align:left}.rtlText{direction:rtl;text-align:right}
+    @media(max-width:850px){.app{display:block;padding:18px}.side{position:relative;top:0;margin-bottom:20px}.stage{min-height:auto}.phone{width:min(100%,390px);height:760px;margin:auto}.screenName{display:none}}
+  </style>
+</head>
+<body>
+  <div class="app">
+    <aside class="side">
+      <div class="brand"><div class="logo">B</div><div><h1>Buildwell Demo</h1><p>Clickable app prototype</p></div></div>
+      <div class="navlist" id="sideNav"></div>
+      <div class="hint rtlText">זה דמו אינטראקטיבי: אפשר ללחוץ על התפריט, הכפתורים, Done / Not Done, והניווט התחתון.</div>
+    </aside>
+
+    <main class="stage">
+      <section class="phone" aria-label="Clickable mobile demo">
+        <div class="screen active" data-screen="upload">
+          <div class="top"><button class="icon" onclick="goBack()">‹</button><span style="color:var(--blue);font-size:13px">Skip</span></div>
+          <div class="content"><div class="hero"><div><div class="illo">☁️</div><h2 class="big">Build your<br>site diary</h2><p class="copy">Upload what you have. We’ll organize it into a simple daily workflow.</p></div><div><div class="upload" onclick="go('review')">📁 <div><b>Files & folders</b><p class="copy">Plans, Excel, PDFs</p></div><span class="chev">›</span></div><div class="upload" onclick="go('review')">🖼️ <div><b>Photos</b><p class="copy">From your device</p></div><span class="chev">›</span></div><div class="upload" onclick="go('review')">🔎 <div><b>Scan documents</b><p class="copy">Drawings, receipts</p></div><span class="chev">›</span></div></div></div></div>
+          <div class="bottom"><button class="btn" onclick="go('review')">Upload files</button></div>
+        </div>
+
+        <div class="screen" data-screen="review">
+          <div class="top"><button class="icon" onclick="go('upload')">‹</button><div class="title"><h2>Review & confirm</h2><p>We organized your project.</p></div></div>
+          <div class="content"><div class="card tree"><div class="tree-row">📁 <b>Tower B</b><span class="spacer"></span>›</div><div class="tree-row" style="padding-left:34px">📁 <span class="dot"></span>Level 4<span class="spacer"></span>›</div><div class="tree-row" style="padding-left:34px">📁 <span class="dot greenDot"></span>Level 3<span class="spacer"></span>›</div><div class="tree-row" style="padding-left:34px">📁 <span class="dot orangeDot"></span>Level 2<span class="spacer"></span>›</div><div class="tree-row" style="padding-left:34px">📁 <span class="dot redDot"></span>Level 1<span class="spacer"></span>›</div><div class="tree-row">📁 Level 5<span class="spacer"></span>›</div><div class="tree-row">📁 Roof<span class="spacer"></span>›</div></div><div class="card"><div class="row">📄 Plans</div><div class="row">🚚 Deliveries</div><div class="row">📓 Site diary / logs</div></div></div>
+          <div class="bottom"><button class="btn green" onclick="go('plan')">✓ Looks good</button></div>
+        </div>
+
+        <div class="screen" data-screen="plan">
+          <div class="top"><button class="icon" onclick="go('review')">‹</button><div class="title"><h2>Plans & deliveries</h2><p>This week</p></div></div>
+          <div class="content"><div class="tabs"><div class="tab active">Weekly</div><div class="tab">Monthly</div><div class="tab">Schedule</div></div><div class="timeline"><div class="event" onclick="go('today')"><div class="date"><small>MON</small>9</div><div><b>Electrical rough-in</b><p class="copy">Level 4</p></div><span class="pill orange">Today</span></div><div class="event"><div class="date"><small>TUE</small>10</div><div><b>Framing prep</b><p class="copy">Level 4</p></div></div><div class="event"><div class="date"><small>WED</small>11</div><div><b>Inspection</b><p class="copy">Level 3</p></div><span class="pill">Inspect</span></div><div class="event"><div class="date"><small>THU</small>12</div><div><b>Kitchen materials</b><p class="copy">Gate 2</p></div><span class="pill orange">Delivery</span></div><div class="event"><div class="date"><small>FRI</small>13</div><div><b>Concrete pour</b><p class="copy">Level 2</p></div><span class="pill green">Concrete</span></div></div></div>
+          <div class="bottom"><button class="btn" onclick="go('today')">Confirm</button></div>
+        </div>
+
+        <div class="screen" data-screen="today">
+          <div class="top"><button class="icon">☰</button><div class="title"><h2>Tower B⌄</h2><p>Mon, Jun 9</p></div><span>☁️ 72°F</span></div>
+          <div class="content"><p style="font-weight:900">Today’s progress</p><div class="task"><div class="taskIcon">⚡</div><div><b>Electrical rough-in</b><p class="copy">7:00 AM – 5:00 PM</p></div><div class="mark yes" onclick="go('report')">✓</div><div class="mark no" onclick="go('task')">×</div></div><div class="task"><div class="taskIcon">📦</div><div><b>Kitchen materials</b><p class="copy">Gate 2 · 9:30 AM</p></div><div class="mark yes">✓</div><div class="mark no">×</div></div><div class="task"><div class="taskIcon green">🏗</div><div><b>Framing prep</b><p class="copy">8:00 AM – 12:00 PM</p></div><div class="mark yes">✓</div><div class="mark no">×</div></div><div class="task"><div class="taskIcon blue">🛡</div><div><b>Safety check</b><p class="copy">10:00 AM</p></div><div class="mark yes">✓</div><div class="mark no">×</div></div><div class="task"><div class="taskIcon">🧹</div><div><b>Site cleanup</b><p class="copy">End of day</p></div><div class="mark yes">✓</div><div class="mark no">×</div></div></div>
+          <div class="fab" onclick="go('task')">+</div><nav class="appnav"><button class="active" onclick="go('today')">🏠<br>Home</button><button onclick="go('alerts')">🔔<br>Alerts</button><button onclick="go('report')">▣<br>Reports</button><button onclick="go('filters')">☷<br>Site</button></nav>
+        </div>
+
+        <div class="screen" data-screen="task">
+          <div class="top"><button class="icon" onclick="go('today')">‹</button><div class="title"><h2>Electrical rough-in</h2><p>Level 4</p></div><span>⋮</span></div>
+          <div class="content"><div class="seg"><button class="btn green">✓ Done</button><button class="btn red">× Not done</button></div><p style="font-weight:900;font-size:13px">Why not completed?</p><div class="card" style="padding:4px 12px"><div class="reason"><span><span class="radio on"></span>Delayed</span><span class="copy">Subcontractor staffing</span></div><div class="reason"><span><span class="radio"></span>Missing materials</span></div><div class="reason"><span><span class="radio"></span>Blocked by prior task</span></div><div class="reason"><span><span class="radio"></span>Weather</span></div><div class="reason"><span><span class="radio"></span>Other</span></div></div><p style="font-weight:900;font-size:13px">Notes</p><div class="input">Add a note…</div><p style="font-weight:900;font-size:13px">Photos</p><div class="photos"><div class="photo"></div><div class="photo"></div><div class="photo"></div><div class="addphoto">+</div></div></div>
+          <div class="bottom"><button class="btn" onclick="go('today')">Save</button></div>
+        </div>
+
+        <div class="screen" data-screen="filters">
+          <div class="top"><button class="icon" onclick="go('today')">‹</button><div class="title"><h2>Tower B</h2><p>Choose level</p></div></div>
+          <div class="content"><div class="building"><div class="tower"></div><div><div class="level"><span class="dot greenDot"></span>Level 5</div><div class="level active"><span class="dot"></span>Level 4</div><div class="level"><span class="dot orangeDot"></span>Level 3</div><div class="level"><span class="dot orangeDot"></span>Level 2</div><div class="level"><span class="dot redDot"></span>Level 1</div><div class="level"><span class="dot mutedDot"></span>Roof</div></div></div></div>
+          <div class="bottom"><button class="btn soft" onclick="go('today')">Apply filters</button></div>
+        </div>
+
+        <div class="screen" data-screen="alerts">
+          <div class="top"><button class="icon" onclick="go('today')">‹</button><div class="title"><h2>Alerts</h2><p>Lookahead</p></div><span>⋮</span></div>
+          <div class="content"><div class="tabs"><div class="tab active">Upcoming</div><div class="tab">Past</div><div></div></div><p style="font-weight:900;font-size:13px">Tomorrow</p><div class="alert"><div class="taskIcon">⚠️</div><div><b>Framing starts on Level 4</b><p class="copy">Tue, Jun 10</p></div><span>›</span></div><p style="font-weight:900;font-size:13px">This week</p><div class="alert"><div class="taskIcon green">🔔</div><div><b>Concrete pour — Level 2</b><p class="copy">Fri, Jun 13</p></div><span>›</span></div></div>
+          <div class="bottom"><button class="btn soft" onclick="go('today')">Back home</button></div>
+        </div>
+
+        <div class="screen" data-screen="report">
+          <div class="top"><button class="icon" onclick="go('today')">‹</button><div class="title"><h2>Daily Report</h2><p>Mon, Jun 9</p></div><span class="pill orange">Draft</span></div>
+          <div class="content"><div class="stats"><div class="stat">☁️<b>72°F</b><span class="copy">Weather</span></div><div class="stat">👷<b>17</b><span class="copy">Crew</span></div><div class="stat">✅<b>3</b><span class="copy">Completed</span></div><div class="stat">❌<b>2</b><span class="copy">Not done</span></div><div class="stat">📦<b>4</b><span class="copy">Deliveries</span></div><div class="stat">📷<b>12</b><span class="copy">Photos</span></div></div></div>
+          <div class="bottom"><button class="btn" onclick="go('summary')">Generate report</button></div>
+        </div>
+
+        <div class="screen" data-screen="summary">
+          <div class="top"><button class="icon" onclick="go('report')">‹</button><div class="title"><h2>AI Summary</h2><p>Ready to review</p></div><span style="color:var(--blue);font-size:13px">Edit</span></div>
+          <div class="content"><div class="summary">Electrical rough-in continued on Level 4. Installed conduit in units 401–403 and pulled boxes. Work is approximately 70% complete.<br><br>Kitchen materials are scheduled to arrive Jun 12 at 9:30 AM at Gate 2.<br><br>Framing prep was completed and materials staged on Level 4.<br><br>No safety incidents reported.</div></div>
+          <div class="bottom"><button class="btn" onclick="go('export')">Use in report</button></div>
+        </div>
+
+        <div class="screen" data-screen="export">
+          <div class="top"><button class="icon" onclick="go('summary')">‹</button><div class="title"><h2>Daily Report</h2><p>Mon, Jun 9</p></div><b style="font-size:13px">BUILDWELL</b></div>
+          <div class="content"><div class="card"><div class="kpis"><div class="kpi">Weather<b>72°F</b></div><div class="kpi">Crew<b>17</b></div><div class="kpi">Photos<b>12</b></div></div><div class="grid2" style="margin-top:18px"><div><p style="font-weight:900;font-size:13px">Work completed</p><div class="barrow"><span class="dot"></span><div class="bar"></div><span class="copy">3 tasks</span></div><p style="font-weight:900;font-size:13px">Work not completed</p><div class="barrow"><span class="dot redDot"></span><div class="bar"></div><span class="copy">2 tasks</span></div></div><div class="gallery"><div class="photo"></div><div class="photo"></div><div class="photo"></div><div class="photo" style="display:grid;place-items:center;background:#111827;color:#fff;font-weight:900">+9</div></div></div></div></div>
+          <div class="bottom"><button class="btn">Download PDF</button><button class="btn soft" onclick="go('today')">Done</button></div>
+        </div>
+      </section>
+      <div class="screenName" id="screenName">Upload</div>
+    </main>
+  </div>
+
+  <script>
+    const screens = [
+      ['upload','Upload','Start'],['review','Review','Project structure'],['plan','Plan','Weekly view'],['today','Today','Daily log'],['task','Task detail','Not done form'],['filters','Site tree','Visual filter'],['alerts','Alerts','Lookahead'],['report','Report','Draft'],['summary','AI Summary','Preview'],['export','Export','Final report']
+    ];
+    const historyStack = ['upload'];
+    const sideNav = document.getElementById('sideNav');
+    const screenName = document.getElementById('screenName');
+    sideNav.innerHTML = screens.map(([id,name,sub]) => `<button class="navbtn ${id==='upload'?'active':''}" data-id="${id}" onclick="go('${id}')"><span>${name}</span><small>${sub}</small></button>`).join('');
+    function go(id){
+      document.querySelectorAll('.screen').forEach(s=>s.classList.toggle('active',s.dataset.screen===id));
+      document.querySelectorAll('.navbtn').forEach(b=>b.classList.toggle('active',b.dataset.id===id));
+      const item = screens.find(s=>s[0]===id); screenName.textContent = item ? item[1] : id;
+      if(historyStack[historyStack.length-1] !== id) historyStack.push(id);
+    }
+    function goBack(){
+      if(historyStack.length>1){historyStack.pop(); go(historyStack.pop());} else {go('upload');}
+    }
+  </script>
+</body>
+</html>

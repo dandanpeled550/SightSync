@@ -33,3 +33,8 @@ frontend/tsconfig.tsbuildinfo
 # Local DB and unused config
 backend/sightsync.db
 backend/railway.toml
+backend/.coverage
+backend/.claude/
+
+# Claude Code session files
+.claude/projects/

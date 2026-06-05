@@ -4,11 +4,12 @@
 
 Sprint 1 of SightSync ("simple.") is fully complete — weather, crew attendance, safety incidents, materials, and UI. All 67 backend tests pass. The product now transitions to building the full PRD vision: a predictive construction management platform where a foreman uploads a project schedule (Excel), marks tasks daily, and the system cascades delays automatically.
 
-**Four governing constraints for this plan:**
-1. **Frontend phases are gated on backend sprints** — Phase 1 (shell + design system) runs in parallel with backend Sprint 2. Phases 2–5 each require their corresponding backend sprint to be live on Render first. Source of truth for all UI: `Sprints/site_diary_app_clickable_demo.html`.
-2. **Render deployment after every sprint** — each sprint ends with a successful deploy to Render and a production smoke test.
-3. **Agent setup sprint first** — before any feature work, a dedicated Sprint 0 configures all CLAUDE.md files, CI, and the agent execution framework.
-4. **Two dedicated operational agents** — `sprint-review` and `render-verify` are created in Sprint 0 as Claude Code slash commands and used at the end of every sprint.
+**Governing constraints:**
+1. **Each sprint owns both backend and frontend work** — BE and FE streams run in parallel where possible using git worktrees. The frontend stream for a given sprint is gated on the backend being live on Render first (except Sprint 2's shell work, which is fully independent).
+2. **"Execute sprint X" spawns parallel agents automatically** — `/sprint-execute N` reads this plan, identifies parallel streams, and launches isolated worktree agents via the Claude Code `Agent` tool. No manual terminal management required.
+3. **Render deployment after every sprint** — each sprint ends with a successful deploy to Render and a production smoke test before the user approves moving to the next sprint.
+4. **Agent setup sprint first** — Sprint 0 configures all CLAUDE.md files, CI, slash commands, and verifies Render before any feature work begins.
+5. **UI source of truth:** `Sprints/site_diary_app_clickable_demo.html` — every FE agent opens this before writing any screen.
 
 ---
 
@@ -29,35 +30,38 @@ Each sprint will be executed by one or more Claude Code agent sessions. For thos
 
 ## Parallel Execution Model
 
-Each sprint defines work streams. Parallel streams run as **separate Claude Code CLI terminals** opened simultaneously. Sequential streams run in the same terminal one after the other.
+### How `/sprint-execute N` works
 
-### The one hard rule
-**Each parallel agent must own a distinct set of files. No file can be written by two agents at the same time.**
+When you type `/sprint-execute 2` (or any sprint number), the command agent:
+1. Reads the sprint's section from this plan file
+2. Identifies which streams are **parallel** (no shared files, can run simultaneously) vs **sequential** (one must finish before the other starts)
+3. For parallel streams: spawns each as a sub-agent with `isolation: "worktree"` — each agent gets its own isolated git checkout, so there are zero file conflicts
+4. For sequential streams: runs them one after the other in the same session
+5. When all streams complete: merges worktrees, runs tests, creates the sprint PR, triggers Render deploy
+6. Calls `/sprint-review` automatically when deploy is confirmed
 
-Before starting parallel agents in a sprint, explicitly assign file ownership. If two agents both need to touch the same file (e.g., `backend/app/main.py` for router registration), that file belongs to Agent 1 only — Agent 2 notes what needs to be added and Agent 1 handles it.
+You do not open any terminals manually. Everything runs from a single Claude Code session.
 
-### How to open a parallel agent
+### The one hard rule (still applies inside worktrees)
+**Each parallel stream must own a distinct set of files.** The file ownership list in each sprint section is the enforcement mechanism. If a file is shared (e.g., `backend/app/main.py`), it belongs to the BE stream only — the FE stream never touches it.
 
-```bash
-# Terminal 1 — already running
-claude  # Agent 1: backend models + endpoints
-
-# Terminal 2 — open new terminal window, cd to project root
-claude  # Agent 2: test infrastructure (different files entirely)
-```
-
-Each new terminal starts a fresh Claude Code session. The agent reads `CLAUDE.md` on startup and knows the project context. Give each terminal a clear task prompt referencing which "Agent N / Stream N" it is from the execution plan.
-
-### When NOT to open a new terminal
-- Agent 2 is blocked waiting for Agent 1's migration to run — open Terminal 2 only when the gate condition is met
-- The work stream is a single command (`pytest`, `npm run build`) — run it inline in the current terminal
-- `/sprint-review` and `/render-verify` — always run in the current terminal after all parallel agents have finished and merged
+### When a stream is sequential (not parallelized)
+- FE screens in Sprints 3–6: wait for BE stream to merge and Render to deploy first
+- Any stream that reads output produced by another stream in the same sprint
+- `/sprint-review` and `/render-verify`: always run after all streams complete
 
 ---
 
 ## Operational Agents
 
-Two slash commands live in `.claude/commands/` at the project root. They are created in Sprint 0 and used at the end of every sprint. Any Claude Code agent in this project can invoke them with `/sprint-review` and `/render-verify`.
+Four slash commands live in `.claude/commands/` at the project root. All four are created in Sprint 0.
+
+| Command | When to use |
+|---------|-------------|
+| `/sprint-execute N` | Execute an entire sprint — spawns parallel worktree agents, merges, deploys |
+| `/fe-screen <id>` | Build one frontend screen following the mockup spec |
+| `/sprint-review` | Run all checks + produce the structured review report + wait for approval |
+| `/render-verify` | Verify production Render deployment health |
 
 ### `/sprint-review`
 
@@ -176,6 +180,91 @@ If any check fails, state clearly: "Render verification FAILED — do not approv
 
 ---
 
+### `/sprint-execute`
+
+**File:** `.claude/commands/sprint-execute.md`
+
+**Purpose:** Executes an entire sprint by spawning parallel worktree agents, merging results, and triggering deployment. This is the primary command used to run each sprint.
+
+**File content:**
+```markdown
+You are the sprint executor. The user will provide a sprint number (e.g. "2").
+
+## Steps
+
+1. **Read the sprint plan**
+   Read the sprint's section from `Sprints/FULL_PRODUCT_EXECUTION_PLAN.md`.
+   Identify: (a) which streams are parallel, (b) which are sequential, (c) file ownership per stream.
+
+2. **Spawn parallel streams**
+   For each parallel stream, use the Agent tool with `isolation: "worktree"`.
+   Pass the agent a self-contained prompt that includes:
+   - The stream's exact file ownership list
+   - The complete list of files to create/modify with their full specs
+   - The completion gate (what must be true before the agent reports done)
+   - "Read CLAUDE.md, backend/CLAUDE.md (or frontend/CLAUDE.md) before starting."
+   Launch all parallel streams in a single message (multiple Agent tool calls).
+
+3. **Run sequential streams**
+   After parallel streams merge, run sequential streams one at a time.
+   For FE streams: wait for Render deploy confirmation first.
+
+4. **Merge and test**
+   After all streams complete:
+   - Run `cd backend && .venv/bin/python -m pytest tests/ -v`
+   - Run `cd frontend && npm run build`
+   - Commit any merge fixes on the sprint branch
+
+5. **Create sprint PR**
+   Use `gh pr create` with the sprint name as title and a summary of all changes.
+
+6. **Deploy and verify**
+   After PR merges to main: call /render-verify.
+
+7. **Sprint review**
+   Call /sprint-review to produce the structured report and wait for user approval.
+```
+
+---
+
+### `/fe-screen`
+
+**File:** `.claude/commands/fe-screen.md`
+
+**Purpose:** Builds one complete frontend screen. Designed to be called by `/sprint-execute` for each FE screen, or manually for a single screen rebuild.
+
+**File content:**
+```markdown
+You are the frontend screen builder for the "simple." app. The user will provide a screen ID.
+
+Valid screen IDs: today, task, plans, site, alerts, report, summary, export, upload, review
+
+## Before writing any code
+
+1. Open and read `Sprints/site_diary_app_clickable_demo.html` — find the `<div data-screen="{id}">` section for the requested screen. This is the visual spec.
+2. Read `frontend/CLAUDE.md` — follow every rule in it.
+3. Read `frontend/src/constants/theme.ts` — use these tokens, no inline hex values.
+4. Read `frontend/src/components/ScreenShell.tsx` — wrap the screen in it.
+5. Read the screen's spec from `Sprints/FULL_PRODUCT_EXECUTION_PLAN.md` (find the screen in the sprint section).
+
+## Rules
+
+- Import all colors from `theme.ts`. No hex literals in the screen file.
+- Wrap the screen in `<ScreenShell>`. Do not add a top bar or bottom nav directly.
+- Use `useNavigate()` from react-router-dom for all navigation. No `window.location`.
+- All API calls go through `frontend/src/api/` — never axios directly.
+- Show a loading state while fetching, an error state on failure, empty state when data is empty.
+- Photo features are stubs — render the UI element but wire no functionality.
+
+## Output
+
+Create or overwrite the screen file at `frontend/src/pages/{ScreenName}.tsx`.
+Run `npm run build` to verify TypeScript compiles.
+Report: "Screen {id} built. TypeScript: clean. Navigation: {list of routes this screen links to}."
+```
+
+---
+
 ### Work streams (all sequential — this sprint is not parallelized)
 
 **Step 1: Clean up git state**
@@ -195,18 +284,75 @@ Create the directory and two command files:
 
 These become available as `/sprint-review` and `/render-verify` slash commands in any Claude Code session within this project.
 
-**Step 4: Create CLAUDE.md files**
+**Step 4: Update root CLAUDE.md and create backend/CLAUDE.md + frontend/CLAUDE.md**
 
-Files to create/modify:
+### 4a — Root `CLAUDE.md`: three exact string replacements
 
-`CLAUDE.md` (root, already exists) — update the following sections:
-- Sprint 1 Status: mark all features ✅ Done (Feature 5 is complete, the doc is stale)
-- Add "Sprint 2–6 Scope" section summarizing the PRD features to build
-- Add `ANTHROPIC_API_KEY` to the Environment Variables table
-- Add note: "Frontend work is deferred pending UI mockups. Backend-only until mockups arrive."
-- Add note on end_date computation: computed in router, not DB
+**Replacement 1** — stale Sprint 2–6 scope header and note:
 
-`backend/CLAUDE.md` — NEW file:
+Find this exact text:
+```
+## Sprint 2–6 Scope (Backend-Only Until Mockups Arrive)
+
+**Note: Frontend work is deferred pending UI mockups from the user. All sprints below are backend-only until mockups arrive.**
+```
+Replace with:
+```
+## Sprint 2–6 Scope
+
+**Frontend phases are gated on backend sprints. Phase 1 (shell + design system) runs in parallel with backend Sprint 2. See `Sprints/FULL_PRODUCT_EXECUTION_PLAN.md` for the full plan. UI source of truth: `Sprints/site_diary_app_clickable_demo.html`.**
+```
+
+**Replacement 2** — stale Plan agents note:
+
+Find this exact text:
+```
+- Frontend sprints are deferred — do not plan frontend work until the user provides UI mockups.
+```
+Replace with:
+```
+- Frontend Phase 1 (shell + design system) runs in parallel with backend Sprint 2. Phases 2–5 are gated on their respective backend sprints. See `Sprints/FULL_PRODUCT_EXECUTION_PLAN.md` for full frontend phase plan.
+```
+
+**Replacement 3** — stale Out of Scope section:
+
+Find this exact text:
+```
+## Out of Scope (Sprint 1)
+
+Do not implement these until explicitly added to the brief:
+- Authentication / login (single hardcoded user)
+- AI summaries, pattern insights, cascade alerts
+- PDF export
+- Photo uploads (model field exists; UI is a stub)
+- Multi-project support
+- Visual polish, branding, responsive design beyond functional
+```
+Replace with:
+```
+## Out of Scope (all sprints)
+
+Do not implement these until explicitly added to the brief:
+- Authentication / login (single hardcoded user)
+- Photo uploads (model field exists; UI is a stub)
+- Multi-project support
+
+The following are NOW IN SCOPE in Sprints 3–5:
+- AI summaries → Sprint 5
+- Cascade alerts → Sprint 3
+- PDF export → Sprint 5
+- Mobile-first UI polish → Frontend Phase 1 (parallel with Sprint 2)
+```
+
+**Also add** to the Environment Variables table — append this row:
+```
+| `ANTHROPIC_API_KEY` | Backend `.env` | Claude API key for AI extraction + summary. Optional locally — endpoints degrade gracefully if absent. Required on Render. |
+```
+
+---
+
+### 4b — Create `backend/CLAUDE.md` (new file)
+
 ```markdown
 # Backend — Agent Guidelines
 
@@ -229,20 +375,23 @@ Both live in backend/app/services/cascade.py
 
 ## AI service rules
 - Mock anthropic.Anthropic() in ALL unit tests with unittest.mock.patch
-- If ANTHROPIC_API_KEY is absent, endpoints return graceful degraded responses
+- If ANTHROPIC_API_KEY is absent, endpoints return graceful degraded responses (not 500)
 - Use settings.anthropic_model for the model ID — never hardcode it
 
 ## end_date computation
 Always compute in the router: end_date = start_date + timedelta(days=duration_days)
-Do not use DB-level triggers or computed columns.
+Do not use DB-level triggers or computed columns (SQLite/Postgres portability).
 
 ## Fixtures in conftest.py
-- client: empty DB
+- client: empty DB, no seed data
 - seeded_client: project_id=1 + daily log; access via c.project_id, c.log_id
 - seeded_client_with_tasks: above + 3 tasks + 2 dependencies (added in Sprint 2)
 ```
 
-`frontend/CLAUDE.md` — NEW file (minimal for now, expanded when mockups arrive):
+---
+
+### 4c — Create `frontend/CLAUDE.md` (new file)
+
 ```markdown
 # Frontend — Agent Guidelines
 
@@ -252,6 +401,29 @@ cd frontend && npm run dev   # port 5173
 ## Run tests
 cd frontend && npm test
 
+## UI source of truth
+Always open Sprints/site_diary_app_clickable_demo.html before building any screen.
+It is the clickable prototype with exact colors, spacing, and navigation flow.
+
+## Design tokens
+Import ALL colors, radius, shadow, shell constants from frontend/src/constants/theme.ts.
+No hex color literals in component files.
+
+## Routing
+All routes defined in frontend/src/router.tsx only. Routes are frozen — do not rename.
+Navigation uses react-router-dom useNavigate() hook. No window.location assignments.
+
+## Shell pattern
+Every screen wraps content in <ScreenShell>. Never duplicate top bar or bottom nav chrome.
+Screens that hide bottom nav: /task, /summary, /export, /onboard, /onboard/review.
+
+## FAB and bottom nav positioning
+Both use position: absolute inside the shell container — NOT position: fixed.
+This keeps them anchored to the 390px shell on desktop.
+
+## Padding rule
+All screen content areas: paddingBottom: '72px' to clear the bottom nav.
+
 ## Key patterns
 - All styling: React.CSSProperties objects only. No .css files, no Tailwind.
 - All HTTP calls: frontend/src/api/ only. Never call axios directly from a component.
@@ -259,9 +431,13 @@ cd frontend && npm test
 - TypeScript: all response shapes defined in frontend/src/api/*.ts. Never use `any`.
 - PROJECT_ID = 1 is intentional — hardcoded in all pages.
 
-## Note
-Frontend sprint work is deferred pending UI mockups from the user.
-Do not add new pages or components until explicitly told to.
+## Frontend phases
+- Phase 1 (shell + design system): runs in parallel with backend Sprint 2 — UNBLOCKED
+- Phase 2 (core workflow screens): requires Sprint 2 live on Render
+- Phase 3 (alerts + report): requires Sprint 3 live on Render
+- Phase 4 (AI + export): requires Sprint 5 live on Render
+- Phase 5 (onboarding): requires Sprint 4 live on Render
+Full detail: Sprints/FULL_PRODUCT_EXECUTION_PLAN.md
 ```
 
 **Step 5: Set up GitHub Actions CI**
@@ -419,32 +595,44 @@ The agent does not proceed to the next sprint until the user explicitly approves
 
 ---
 
-## Sprint 2 — Task Data Layer
+## Sprint Map Overview
 
-**Goal:** Introduce Task, TaskDependency, TaskLogEntry models. This is a backend-only sprint. All later sprints depend on this.
+| Sprint | Backend stream | Frontend stream | FE parallel? |
+|--------|---------------|-----------------|--------------|
+| 2 | Task models + CRUD | Shell + design system + 10 stub routes | ✅ Yes — fully independent |
+| 3 | Cascade engine | Screens: today, task, plans, site | ❌ After BE deploys |
+| 4 | Excel + AI extraction | Screens: upload, review (onboarding) | ❌ After BE deploys |
+| 5 | Submit + AI summary + PDF | Screens: summary, export | ❌ After BE deploys |
+| 6 | Today view polish | Screens: alerts, report | ❌ After BE deploys |
 
-### Agent execution
+---
+
+## Sprint 2 — Task Foundation + App Shell
+
+**Streams:** BE and FE run in **parallel** from day one — zero shared files.
 
 ```
-Terminal 1: Agent 1 (backend models + endpoints)  ← start immediately
-Terminal 2: Agent 2 (seed.py + production verify) ← open ONLY after Agent 1 merges and Render deploys
-Terminal 3: (Sprint 0 only) Agent 3 for test infra ← can open in parallel with Terminal 1
+/sprint-execute 2 spawns:
+  Worktree A: sprint-2-be  (backend models + endpoints)
+  Worktree B: sprint-2-fe  (frontend shell + routing)
+  → both run simultaneously
+  → merge when both gates pass
+  → seed.py + Render verify run after merge
 ```
 
-**File ownership:**
-- Terminal 1 owns: `backend/app/models.py`, `backend/app/main.py`, `backend/app/routers/tasks.py`, `backend/app/routers/daily_log.py`, `backend/tests/test_tasks.py`, `backend/tests/conftest.py`, `backend/alembic/`
-- Terminal 2 owns: `backend/seed.py` only
+### Stream A: Backend `[worktree: sprint-2-be]`
 
-**Agent 1: Models + Migration + CRUD endpoints** `[Terminal 1]`
+**File ownership:** `backend/app/models.py`, `backend/app/main.py`, `backend/app/routers/tasks.py`, `backend/app/routers/daily_log.py`, `backend/tests/test_tasks.py`, `backend/tests/conftest.py`, `backend/alembic/`, `backend/seed.py`
 
 Files to create/modify:
 - `backend/app/models.py` — add `Task`, `TaskDependency`, `TaskLogEntry`; add `submitted` (Boolean, default False) and `ai_summary` (Text, nullable) to `DailyLog`
 - `backend/alembic/versions/XXXX_task_models.py` — autogenerate migration
-- `backend/app/routers/tasks.py` — NEW file with full CRUD
+- `backend/app/routers/tasks.py` — NEW: full CRUD + today filter + task-entry endpoints
 - `backend/app/main.py` — register `tasks.router`
 - `backend/app/routers/daily_log.py` — add `submitted` + `ai_summary` to `DailyLogOut`
 - `backend/tests/test_tasks.py` — NEW, 20+ tests
-- `backend/tests/conftest.py` — add `seeded_client_with_tasks` fixture
+- `backend/tests/conftest.py` — add `seeded_client_with_tasks` fixture (3 tasks + 2 deps)
+- `backend/seed.py` — extend with 8 sample tasks + 5 dependencies for project id=1
 
 New models:
 ```python
@@ -458,9 +646,9 @@ class Task(Base):
     trade_tag = Column(String(100))                    # "Electrical", "Plumbing"
     start_date = Column(Date, nullable=False)
     duration_days = Column(Integer, nullable=False, default=1)
-    end_date = Column(Date, nullable=False)            # router computes: start_date + timedelta(days=duration_days)
-    status = Column(String(20), nullable=False, default="pending")  # pending/in_progress/done/delayed
-    source = Column(String(20), nullable=False, default="manual")   # manual/ai-extracted
+    end_date = Column(Date, nullable=False)            # router: start_date + timedelta(days=duration_days)
+    status = Column(String(20), nullable=False, default="pending")
+    source = Column(String(20), nullable=False, default="manual")
     notes = Column(Text)
 
 class TaskDependency(Base):
@@ -482,78 +670,101 @@ class TaskLogEntry(Base):
     reason = Column(String(200))
 ```
 
-New endpoints:
+New endpoints in `tasks.py`:
 ```
 GET    /projects/{project_id}/tasks              → list all tasks
 POST   /projects/{project_id}/tasks              → create one task
-POST   /projects/{project_id}/tasks/bulk         → create many (for AI extraction later)
+POST   /projects/{project_id}/tasks/bulk         → create many (AI extraction later)
 PUT    /tasks/{task_id}                          → update task
 DELETE /tasks/{task_id}                          → delete task
 GET    /projects/{project_id}/tasks/today        → start_date <= today AND status != 'done'
 POST   /projects/{project_id}/task-dependencies  → add dependency edge
 DELETE /task-dependencies/{dep_id}               → remove dependency edge
-POST   /daily-logs/{log_id}/task-entries         → mark a task done/not_done
+POST   /daily-logs/{log_id}/task-entries         → mark task done/not_done
 GET    /daily-logs/{log_id}/task-entries         → list all entries for a log
 ```
 
-Agent 1 completion gate: `alembic upgrade head` clean, all 67 existing tests still pass, `test_tasks.py` 20+ tests pass.
-
-**Agent 2: Extend seed.py + verify production** `[Terminal 2 — open after Agent 1 gate]`
-
-Wait for Agent 1's PR to merge to main and Render to deploy successfully.
-
-Files to modify:
-- `backend/seed.py` — add 8 sample tasks with 5 dependencies for project id=1 (idempotent)
-
-After seed extended, verify on production:
-```bash
-curl -X POST https://<render-backend-url>/daily-logs/today
-curl https://<render-backend-url>/projects/1/tasks
-curl https://<render-backend-url>/projects/1/tasks/today
-```
-
-### Sprint 2 done when
-- 87+ backend tests pass (67 existing + 20 new)
-- CI green on GitHub
-- Render deploy successful — migration log shows new tables created
-- `/projects/1/tasks` returns 200 with task list on production
-- `seed.py` runs idempotently
+**Stream A gate:** `alembic upgrade head` clean, all 67 existing tests still pass, `test_tasks.py` 20+ tests pass.
 
 ---
 
-## Sprint 3 — Cascade Delay Engine
+### Stream B: Frontend `[worktree: sprint-2-fe]`
 
-**Goal:** The cascade engine is the technical core of the product. Backend-only sprint.
-
-### Agent execution
-
-Two agents, Stream B is independent and can run in parallel with Stream A from day one.
-
-```
-Terminal 1: Agent 1 (cascade engine)        ← start immediately
-Terminal 2: Agent 2 (dependency polish)     ← open immediately in parallel
-```
-
-**File ownership:**
-- Terminal 1 owns: `backend/app/services/cascade.py`, `backend/app/routers/tasks.py` (cascade endpoints), `backend/tests/test_cascade.py`, `backend/CLAUDE.md`
-- Terminal 2 owns: `backend/tests/test_tasks.py` (adds 5 more tests only), `backend/seed.py`
-
-**Agent 1: Cascade engine + endpoints** `[Terminal 1]`
+**File ownership:** everything under `frontend/src/` and `frontend/package.json`, `frontend/vite.config.ts`  
+**Parallel with:** Stream A — zero backend dependency for this stream
 
 Files to create/modify:
-- `backend/app/services/cascade.py` — NEW
+- `frontend/package.json` — add `react-router-dom@^6`
+- `frontend/vite.config.ts` — add `test` block for Vitest
+- `frontend/src/constants/theme.ts` — NEW: all design tokens (see Design System section)
+- `frontend/src/router.tsx` — NEW: all 10 routes
+- `frontend/src/App.tsx` — replace tab nav with `<RouterProvider>`
+- `frontend/src/components/ScreenShell.tsx` — NEW: shared top bar + content area + bottom nav slot
+- `frontend/src/components/BottomNav.tsx` — NEW: 4-tab nav (🏠 Home / 🔔 Alerts / ▣ Reports / ☷ Site)
+- `frontend/src/pages/Today.tsx` — stub: `<ScreenShell title="Tower B" subtitle="Today">…</ScreenShell>`
+- `frontend/src/pages/Task.tsx` — stub
+- `frontend/src/pages/Plans.tsx` — stub
+- `frontend/src/pages/Site.tsx` — stub
+- `frontend/src/pages/Alerts.tsx` — stub
+- `frontend/src/pages/Report.tsx` — stub
+- `frontend/src/pages/Summary.tsx` — stub
+- `frontend/src/pages/Export.tsx` — stub
+- `frontend/src/pages/Upload.tsx` — stub
+- `frontend/src/pages/Review.tsx` — stub
+
+Route table (frozen):
+```
+/                → Today.tsx      (bottom nav: Home)
+/task/:taskId    → Task.tsx
+/plans           → Plans.tsx
+/site            → Site.tsx       (bottom nav: Site)
+/alerts          → Alerts.tsx     (bottom nav: Alerts)
+/report          → Report.tsx     (bottom nav: Reports)
+/summary         → Summary.tsx
+/export          → Export.tsx
+/onboard         → Upload.tsx
+/onboard/review  → Review.tsx
+```
+
+Bottom nav hides on: `/task`, `/summary`, `/export`, `/onboard`, `/onboard/review`
+
+**Stream B gate:** `npm run build` clean, all 10 routes navigate correctly, bottom nav highlights active tab.
+
+---
+
+### Sprint 2 done when
+- 87+ backend tests pass (67 + 20 new)
+- `npm run build` clean, all 10 routes render
+- CI green on both workflows
+- Render deploy successful — migration log shows new tables
+- `/projects/1/tasks` returns 200 on production
+- App shell loads at 390px with functional bottom nav
+
+---
+
+## Sprint 3 — Cascade Engine + Daily Workflow UI
+
+**Streams:** BE and dependency polish run in **parallel**. FE starts after BE deploys to Render.
+
+```
+/sprint-execute 3 spawns:
+  Worktree A: sprint-3-be-cascade    (cascade service + endpoints)
+  Worktree B: sprint-3-be-deps       (dependency polish, parallel with A)
+  → merge A+B → deploy to Render
+  → then: Worktree C: sprint-3-fe    (screens: today, task, plans, site)
+```
+
+### Stream A: Cascade Engine `[worktree: sprint-3-be-cascade]`
+
+**File ownership:** `backend/app/services/cascade.py`, `backend/app/routers/tasks.py` (cascade endpoints only), `backend/tests/test_cascade.py`
+
+Files to create/modify:
+- `backend/app/services/cascade.py` — NEW (write tests first — TDD)
 - `backend/app/routers/tasks.py` — add cascade preview + apply endpoints
-- `backend/tests/test_cascade.py` — NEW, 15+ tests (write tests FIRST — TDD)
-- `backend/CLAUDE.md` — update cascade contract section
+- `backend/tests/test_cascade.py` — NEW, 15+ tests
 
-`cascade.py` — uses Kahn's BFS topological sort (NOT recursive DFS):
-
+`cascade.py` — Kahn's BFS (NOT recursive DFS):
 ```python
-from dataclasses import dataclass
-from datetime import date
-from sqlalchemy.orm import Session
-from app.models import Task, TaskDependency
-
 @dataclass
 class CascadeResult:
     task_id: int
@@ -565,221 +776,206 @@ class CascadeResult:
     days_shifted: int
 
 def preview_cascade(db, task_id, new_start_date, project_id) -> list[CascadeResult]:
-    """Returns affected tasks. Never writes to DB. Raises ValueError on cycle."""
+    """Never writes to DB. Raises ValueError on cycle detected."""
 
 def apply_cascade(db, task_id, new_start_date, project_id) -> list[CascadeResult]:
     """Writes new dates, returns same shape as preview."""
 ```
 
-Why BFS not DFS: a diamond dependency (C depends on both A and B) causes DFS to shift C twice. BFS with a visited-set processes each task exactly once, taking the correct max-shift from all predecessors.
+Why BFS: diamond dependency (C depends on A and B) — DFS shifts C twice, BFS with visited-set shifts it once (max of all predecessors).
 
 New endpoints:
 ```
-POST /tasks/{task_id}/cascade-preview  → body: {new_date: "YYYY-MM-DD"}  → list[CascadeResult]
-POST /tasks/{task_id}/cascade-apply    → body: {new_date: "YYYY-MM-DD"}  → list[CascadeResult] (DB written)
+POST /tasks/{task_id}/cascade-preview  → {new_date} → list[CascadeResult]
+POST /tasks/{task_id}/cascade-apply    → {new_date} → list[CascadeResult], DB written
 ```
 
-`test_cascade.py` required cases:
-- Linear chain (A→B→C): shift A 3 days, C shifts 3
-- Diamond (A→C and B→C): shift A, C takes max of A's push and B's zero
-- lag_days: B starts 2 days after A ends
-- Single task with no successors: returns empty list
-- Cycle (A→B→A): raises ValueError
-- apply vs preview: preview leaves DB unchanged; apply changes dates in DB
-- Multi-day duration: end_date = start_date + duration_days after shift
+Required test cases: linear chain, diamond, lag_days, no successors, cycle detection, apply vs preview, multi-day duration.
 
-**Agent 2: Dependency management polish** `[Terminal 2 — parallel]`
+### Stream B: Dependency polish `[worktree: sprint-3-be-deps]` — parallel with A
 
-- Verify POST/DELETE for task dependencies work correctly
-- Add 5 more tests to `test_tasks.py` for dependency edge cases (duplicate dep, self-dependency)
+**File ownership:** `backend/tests/test_tasks.py` (5 new tests only)
+
+- Add 5 edge-case tests: duplicate dependency rejected (UniqueConstraint), self-dependency rejected, cascade on task with no dependencies returns empty list.
+
+### Stream C: Frontend Daily Workflow `[worktree: sprint-3-fe]` — starts after A+B deploy
+
+**Gate:** `POST /tasks/{id}/cascade-preview` returns 200 on Render production.
+
+Build these screens using `/fe-screen` for each:
+- `/fe-screen today` — Screen 4: task cards with ✓/× buttons, FAB, wire to `GET /projects/1/tasks/today`
+- `/fe-screen task` — Screen 5: reason codes, notes, photo stubs, wire to `POST .../task-entries`
+- `/fe-screen plans` — Screen 3: weekly timeline, wire to `GET /projects/1/tasks`
+- `/fe-screen site` — Screen 6: tower graphic + level list, wire to `GET /projects/1/tasks`
+
+New API file:
+- `frontend/src/api/tasks.ts` — `Task`, `TaskLogEntry`, `CascadeResult` interfaces + all fetch functions
+
+**Navigation wired in this stream:**
+- Today: ✓ mark → `/report`; × mark → `/task/:id`; FAB → `/task/new`
+- Task: Save → back to `/`
+- Plans: event row tap → `/task/:id`
+- Site: "Apply filters" → `/?level=Level+4`
 
 ### Sprint 3 done when
-- 102+ tests pass
-- Cycle detection raises ValueError correctly
-- Diamond dependency test passes (not double-shifted)
-- Render deploy successful — no migration needed (no new models this sprint)
-- `/tasks/{id}/cascade-preview` returns correct shifted dates on production
+- 102+ backend tests pass
+- Cycle detection raises correctly; diamond dependency not double-shifted
+- Render deploy successful
+- Screens today, task, plans, site fully functional with real API data
+- Full ✓ Done and × Not Done flows work end-to-end in browser
 
 ---
 
-## Sprint 4 — Excel Upload + AI Task Extraction
+## Sprint 4 — Excel/AI Extraction + Onboarding UI
 
-**Goal:** Onboarding flow — upload `.xlsx`, extract tasks via Claude, confirm. Backend-only.
-
-### New dependencies (add to `requirements.txt`)
+**New backend dependencies:**
 ```
 anthropic>=0.49.0
 openpyxl>=3.1.5
 python-multipart>=0.0.20
-psycopg2-binary==2.9.12   # fix existing version mismatch
+psycopg2-binary==2.9.12
 ```
 
-### Agent execution
-
-Two sequential agents — Agent 2 cannot start until Agent 1's API shape is stable and merged.
+**Streams:** BE runs first. FE starts after BE deploys.
 
 ```
-Terminal 1: Agent 1 (backend extraction + upload endpoint)  ← start immediately
-Terminal 2: Agent 2 (integration verify + Render)           ← open after Agent 1 merges
+/sprint-execute 4 spawns:
+  Worktree A: sprint-4-be   (ai_extraction + onboarding router + tests)
+  → deploy to Render → set ANTHROPIC_API_KEY in Render dashboard
+  → then: Worktree B: sprint-4-fe   (screens: upload, review)
 ```
 
-**File ownership:**
-- Terminal 1 owns: `backend/app/config.py`, `backend/app/services/ai_extraction.py`, `backend/app/routers/onboarding.py`, `backend/app/main.py`, `backend/tests/test_onboarding.py`, `backend/requirements.txt`
-- Terminal 2 owns: nothing (read-only verification only)
+### Stream A: Backend Onboarding `[worktree: sprint-4-be]`
 
-**Agent 1: AI extraction service + upload endpoint** `[Terminal 1]`
+**File ownership:** `backend/app/config.py`, `backend/app/services/ai_extraction.py`, `backend/app/routers/onboarding.py`, `backend/app/main.py`, `backend/tests/test_onboarding.py`, `backend/requirements.txt`
 
 Files to create/modify:
-- `backend/app/config.py` — add `anthropic_api_key: str = ""` and `anthropic_model: str = "claude-sonnet-4-6"` to `Settings`
+- `backend/app/config.py` — add `anthropic_api_key: str = ""`, `anthropic_model: str = "claude-sonnet-4-6"`
 - `backend/app/services/ai_extraction.py` — NEW
 - `backend/app/routers/onboarding.py` — NEW
 - `backend/app/main.py` — register `onboarding.router`
 - `backend/tests/test_onboarding.py` — NEW, 8+ tests (all mock Claude client)
+- `backend/requirements.txt` — add new deps above
 
-`ai_extraction.py` design:
-1. Accept raw bytes + filename; load with `openpyxl.load_workbook(BytesIO(raw_bytes))`
-2. Extract all cell values as flat text, truncate at 6000 chars
-3. Call Claude via `anthropic.Anthropic(api_key=settings.anthropic_api_key)` with structured prompt requesting JSON output
-4. Parse JSON → validate against Pydantic `ExtractionResult` schema
-5. On any failure: return `ExtractionResult(tasks=[], dependencies=[], confidence=0.0, error=str(e))`
+`ai_extraction.py`: read xlsx bytes → openpyxl → flat text (≤6000 chars) → Claude JSON prompt → parse ExtractionResult. On any failure: return `confidence: 0.0, error: str(e)`.
 
-Upload endpoint:
+Endpoints:
 ```
-POST /projects/{project_id}/upload-schedule
-  multipart/form-data; file: UploadFile (.xlsx)
-  Returns: ExtractionResult {
-    tasks: list[TaskCreate],
-    dependencies: list[DependencyCreate],
-    raw_preview: str,
-    confidence: float,
-    error: str | None
-  }
+POST /projects/{project_id}/upload-schedule   → multipart .xlsx → ExtractionResult
+POST /projects/{project_id}/confirm-schedule  → {tasks, dependencies} → {tasks_created, deps_created}
 ```
 
-Confirm endpoint:
-```
-POST /projects/{project_id}/confirm-schedule
-  Body: { tasks: list[TaskCreate], dependencies: list[DependencyCreate] }
-  Returns: { tasks_created: int, dependencies_created: int }
-```
+**Stream A gate:** upload endpoint returns structured tasks for a test fixture xlsx. All 8+ tests pass with mocked Claude.
 
-**In unit tests:** mock `anthropic.Anthropic` — never call real API. CI has no API key.
+### Stream B: Frontend Onboarding `[worktree: sprint-4-fe]` — starts after A deploys
 
-**Agent 2: Integration verification + Render deploy** `[Terminal 2 — open after Agent 1 merges]`
+**Gate:** `POST /projects/1/upload-schedule` returns 200 on Render.
 
-After Agent 1 merges and Render deploys:
-- Add `ANTHROPIC_API_KEY` to Render environment variables (via Render dashboard, not committed to code)
-- Verify upload endpoint accepts a real `.xlsx` file on production
-- Verify confirm endpoint creates tasks in production DB
+Build using `/fe-screen`:
+- `/fe-screen upload` — Screen 1: hero + 3 upload rows (Files functional, Photos/Scan stub)
+- `/fe-screen review` — Screen 2: collapsible tree of extracted tasks + confirm
+
+New API calls to add to `frontend/src/api/tasks.ts`:
+- `uploadSchedule(file: File): Promise<ExtractionResult>`
+- `confirmSchedule(tasks, deps): Promise<{tasks_created, dependencies_created}>`
 
 ### Sprint 4 done when
-- Upload endpoint returns structured `ExtractionResult` for a test fixture xlsx
-- `test_onboarding.py` 8+ tests all pass (mocked)
-- CI green (no real API calls)
+- Upload + confirm endpoints tested and live on Render
 - `ANTHROPIC_API_KEY` set in Render environment
-- Render deploy successful, upload endpoint returns 200 on production
+- Screens upload + review fully functional: full upload → extract → review → confirm → tasks in `/plans`
 
 ---
 
-## Sprint 5 — Log Submission + AI Summary + PDF Export
+## Sprint 5 — Submission + AI Summary + PDF + Export UI
 
-**Goal:** Complete the daily log lifecycle — submit → AI narrative → PDF. Backend-only.
+**New backend dependency:** `reportlab>=4.2.0`
 
-### New dependencies
-```
-reportlab>=4.2.0
-```
-
-### Agent execution
-
-Three sequential steps, one agent handles all in a single terminal.
+**Streams:** BE runs first (3 sequential steps). FE starts after BE deploys.
 
 ```
-Terminal 1: Agent 1 (submit → AI summary → PDF) ← one terminal, three sequential steps
+/sprint-execute 5 spawns:
+  Worktree A: sprint-5-be   (submit + ai_summary + pdf — sequential steps within)
+  → deploy to Render
+  → then: Worktree B: sprint-5-fe   (screens: summary, export)
 ```
 
-**File ownership:** Terminal 1 owns all new files in this sprint.
+### Stream A: Backend Submission `[worktree: sprint-5-be]`
 
-**Agent 1: Submission + AI summary + PDF** `[Terminal 1]`
+**File ownership:** `backend/app/routers/daily_log.py`, `backend/app/services/ai_summary.py`, `backend/app/services/pdf_generator.py`, `backend/tests/test_submission.py`, `backend/requirements.txt`
 
-Files to create/modify:
-- `backend/app/routers/daily_log.py` — add submit endpoint; extend `DailyLogOut` with `submitted` + `ai_summary`
-- `backend/app/services/ai_summary.py` — NEW
-- `backend/app/services/pdf_generator.py` — NEW using `reportlab.platypus`
-- `backend/tests/test_submission.py` — NEW, 10+ tests
-
-Step A — submit endpoint:
+Step 1 — Submit endpoint:
 ```
-POST /daily-logs/{log_id}/submit
-  Returns: DailyLogOut (submitted=True, ai_summary=null initially)
+POST /daily-logs/{log_id}/submit → DailyLogOut (submitted=True, ai_summary=null)
 ```
-Sets `submitted=True`. Triggers AI summary via FastAPI `BackgroundTasks` (non-blocking, no Celery).
+Sets `submitted=True`. Triggers `ai_summary.py` via FastAPI `BackgroundTasks`.
 
-Step B — `ai_summary.py`: loads log + all related data (attendance, task entries, incidents, materials), builds structured prompt, calls Claude, writes result to `DailyLog.ai_summary`. On failure: writes `"[Summary generation failed]"` — never leaves `ai_summary` null indefinitely.
+Step 2 — `ai_summary.py`: loads all log data → structured Claude prompt → writes to `DailyLog.ai_summary`. On failure: writes `"[Summary generation failed]"`, never leaves null.
 
-Step C — PDF endpoint:
+Step 3 — PDF endpoint:
 ```
-GET /daily-logs/{log_id}/export-pdf
-  Returns: StreamingResponse (application/pdf)
-  Content-Disposition: attachment; filename="log-{date}.pdf"
+GET /daily-logs/{log_id}/export-pdf → StreamingResponse(application/pdf)
 ```
-PDF sections: project header, date, weather table, crew attendance, tasks done/not done, materials, safety incidents, AI summary if present.
+Sections: project header, weather, crew attendance, tasks done/not done, materials, safety, AI summary.
 
-Test cases for `test_submission.py`:
-- Submit sets `submitted=True`
-- Re-submit is idempotent (returns same log)
-- PDF endpoint returns status 200 + content-type `application/pdf`
-- PDF for non-existent log returns 404
-- AI summary stored after background task runs (mock Claude)
+Tests (10+): submit sets flag, idempotent re-submit, PDF returns `application/pdf` content-type, PDF for missing log returns 404, AI summary stored after mocked background task.
+
+### Stream B: Frontend AI+Export `[worktree: sprint-5-fe]` — starts after A deploys
+
+**Gate:** `POST /daily-logs/1/submit` returns `submitted: true` on Render.
+
+Build using `/fe-screen`:
+- `/fe-screen summary` — Screen 9: AI summary text block, polls every 3s while null (max 10 attempts), Edit affordance
+- `/fe-screen export` — Screen 10: KPI bar, progress bars, photo gallery stubs, PDF download button
+
+New API calls to add to `frontend/src/api/daily_log.ts`:
+- `submitLog(logId)`, `exportPdf(logId)`, extend `DailyLog` interface with `submitted`, `ai_summary`
 
 ### Sprint 5 done when
-- Submit endpoint sets flag in DB
-- PDF endpoint returns valid PDF content-type
-- AI summary stored and retrievable on production
-- Render deploy successful
-- Production smoke: `curl -X POST .../daily-logs/1/submit` returns `submitted: true`
+- Submit sets flag; AI summary stored and displayed after polling
+- PDF downloads with `application/pdf` content-type
+- Full submit → Screen 9 → Screen 10 → PDF download flow works in browser
 
 ---
 
-## Sprint 6 — Today View Backend + Task Marking
+## Sprint 6 — Today View Polish + Alerts/Report UI
 
-**Goal:** The core daily endpoint — tasks for today, task marking done/not done, full log through cascade. Backend-only. Frontend wired in a later sprint once mockups are provided.
-
-### Agent execution
-
-Single agent — this sprint is primarily validation and endpoint polish.
+**Streams:** BE validation runs first (lightweight). FE starts after.
 
 ```
-Terminal 1: Agent 1 (today endpoint + task marking validation) ← single terminal
+/sprint-execute 6 spawns:
+  Worktree A: sprint-6-be   (today endpoint polish + task marking validation)
+  → deploy to Render
+  → then: Worktree B: sprint-6-fe   (screens: alerts, report)
 ```
 
-**Agent 1: Today view endpoint + task marking validation** `[Terminal 1]`
+### Stream A: Backend Polish `[worktree: sprint-6-be]`
 
-Files to modify:
-- `backend/app/routers/tasks.py` — verify `GET /projects/{id}/tasks/today` returns all fields needed by the frontend (id, name, level_tag, trade_tag, start_date, end_date, status, duration_days)
-- `backend/app/routers/tasks.py` — verify `POST /daily-logs/{log_id}/task-entries` handles the full "not_done" flow correctly (requires new_date when action=not_done; optionally triggers cascade-apply)
-- `backend/tests/test_tasks.py` — add 5+ tests for the today-filter (past tasks not returned, tasks due today returned, completed tasks excluded)
+**File ownership:** `backend/app/routers/tasks.py`, `backend/tests/test_tasks.py`
 
-No new models needed this sprint.
+- Verify `GET /projects/{id}/tasks/today` returns: `id`, `name`, `level_tag`, `trade_tag`, `start_date`, `end_date`, `status`, `duration_days`
+- Verify `POST .../task-entries` with `action=not_done` requires `new_date` (422 if missing)
+- Add 5 tests: past tasks excluded, future tasks excluded, completed tasks excluded, not_done without new_date returns 422, done entries mark task status
+
+### Stream B: Frontend Alerts+Report `[worktree: sprint-6-fe]` — starts after A deploys
+
+Build using `/fe-screen`:
+- `/fe-screen alerts` — Screen 7: Upcoming/Past tabs, alert cards for tasks starting soon + delayed tasks
+- `/fe-screen report` — Screen 8: 6 stat cards wired to real data (weather, crew count, tasks done, tasks not done, materials count, photos stub)
+
+Screen 8 wires to: `DailyLog` (weather), attendance endpoint (crew count), `TaskLogEntry` (done/not done counts), materials endpoint (count).
+
+"Generate report" button on Screen 8 → `POST /daily-logs/{id}/submit` → navigate to `/summary`.
 
 ### Sprint 6 done when
-- Today endpoint correctly filters tasks
-- Task entry "not_done" validates that new_date is required
-- All tests pass (110+ total)
-- Render deploy successful
-- `/projects/1/tasks/today` returns correct task list on production (after seeding tasks with today's date)
+- 115+ total tests pass
+- Today endpoint returns correct fields; not_done without new_date returns 422
+- Screens alerts + report render real data
+- "Generate report" → submit → AI summary → export flow is complete end-to-end
+- Render deploy successful — full app is feature-complete
 
 ---
 
-## Frontend Phases
-
-**Source of truth:** `Sprints/site_diary_app_clickable_demo.html` — a fully clickable prototype with all 10 screens, exact colors, spacing, and navigation flow. Every agent working on frontend MUST open and interact with this file before writing a single line of component code.
-
-Frontend work is phased by backend readiness. **Phase 1 is unblocked** and runs in parallel with backend Sprint 2. Phases 2–5 each gate on a specific backend sprint completing first.
-
----
-
-### Design System (extracted from mockup — source of truth)
+## Design System (extracted from mockup — source of truth)
 
 **Colors** — transcribed exactly from the mockup's CSS variables:
 ```ts
@@ -886,234 +1082,6 @@ review  → /          (✓ Looks good → home)
 
 Bottom nav always visible on: /, /site, /alerts, /report
 Bottom nav hidden on: /task, /summary, /export, /onboard, /onboard/review
-```
-
----
-
-### Frontend Phase 1 — Shell & Design System
-**Backend dependency:** none — fully unblocked  
-**Runs in parallel with:** Backend Sprint 2  
-**Terminal:** Terminal 2 (open simultaneously with Terminal 1 for Sprint 2 backend)
-
-**File ownership:**
-- `frontend/src/constants/theme.ts` — NEW: all tokens above
-- `frontend/src/router.tsx` — NEW: all 10 route definitions using `react-router-dom`
-- `frontend/src/App.tsx` — replace current tab nav with `<RouterProvider>` + shell wrapper
-- `frontend/src/components/BottomNav.tsx` — NEW: 4-tab bottom nav, hides on screens listed above
-- `frontend/src/components/ScreenShell.tsx` — NEW: the 390px container + top bar + content area + bottom nav slot
-- `frontend/package.json` — add `react-router-dom@^6` (only new dependency this phase)
-- `frontend/src/pages/Today.tsx` etc. — stub all 10 screen files (just `<h1>Screen name</h1>` + back button where applicable)
-
-**`ScreenShell` component** wraps every screen. Props: `title`, `subtitle`, `showBack`, `showBottomNav`, `actions` (top-right slot). Renders the top bar, scrollable content area, and bottom nav consistently. All 10 screens use it — no screen duplicates the chrome.
-
-**Bottom nav items** (from mockup exactly):
-- 🏠 Home → `/`
-- 🔔 Alerts → `/alerts`
-- ▣ Reports → `/report`
-- ☷ Site → `/site`
-
-Uses `useLocation()` to highlight the active tab. Active color: `colors.blue`. Inactive: `colors.muted`.
-
-**Phase 1 done when:** `npm run build` clean, all 10 routes render stub content, bottom nav highlights correct tab, layout is 390px on desktop and full-width on mobile (375px), shell clipping works (no horizontal scroll).
-
----
-
-### Frontend Phase 2 — Core Daily Workflow
-**Backend dependency:** Sprint 2 complete — `GET /projects/1/tasks/today` and `POST /daily-logs/{id}/task-entries` live on Render  
-**Terminal:** Single terminal (screens are sequential, share state)
-
-**Screen 4 — Daily Log Dashboard (`/`)**
-
-Replace existing WeatherBlock/CrewAttendanceBlock layout entirely.
-
-Layout (from mockup):
-- Top bar: hamburger menu | "Tower B⌄" + date | weather chip (☁️ temp)
-- Section header: "Today's progress"
-- Task list: each task is a 4-column card:
-  ```
-  [icon 42px] [name + time] [✓ mark 44px] [× mark 44px]
-  ```
-  - ✓ tap → calls `POST .../task-entries {action: "done"}` → navigates to `/report`
-  - × tap → navigates to `/task/:taskId`
-- FAB `+` button above bottom nav → navigates to `/task/new`
-
-API: `GET /projects/1/tasks/today` + `POST /daily-logs/today` (to get `logId`)
-
-Task icon background colors by `trade_tag`: Electrical → orangeSoft, Delivery → blueSoft, Construction → greenSoft, Safety → blueSoft, default → orangeSoft.
-
-**Screen 5 — Task Detail (`/task/:taskId`)**
-
-Top bar: back → `/` | task name | `⋮`
-
-Layout:
-- Two buttons row: `✓ Done` (green) | `× Not done` (red)
-- "Why not completed?" section — radio list (exactly 5 from mockup):
-  - Delayed (Subcontractor staffing)
-  - Missing materials
-  - Blocked by prior task
-  - Weather
-  - Other
-- Notes textarea (min-height 48px)
-- Photos row: 3 stub photo thumbnails (68×56px rounded) + add photo `+` button (stub only)
-- Save button → `POST .../task-entries {action, new_date, reason}` → back to `/`
-
-**Screen 3 — Plans & Deliveries (`/plans`)**
-
-3 tabs: Weekly | Monthly | Schedule (Weekly is the default, Monthly + Schedule are stubs)
-
-Weekly tab: vertical timeline, each event is a 3-column card:
-```
-[date block 54×52px] [name + level] [pill badge]
-```
-Date block shows day-of-week + number. Pill variants: no pill (plain), `orange` (Today/Delivery), `green` (trade name), `blue` (Inspect).
-
-API: `GET /projects/1/tasks` filtered by current week.
-
-**Screen 6 — Site Tree (`/site`)**
-
-2-column layout:
-- Left: tower graphic (CSS only — `repeating-linear-gradient` with 3 vertical dividers, height 310px)
-- Right: level list — each row shows a colored dot + level name; active level highlighted in `blueSoft`
-
-Dot colors by task status: `green` = all done, `orange` = in progress, `red` = delayed, `muted` = not started.
-
-"Apply filters" button → navigates to `/` with selected `level_tag` as URL param (`/?level=Level+4`).
-
-API: `GET /projects/1/tasks` → derive level status from task statuses.
-
-**Phase 2 done when:** Full ✓ Done → `/report` and × Not Done → `/task` → Save → `/` flows work end-to-end with real API data. Site Tree renders levels with correct dot colors.
-
----
-
-### Frontend Phase 3 — Alerts & Report Draft
-**Backend dependency:** Sprint 3 complete — cascade engine live on Render
-
-**Screen 7 — Alerts / Lookahead (`/alerts`)**
-
-2 tabs: Upcoming | Past
-
-Each alert card: 3 columns: `[icon 42px] [title + date] [›]`
-
-Upcoming alerts = tasks whose `start_date` is tomorrow or within 7 days AND `status != done`. Pull from `GET /projects/1/tasks` filtered client-side.
-
-Cascade-impacted tasks (tasks with `status = delayed`) appear as warning alerts with ⚠️ icon.
-
-**Screen 8 — Daily Report Draft (`/report`)**
-
-Top bar: back | "Daily Report" + date | `Draft` pill (orange)
-
-6 stat cards in a 2-column grid (from mockup exactly):
-```
-☁️  Weather    👷  Crew
-✅  Completed  ❌  Not done
-📦  Deliveries 📷  Photos
-```
-
-Weather + date from `DailyLog`. Crew count from attendance records. Completed/Not done from `TaskLogEntry`. Deliveries = materials count. Photos = stub `0` for now.
-
-"Generate report" button → `POST /daily-logs/{id}/submit` → navigates to `/summary`
-
-**Phase 3 done when:** Screen 8 shows accurate counts from real data; "Generate report" triggers submission and navigates to Screen 9.
-
----
-
-### Frontend Phase 4 — AI & Export
-**Backend dependency:** Sprint 5 complete — AI summary + PDF export live on Render
-
-**Screen 9 — AI Summary Preview (`/summary`)**
-
-Top bar: back → `/report` | "AI Summary" + "Ready to review" | `Edit` link (text button, blue)
-
-Content: white card with narrative text, `line-height: 1.6`, `font-size: 15px`, gray background (`#f8fbff`).
-
-If `ai_summary` is null after submit: show spinner + "Generating summary…". Poll `GET /daily-logs/{date}` every 3s, max 10 attempts. After 10 failures: show "Summary generation failed — tap to retry."
-
-`Edit` tap: makes the card a `<textarea>` with the same styling. Save on blur calls a `PATCH /daily-logs/{id}/summary` endpoint (or stores locally if that endpoint doesn't exist yet).
-
-"Use in report" button → `/export`
-
-**Screen 10 — Export Report (`/export`)**
-
-Top bar: back → `/summary` | "Daily Report" + date | `BUILDWELL` brand text
-
-Content (from mockup exactly):
-- KPI bar: 3-column grid → Weather | Crew | Photos
-- 2-column layout:
-  - Left: "Work completed" progress bar + "Work not completed" progress bar (widths derived from task counts)
-  - Right: 2×2 photo gallery (stubs, last cell shows `+N` overlay if >4 photos)
-
-"Download PDF" button → `GET /daily-logs/{id}/export-pdf` → browser downloads file
-
-"Done" button → `/`
-
-**Phase 4 done when:** Full submit → poll → summary → export → PDF download chain works end-to-end.
-
----
-
-### Frontend Phase 5 — Onboarding
-**Backend dependency:** Sprint 4 complete — Excel upload + AI extraction live on Render
-
-**Screen 1 — Upload (`/onboard`)**
-
-Hero section: cloud emoji illustration + "Build your site diary" headline + subtext
-
-3 upload rows (tap targets, 48px min height each):
-- 📁 Files & folders — "Plans, Excel, PDFs" — functional (opens file picker, `accept=".xlsx"`)
-- 🖼️ Photos — "From your device" — stub (shows toast "Coming soon")
-- 🔎 Scan documents — "Drawings, receipts" — stub (shows toast "Coming soon")
-
-"Skip" link (top right) → `/`
-
-"Upload files" button → triggers file picker → on file select → calls `POST /projects/1/upload-schedule` with the xlsx file → loading state → navigates to `/onboard/review` with extraction results in state
-
-**Screen 2 — Review Structure (`/onboard/review`)**
-
-Back → `/onboard`
-
-Content: collapsible tree card showing extracted structure:
-```
-📁 Tower B
-  📁 ● Level 4  (blue dot)
-  📁 ● Level 3  (green dot)
-  📁 ● Level 2  (orange dot)
-  📁 ● Level 1  (red dot)
-📁 Level 5
-📁 Roof
-```
-
-Second card: flat list of document types (Plans, Deliveries, Site diary/logs)
-
-"✓ Looks good" button → calls `POST /projects/1/confirm-schedule` with the extracted task list → on success → navigates to `/`
-
-**Phase 5 done when:** Full upload → extract → review tree → confirm → tasks appear in Screen 3 (Plans) flow works end-to-end.
-
----
-
-### Frontend CLAUDE.md additions (apply after Phase 1 completes)
-
-```markdown
-## Design tokens
-Import ALL colors, radius, shadow, shell constants from frontend/src/constants/theme.ts.
-No hex color literals in component files. No inline color values.
-
-## Routing
-All routes defined in frontend/src/router.tsx only. Routes are frozen — do not rename.
-Navigation uses react-router-dom useNavigate() hook. No window.location assignments.
-
-## Shell pattern
-Every screen wraps content in <ScreenShell>. Never duplicate top bar or bottom nav chrome.
-Screens that hide bottom nav: /task, /summary, /export, /onboard, /onboard/review.
-
-## FAB and bottom nav positioning
-Both use position: absolute inside the shell container (NOT position: fixed).
-This keeps them anchored to the 390px shell on desktop.
-
-## Padding rule
-All screen content areas: paddingBottom: '72px' to clear the bottom nav.
-
-## Mockup reference
-Always open Sprints/site_diary_app_clickable_demo.html before building any screen.
-The mockup is the source of truth for layout, spacing, and interaction flow.
 ```
 
 ---
