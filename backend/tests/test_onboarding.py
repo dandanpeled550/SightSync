@@ -50,6 +50,15 @@ def _mock_claude_response(tasks: list[dict], confidence: float = 0.85) -> MagicM
     return message
 
 
+def _mock_openai_response(tasks: list[dict], confidence: float = 0.85) -> MagicMock:
+    """Build a fake openai chat completion response object."""
+    payload = json.dumps({"tasks": tasks, "confidence": confidence})
+    choice = SimpleNamespace(message=SimpleNamespace(content=payload))
+    response = MagicMock()
+    response.choices = [choice]
+    return response
+
+
 def _upload(client, xlsx_bytes: bytes, filename: str = "schedule.xlsx"):
     return client.post(
         f"/projects/{client.project_id}/upload-schedule",
@@ -113,18 +122,76 @@ class TestUploadSchedule:
         assert "xlsx" in resp.json()["detail"].lower()
 
     @patch("app.services.ai_extraction.settings")
-    def test_upload_xlsx_without_api_key_returns_error_field(
+    def test_upload_xlsx_without_any_api_key_returns_error_field(
         self, mock_settings, seeded_client
     ):
-        """When ANTHROPIC_API_KEY is empty, result should have error='ANTHROPIC_API_KEY not configured'."""
+        """When neither API key is set, result error explains what to do."""
         mock_settings.anthropic_api_key = ""
-        mock_settings.anthropic_model = "claude-sonnet-4-6"
+        mock_settings.openai_api_key = ""
 
         resp = _upload(seeded_client, _make_xlsx())
         assert resp.status_code == 200
         data = resp.json()
         assert data["tasks"] == []
-        assert data["error"] == "ANTHROPIC_API_KEY not configured"
+        assert "ANTHROPIC_API_KEY" in data["error"]
+        assert "OPENAI_API_KEY" in data["error"]
+
+    @patch("app.services.ai_extraction.settings")
+    @patch("openai.OpenAI")
+    def test_upload_uses_openai_when_only_openai_key_set(
+        self, mock_openai_cls, mock_settings, seeded_client
+    ):
+        """When only OPENAI_API_KEY is set, the OpenAI provider is used."""
+        mock_settings.anthropic_api_key = ""
+        mock_settings.openai_api_key = "sk-openai-test"
+        mock_settings.openai_model = "gpt-4o"
+
+        task_payload = [
+            {
+                "name": "Framing Work",
+                "level_tag": "Level 2",
+                "trade_tag": "Structural",
+                "start_date": "2025-04-01",
+                "duration_days": 8,
+            }
+        ]
+        mock_instance = MagicMock()
+        mock_instance.chat.completions.create.return_value = _mock_openai_response(task_payload)
+        mock_openai_cls.return_value = mock_instance
+
+        resp = _upload(seeded_client, _make_xlsx())
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["error"] is None
+        assert len(data["tasks"]) == 1
+        assert data["tasks"][0]["name"] == "Framing Work"
+        mock_instance.chat.completions.create.assert_called_once()
+
+    @patch("app.services.ai_extraction.settings")
+    @patch("openai.OpenAI")
+    @patch("anthropic.Anthropic")
+    def test_upload_prefers_claude_when_both_keys_set(
+        self, mock_anthropic_cls, mock_openai_cls, mock_settings, seeded_client
+    ):
+        """When both keys are set, Claude (Anthropic) is used, not OpenAI."""
+        mock_settings.anthropic_api_key = "sk-ant-test"
+        mock_settings.anthropic_model = "claude-sonnet-4-6"
+        mock_settings.openai_api_key = "sk-openai-test"
+        mock_settings.openai_model = "gpt-4o"
+
+        mock_claude_instance = MagicMock()
+        mock_claude_instance.messages.create.return_value = _mock_claude_response(
+            [{"name": "Claude Task", "level_tag": "L1", "trade_tag": None, "start_date": "2025-01-01", "duration_days": 3}]
+        )
+        mock_anthropic_cls.return_value = mock_claude_instance
+
+        resp = _upload(seeded_client, _make_xlsx())
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["error"] is None
+        # Claude was called, OpenAI was not
+        mock_claude_instance.messages.create.assert_called_once()
+        mock_openai_cls.assert_not_called()
 
     @patch("app.services.ai_extraction.settings")
     @patch("anthropic.Anthropic")
