@@ -129,10 +129,7 @@ export default function Today() {
         <IconBtn onClick={() => navigate('/onboard')}>☰</IconBtn>
       }
       rightAction={
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          {weather && <span style={{ fontSize: '13px', color: colors.muted }}>☁️ {weather}</span>}
-          <IconBtn onClick={() => navigate('/task/new')}>+</IconBtn>
-        </div>
+        <IconBtn onClick={() => navigate('/task/new')}>+</IconBtn>
       }
     >
       {/* Date hero */}
