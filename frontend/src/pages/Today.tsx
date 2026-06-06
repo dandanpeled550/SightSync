@@ -357,7 +357,7 @@ export default function Today() {
           <div style={{ marginTop: '20px', paddingBottom: '90px' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '14px' }}>
               <span style={{ fontSize: '13px', fontWeight: 900, color: colors.text, letterSpacing: '-0.01em', flexShrink: 0 }}>
-                Safety incidents
+                Safety documentation
               </span>
               <div style={{ flex: 1, height: '1px', background: colors.line }} />
               <button

@@ -8,6 +8,7 @@ import { fetchTaskEntries, fetchAllTasks, type TaskLogEntry, type Task } from '.
 import { fetchMaterials, type Material } from '../api/materials'
 import { fetchIncidents, type Incident } from '../api/incidents'
 import SafetyBlock from '../components/SafetyBlock'
+import DelaysBlock from '../components/DelaysBlock'
 import { useProject } from '../contexts/ProjectContext'
 
 function formatTodayLong(): string {
@@ -164,11 +165,6 @@ export default function Report() {
     .filter(e => e.action === 'done')
     .map(e => allTasks.find(t => t.id === e.task_id))
     .filter((t): t is Task => t !== undefined)
-
-  const notDoneTasks: { task: Task; entry: TaskLogEntry }[] = taskEntries
-    .filter(e => e.action === 'not_done')
-    .map(e => ({ task: allTasks.find(t => t.id === e.task_id), entry: e }))
-    .filter((x): x is { task: Task; entry: TaskLogEntry } => x.task !== undefined)
 
   const draftBadge = (
     <span style={{
@@ -347,74 +343,15 @@ export default function Report() {
           </div>
         )}
 
-        {/* Rescheduled / not done */}
-        {notDoneTasks.length > 0 && (
-          <div style={{ marginBottom: '20px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '10px' }}>
-              <span style={{ fontSize: '13px', fontWeight: 900, color: colors.text, letterSpacing: '-0.01em' }}>
-                Rescheduled
-              </span>
-              <div style={{ flex: 1, height: '1px', background: colors.line }} />
-              <span style={{
-                fontSize: '11px', fontWeight: 800, color: colors.orange,
-                background: colors.orangeSoft, borderRadius: radius.pill, padding: '3px 8px',
-              }}>
-                {notDoneTasks.length}
-              </span>
-            </div>
-            {notDoneTasks.map(({ task, entry }) => (
-              <div
-                key={task.id}
-                style={{
-                  padding: '10px 12px',
-                  background: colors.orangeSoft,
-                  border: `1px solid ${colors.line}`,
-                  borderRadius: radius.card,
-                  marginBottom: '8px',
-                }}
-              >
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                  <div style={{
-                    width: '32px', height: '32px', borderRadius: '10px',
-                    background: '#fff', display: 'grid', placeItems: 'center', fontSize: '16px', flexShrink: 0,
-                  }}>
-                    🔁
-                  </div>
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontSize: '13px', fontWeight: 800, color: colors.text, letterSpacing: '-0.02em', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                      {task.name}
-                    </div>
-                    <div style={{ fontSize: '11px', color: colors.muted }}>
-                      {task.level_tag}{task.trade_tag ? ` · ${task.trade_tag}` : ''}
-                    </div>
-                  </div>
-                  {entry.new_date && (
-                    <div style={{ textAlign: 'right', flexShrink: 0 }}>
-                      <div style={{ fontSize: '10px', color: colors.muted, textDecoration: 'line-through' }}>
-                        {new Date(task.end_date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-                      </div>
-                      <div style={{ fontSize: '12px', fontWeight: 800, color: colors.orange }}>
-                        → {new Date(entry.new_date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-                      </div>
-                    </div>
-                  )}
-                </div>
-                {entry.reason && (
-                  <div style={{ fontSize: '11px', color: colors.muted, marginTop: '6px', paddingLeft: '42px' }}>
-                    {entry.reason}
-                  </div>
-                )}
-              </div>
-            ))}
-          </div>
-        )}
+        {/* Delays (directly delayed + cascade impacts) */}
+        {log && <DelaysBlock logId={log.id} readOnly />}
 
-        {/* Safety incidents section */}
+        {/* Safety documentation section */}
         {log && (
           <div style={{ marginBottom: '20px' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '10px' }}>
               <span style={{ fontSize: '13px', fontWeight: 900, color: colors.text, letterSpacing: '-0.01em' }}>
-                Safety incidents
+                Safety documentation
               </span>
               <div style={{ flex: 1, height: '1px', background: colors.line }} />
               {incidentCount > 0 && (

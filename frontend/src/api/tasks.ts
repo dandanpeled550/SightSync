@@ -37,6 +37,29 @@ export interface CascadeResult {
   days_shifted: number
 }
 
+export interface CascadeDelayImpact {
+  task_id: number | null
+  task_name: string
+  old_start_date: string
+  new_start_date: string
+  days_shifted: number
+  is_root: boolean
+}
+
+export interface DelayGroup {
+  triggering_entry_id: number
+  trigger_task_id: number | null
+  trigger_task_name: string
+  reason: string | null
+  new_date: string
+  impacts: CascadeDelayImpact[]
+}
+
+export async function fetchDelays(logId: number): Promise<DelayGroup[]> {
+  const res = await api.get<DelayGroup[]>(`/daily-logs/${logId}/delays`)
+  return res.data
+}
+
 export async function fetchTaskEntries(logId: number): Promise<TaskLogEntry[]> {
   const res = await api.get<TaskLogEntry[]>(`/daily-logs/${logId}/task-entries`)
   return res.data
@@ -173,6 +196,39 @@ export interface TaskDependency {
 export async function fetchTaskDependencies(projectId: number): Promise<TaskDependency[]> {
   const res = await api.get<TaskDependency[]>(`/projects/${projectId}/task-dependencies`)
   return res.data
+}
+
+export async function createTask(
+  projectId: number,
+  body: {
+    name: string
+    level_tag: string
+    trade_tag?: string | null
+    start_date: string
+    duration_days: number
+    description?: string | null
+    notes?: string | null
+  },
+): Promise<Task> {
+  const { data } = await api.post<Task>(`/projects/${projectId}/tasks`, {
+    ...body,
+    source: 'manual',
+    status: 'pending',
+  })
+  return data
+}
+
+export async function createDependency(
+  projectId: number,
+  taskId: number,
+  dependsOnTaskId: number,
+  lagDays = 0,
+): Promise<TaskDependency> {
+  const { data } = await api.post<TaskDependency>(
+    `/projects/${projectId}/task-dependencies`,
+    { task_id: taskId, depends_on_task_id: dependsOnTaskId, lag_days: lagDays },
+  )
+  return data
 }
 
 export async function updateTask(

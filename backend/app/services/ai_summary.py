@@ -60,7 +60,7 @@ def generate_and_store_summary(log_id: int, db: Session) -> None:
         # Safety incidents
         incidents = db.query(SafetyIncident).filter(SafetyIncident.daily_log_id == log_id).all()
         if incidents:
-            lines.append(f"Safety incidents: {len(incidents)}")
+            lines.append(f"Safety documentation: {len(incidents)} incident(s)")
             for i in incidents:
                 detail = f"  - {i.incident_type}: {i.description}"
                 if i.people_involved:

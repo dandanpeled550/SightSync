@@ -7,7 +7,7 @@ from pydantic import BaseModel, ConfigDict
 from sqlalchemy.orm import Session
 
 from app.database import get_db
-from app.models import DailyLog, Task, TaskDependency, TaskLogEntry, User
+from app.models import CascadeDelayRecord, DailyLog, Task, TaskDependency, TaskLogEntry, User
 from app.services.cascade import CascadeResult, apply_cascade, preview_cascade
 from app.services.auth_service import get_current_user, require_project_member
 
@@ -111,6 +111,26 @@ class CascadeResultOut(BaseModel):
 class TaskLogEntryWithCascadeOut(TaskLogEntryOut):
     """TaskLogEntry response extended with auto-cascade results for not_done entries."""
     cascade_results: List[CascadeResultOut] = []
+
+
+class CascadeDelayRecordOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    task_id: Optional[int]
+    task_name: str
+    old_start_date: datetime.date
+    new_start_date: datetime.date
+    days_shifted: int
+    is_root: bool
+
+
+class DelayGroupOut(BaseModel):
+    triggering_entry_id: int
+    trigger_task_id: Optional[int]
+    trigger_task_name: str
+    reason: Optional[str]
+    new_date: datetime.date
+    impacts: List[CascadeDelayRecordOut]
 
 
 # ── Task CRUD ─────────────────────────────────────────────────────────────────
@@ -362,8 +382,23 @@ def create_task_entry(
         task.start_date = body.new_date
         task.end_date = body.new_date + datetime.timedelta(days=task.duration_days)
         try:
-            # apply_cascade flushes and commits the entry + date changes + all downstream shifts
-            raw = apply_cascade(db, body.task_id, body.new_date, log.project_id)
+            # Preview first (read-only) to capture old dates before apply writes them
+            raw = preview_cascade(db, body.task_id, body.new_date, log.project_id)
+            # Flush to assign entry.id so CascadeDelayRecord FK is valid
+            db.flush()
+            for r in raw:
+                db.add(CascadeDelayRecord(
+                    daily_log_id=log_id,
+                    triggering_entry_id=entry.id,
+                    task_id=r.task_id,
+                    task_name=r.task_name,
+                    old_start_date=r.old_start_date,
+                    new_start_date=r.new_start_date,
+                    days_shifted=r.days_shifted,
+                    is_root=(r.task_id == body.task_id),
+                ))
+            # apply_cascade writes new dates to DB and commits everything atomically
+            apply_cascade(db, body.task_id, body.new_date, log.project_id)
             cascade_results = [_cascade_result_to_out(r) for r in raw]
         except ValueError:
             # Cycle or orphaned task — entry and root date update still committed
@@ -392,6 +427,54 @@ def list_task_entries(
         raise HTTPException(status_code=404, detail="Daily log not found")
     require_project_member(log.project_id, current_user, db)
     return db.query(TaskLogEntry).filter(TaskLogEntry.daily_log_id == log_id).all()
+
+
+@router.get("/daily-logs/{log_id}/delays", response_model=List[DelayGroupOut])
+def list_delays(
+    log_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    log = db.query(DailyLog).filter(DailyLog.id == log_id).first()
+    if not log:
+        raise HTTPException(status_code=404, detail="Daily log not found")
+    require_project_member(log.project_id, current_user, db)
+
+    entries = (
+        db.query(TaskLogEntry)
+        .filter(TaskLogEntry.daily_log_id == log_id, TaskLogEntry.action == "not_done")
+        .all()
+    )
+
+    groups: List[DelayGroupOut] = []
+    for entry in entries:
+        records = (
+            db.query(CascadeDelayRecord)
+            .filter(CascadeDelayRecord.triggering_entry_id == entry.id)
+            .all()
+        )
+        root = next((r for r in records if r.is_root), None)
+        impacts = [
+            CascadeDelayRecordOut(
+                task_id=r.task_id,
+                task_name=r.task_name,
+                old_start_date=r.old_start_date,
+                new_start_date=r.new_start_date,
+                days_shifted=r.days_shifted,
+                is_root=r.is_root,
+            )
+            for r in records if not r.is_root
+        ]
+        groups.append(DelayGroupOut(
+            triggering_entry_id=entry.id,
+            trigger_task_id=root.task_id if root else None,
+            trigger_task_name=root.task_name if root else "Unknown",
+            reason=entry.reason,
+            new_date=entry.new_date,
+            impacts=impacts,
+        ))
+
+    return groups
 
 
 # ── Cascade Delay Engine (Sprint 3) ──────────────────────────────────────────

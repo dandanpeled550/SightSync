@@ -5,6 +5,7 @@ import WeatherBlock from '../components/WeatherBlock'
 import CrewAttendanceBlock from '../components/CrewAttendanceBlock'
 import SafetyBlock from '../components/SafetyBlock'
 import MaterialsBlock from '../components/MaterialsBlock'
+import DelaysBlock from '../components/DelaysBlock'
 
 function addDays(iso: string, n: number): string {
   const d = new Date(iso + 'T12:00:00')
@@ -67,7 +68,7 @@ export default function DailyLogView() {
           <p style={s.muted}>No log recorded for this date.</p>
           <WeatherBlock weather={{ temp_max: null, temp_min: null, conditions: null, precipitation: null, wind_speed: null, error: null }} date={currentDate} />
           <div style={s.emptyBlock}><strong>Crew Attendance</strong><p style={s.muted}>No data.</p></div>
-          <div style={s.emptyBlock}><strong>Safety Incidents</strong><p style={s.muted}>None.</p></div>
+          <div style={s.emptyBlock}><strong>Safety Documentation</strong><p style={s.muted}>None.</p></div>
           <div style={s.emptyBlock}><strong>Materials Used</strong><p style={s.muted}>None.</p></div>
         </div>
       )}
@@ -78,6 +79,7 @@ export default function DailyLogView() {
           <CrewAttendanceBlock logId={log.id} readOnly />
           <SafetyBlock logId={log.id} readOnly />
           <MaterialsBlock logId={log.id} readOnly />
+          <DelaysBlock logId={log.id} readOnly />
         </>
       )}
     </div>

@@ -55,7 +55,7 @@ export default function SafetyBlock({ logId, readOnly = false }: Props) {
 
   return (
     <div style={s.block}>
-      <h3 style={s.heading}>Safety Incidents</h3>
+      <h3 style={s.heading}>Safety Documentation</h3>
       {error && <p style={s.error}>{error}</p>}
 
       {incidents.length === 0 ? (

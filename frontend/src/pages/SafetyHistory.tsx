@@ -36,7 +36,7 @@ export default function SafetyHistory() {
   }, [PROJECT_ID])
 
   return (
-    <ScreenShell title="Safety Incidents" subtitle="All recorded incidents">
+    <ScreenShell title="Safety Documentation" subtitle="All recorded incidents">
       <div style={{ padding: '20px 20px 0', paddingBottom: '72px' }}>
 
         {loading && [0, 1, 2].map(i => (
@@ -85,7 +85,7 @@ export default function SafetyHistory() {
               No incidents
             </div>
             <div style={{ fontSize: '14px', color: colors.muted, lineHeight: 1.5 }}>
-              No safety incidents have been recorded.
+              No safety documentation has been recorded.
             </div>
           </div>
         )}

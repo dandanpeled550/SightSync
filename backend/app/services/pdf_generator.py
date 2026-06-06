@@ -170,8 +170,8 @@ def generate_daily_log_pdf(log_id: int, db: Session) -> bytes:
         story.append(Paragraph("No materials recorded.", muted_style))
     story.append(Spacer(1, 4 * mm))
 
-    # Safety Incidents
-    story.append(Paragraph("Safety Incidents", heading_style))
+    # Safety Documentation
+    story.append(Paragraph("Safety Documentation", heading_style))
     incidents = db.query(SafetyIncident).filter(SafetyIncident.daily_log_id == log_id).all()
     if incidents:
         for inc in incidents:
@@ -180,7 +180,7 @@ def generate_daily_log_pdf(log_id: int, db: Session) -> bytes:
                 story.append(Paragraph(f"Corrective action: {inc.corrective_action}", muted_style))
             story.append(Spacer(1, 2 * mm))
     else:
-        story.append(Paragraph("No safety incidents.", muted_style))
+        story.append(Paragraph("No safety documentation.", muted_style))
     story.append(Spacer(1, 4 * mm))
 
     # AI Summary

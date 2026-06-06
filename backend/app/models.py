@@ -67,6 +67,7 @@ class DailyLog(Base):
     safety_incidents = relationship("SafetyIncident", back_populates="daily_log", cascade="all, delete-orphan")
     material_entries = relationship("MaterialEntry", back_populates="daily_log", cascade="all, delete-orphan")
     task_log_entries = relationship("TaskLogEntry", back_populates="daily_log", cascade="all, delete-orphan")
+    cascade_delay_records = relationship("CascadeDelayRecord", back_populates="daily_log", cascade="all, delete-orphan")
 
 
 class CrewMember(Base):
@@ -185,3 +186,21 @@ class TaskLogEntry(Base):
 
     daily_log = relationship("DailyLog", back_populates="task_log_entries")
     task = relationship("Task", back_populates="task_log_entries")
+    cascade_delay_records = relationship("CascadeDelayRecord", back_populates="triggering_entry", cascade="all, delete-orphan")
+
+
+class CascadeDelayRecord(Base):
+    __tablename__ = "cascade_delay_records"
+
+    id = Column(Integer, primary_key=True)
+    daily_log_id = Column(Integer, ForeignKey("daily_logs.id", ondelete="CASCADE"), nullable=False)
+    triggering_entry_id = Column(Integer, ForeignKey("task_log_entries.id", ondelete="CASCADE"), nullable=False)
+    task_id = Column(Integer, ForeignKey("tasks.id", ondelete="SET NULL"), nullable=True)
+    task_name = Column(String(300), nullable=False)   # snapshot — survives task rename/delete
+    old_start_date = Column(Date, nullable=False)
+    new_start_date = Column(Date, nullable=False)
+    days_shifted = Column(Integer, nullable=False)
+    is_root = Column(Boolean, nullable=False, default=False)  # True = directly marked not_done
+
+    daily_log = relationship("DailyLog", back_populates="cascade_delay_records")
+    triggering_entry = relationship("TaskLogEntry", back_populates="cascade_delay_records")
