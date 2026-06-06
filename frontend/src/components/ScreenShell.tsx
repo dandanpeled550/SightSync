@@ -112,8 +112,11 @@ export default function ScreenShell({
 
       {/* Scrollable content */}
       <div style={{
-        paddingBottom: hideBottomNav ? '20px' : '80px',
+        paddingBottom: hideBottomNav
+          ? 'calc(20px + env(safe-area-inset-bottom))'
+          : 'calc(80px + env(safe-area-inset-bottom))',
         overflowY: 'auto',
+        WebkitOverflowScrolling: 'touch',
       }}>
         {children}
       </div>

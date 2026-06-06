@@ -31,11 +31,12 @@ export default function BottomNav() {
       background: 'rgba(255,255,255,0.95)',
       backdropFilter: 'blur(8px)',
       zIndex: 10,
+      paddingBottom: 'env(safe-area-inset-bottom)',
     }}>
       <div style={{
         display: 'grid',
         gridTemplateColumns: 'repeat(5, 1fr)',
-        padding: '10px 14px 12px',
+        padding: '6px 14px 8px',
       }}>
       {tabs.map(tab => {
         const active = tab.path === '/' ? pathname === '/' : pathname.startsWith(tab.path)
@@ -50,8 +51,10 @@ export default function BottomNav() {
               display: 'flex',
               flexDirection: 'column',
               alignItems: 'center',
+              justifyContent: 'center',
               gap: '3px',
               padding: '4px 0',
+              minHeight: '44px',
               color: active ? colors.primary : colors.muted,
               transition: 'color 0.15s',
             }}
