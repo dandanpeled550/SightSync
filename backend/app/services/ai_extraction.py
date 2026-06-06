@@ -12,6 +12,7 @@ Never raises exceptions — all failures are captured in ExtractionResult.error.
 import io
 import json
 import logging
+import re
 import time
 import zipfile
 from dataclasses import dataclass, field
@@ -159,57 +160,102 @@ def _build_prompt(text: str) -> str:
 _ANTHROPIC_PREFILL = '{"tasks": ['
 
 
+_RATE_LIMIT_DELAY_RE = re.compile(r"try again in\s+([\d.]+)s", re.IGNORECASE)
+_MAX_RETRIES = 4
+_BASE_BACKOFF = 5.0   # seconds — used when the API doesn't tell us how long to wait
+
+
+def _is_rate_limit(exc: Exception) -> bool:
+    name = type(exc).__name__
+    # Both SDKs raise a class named RateLimitError; also catch by message for safety.
+    return "RateLimitError" in name or "rate_limit" in str(exc).lower() or "429" in str(exc)
+
+
+def _retry_delay(exc: Exception, attempt: int) -> float:
+    """Return how long to sleep before the next attempt.
+
+    Parses the 'try again in X.Xs' hint the API embeds in the error message.
+    Falls back to exponential backoff (5s, 10s, 20s, 40s) when not present.
+    """
+    m = _RATE_LIMIT_DELAY_RE.search(str(exc))
+    if m:
+        return float(m.group(1)) + 1.0   # add 1 s of margin
+    return _BASE_BACKOFF * (2 ** attempt)
+
+
 def _call_anthropic(prompt: str) -> str:
     """Call Claude and return the raw response text. Raises on any error.
 
     Uses assistant prefill to guarantee the response opens as valid JSON,
     eliminating markdown fences and preamble prose.
+    Retries up to _MAX_RETRIES times on rate-limit errors with backoff.
     """
     import anthropic
     logger.debug("AI prompt [anthropic/%s] (%d chars):\n%s", settings.anthropic_model, len(prompt), prompt)
-    start = time.perf_counter()
     client = anthropic.Anthropic(api_key=settings.anthropic_api_key)
-    message = client.messages.create(
-        model=settings.anthropic_model,
-        max_tokens=16000,
-        messages=[
-            {"role": "user", "content": prompt},
-            {"role": "assistant", "content": _ANTHROPIC_PREFILL},
-        ],
-    )
-    text = _ANTHROPIC_PREFILL + message.content[0].text
-    elapsed = int((time.perf_counter() - start) * 1000)
-    logger.info(
-        "AI call [anthropic/%s] done in %dms — %d chars (stop_reason=%s)",
-        settings.anthropic_model, elapsed, len(text), message.stop_reason,
-    )
-    if message.stop_reason == "max_tokens":
-        raise ValueError(
-            "Claude response was truncated (hit max_tokens). "
-            "The file may be too large — try splitting it into smaller sheets."
-        )
-    logger.debug("AI response:\n%s", text)
-    return text
+    for attempt in range(_MAX_RETRIES + 1):
+        try:
+            start = time.perf_counter()
+            message = client.messages.create(
+                model=settings.anthropic_model,
+                max_tokens=16000,
+                messages=[
+                    {"role": "user", "content": prompt},
+                    {"role": "assistant", "content": _ANTHROPIC_PREFILL},
+                ],
+            )
+            text = _ANTHROPIC_PREFILL + message.content[0].text
+            elapsed = int((time.perf_counter() - start) * 1000)
+            logger.info(
+                "AI call [anthropic/%s] done in %dms — %d chars (stop_reason=%s)",
+                settings.anthropic_model, elapsed, len(text), message.stop_reason,
+            )
+            if message.stop_reason == "max_tokens":
+                raise ValueError(
+                    "Claude response was truncated (hit max_tokens). "
+                    "The file may be too large — try splitting it into smaller sheets."
+                )
+            logger.debug("AI response:\n%s", text)
+            return text
+        except Exception as exc:
+            if _is_rate_limit(exc) and attempt < _MAX_RETRIES:
+                delay = _retry_delay(exc, attempt)
+                logger.warning("Anthropic rate limit (attempt %d/%d) — retrying in %.1fs", attempt + 1, _MAX_RETRIES, delay)
+                time.sleep(delay)
+            else:
+                raise
 
 
 def _call_openai(prompt: str) -> str:
-    """Call OpenAI and return the raw response text. Raises on any error."""
+    """Call OpenAI and return the raw response text. Raises on any error.
+
+    Retries up to _MAX_RETRIES times on rate-limit errors with backoff.
+    """
     import openai
     logger.debug("AI prompt [openai/%s] (%d chars):\n%s", settings.openai_model, len(prompt), prompt)
-    start = time.perf_counter()
     client = openai.OpenAI(api_key=settings.openai_api_key)
-    # No response_format param — SDK version differences cause Pydantic validation errors.
-    # _strip_fences() handles markdown-wrapped responses as a fallback.
-    response = client.chat.completions.create(
-        model=settings.openai_model,
-        max_tokens=16000,
-        messages=[{"role": "user", "content": prompt}],
-    )
-    text = response.choices[0].message.content
-    elapsed = int((time.perf_counter() - start) * 1000)
-    logger.info("AI call [openai/%s] done in %dms — %d chars", settings.openai_model, elapsed, len(text))
-    logger.debug("AI response:\n%s", text)
-    return text
+    for attempt in range(_MAX_RETRIES + 1):
+        try:
+            start = time.perf_counter()
+            # No response_format param — SDK version differences cause Pydantic validation errors.
+            # _strip_fences() handles markdown-wrapped responses as a fallback.
+            response = client.chat.completions.create(
+                model=settings.openai_model,
+                max_tokens=16000,
+                messages=[{"role": "user", "content": prompt}],
+            )
+            text = response.choices[0].message.content
+            elapsed = int((time.perf_counter() - start) * 1000)
+            logger.info("AI call [openai/%s] done in %dms — %d chars", settings.openai_model, elapsed, len(text))
+            logger.debug("AI response:\n%s", text)
+            return text
+        except Exception as exc:
+            if _is_rate_limit(exc) and attempt < _MAX_RETRIES:
+                delay = _retry_delay(exc, attempt)
+                logger.warning("OpenAI rate limit (attempt %d/%d) — retrying in %.1fs", attempt + 1, _MAX_RETRIES, delay)
+                time.sleep(delay)
+            else:
+                raise
 
 
 def _strip_fences(text: str) -> str:
@@ -305,11 +351,21 @@ def infer_workflows_and_dependencies(
             # that would corrupt the dependency inference JSON shape.
             import anthropic
             client = anthropic.Anthropic(api_key=settings_obj.anthropic_api_key)
-            message = client.messages.create(
-                model=settings_obj.anthropic_model,
-                max_tokens=16000,
-                messages=[{"role": "user", "content": prompt}],
-            )
+            for attempt in range(_MAX_RETRIES + 1):
+                try:
+                    message = client.messages.create(
+                        model=settings_obj.anthropic_model,
+                        max_tokens=16000,
+                        messages=[{"role": "user", "content": prompt}],
+                    )
+                    break
+                except Exception as exc:
+                    if _is_rate_limit(exc) and attempt < _MAX_RETRIES:
+                        delay = _retry_delay(exc, attempt)
+                        logger.warning("Anthropic rate limit Pass 2 (attempt %d/%d) — retrying in %.1fs", attempt + 1, _MAX_RETRIES, delay)
+                        time.sleep(delay)
+                    else:
+                        raise
             response_text = message.content[0].text
         else:
             response_text = _call_openai(prompt)
