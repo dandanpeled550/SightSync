@@ -96,6 +96,23 @@ class TaskLogEntryOut(BaseModel):
     reason: Optional[str]
 
 
+class CascadeResultOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    task_id: int
+    task_name: str
+    old_start_date: datetime.date
+    new_start_date: datetime.date
+    old_end_date: datetime.date
+    new_end_date: datetime.date
+    days_shifted: int
+
+
+class TaskLogEntryWithCascadeOut(TaskLogEntryOut):
+    """TaskLogEntry response extended with auto-cascade results for not_done entries."""
+    cascade_results: List[CascadeResultOut] = []
+
+
 # ── Task CRUD ─────────────────────────────────────────────────────────────────
 
 @router.get("/projects/{project_id}/tasks", response_model=List[TaskOut])
@@ -197,6 +214,15 @@ def update_task(
 
     db.commit()
     db.refresh(task)
+
+    # Auto-cascade all downstream tasks when dates change
+    if "start_date" in update_data or "duration_days" in update_data:
+        try:
+            apply_cascade(db, task_id, task.start_date, task.project_id)
+        except ValueError:
+            pass  # Cycle or missing task — direct update already committed
+
+    db.refresh(task)
     return task
 
 
@@ -272,7 +298,7 @@ def delete_task_dependency(
 
 # ── Task Log Entries ──────────────────────────────────────────────────────────
 
-@router.post("/daily-logs/{log_id}/task-entries", response_model=TaskLogEntryOut, status_code=201)
+@router.post("/daily-logs/{log_id}/task-entries", response_model=TaskLogEntryWithCascadeOut, status_code=201)
 def create_task_entry(
     log_id: int,
     body: TaskLogEntryCreate,
@@ -310,16 +336,31 @@ def create_task_entry(
     )
     db.add(entry)
 
-    # Reflect the mark on the task itself so tasks/today stays accurate
+    cascade_results: List[CascadeResultOut] = []
     if body.action == "done":
         task.status = "done"
+        db.commit()
     else:
         task.start_date = body.new_date
         task.end_date = body.new_date + datetime.timedelta(days=task.duration_days)
+        try:
+            # apply_cascade flushes and commits the entry + date changes + all downstream shifts
+            raw = apply_cascade(db, body.task_id, body.new_date, log.project_id)
+            cascade_results = [_cascade_result_to_out(r) for r in raw]
+        except ValueError:
+            # Cycle or orphaned task — entry and root date update still committed
+            db.commit()
 
-    db.commit()
     db.refresh(entry)
-    return entry
+    return TaskLogEntryWithCascadeOut(
+        id=entry.id,
+        daily_log_id=entry.daily_log_id,
+        task_id=entry.task_id,
+        action=entry.action,
+        new_date=entry.new_date,
+        reason=entry.reason,
+        cascade_results=cascade_results,
+    )
 
 
 @router.get("/daily-logs/{log_id}/task-entries", response_model=List[TaskLogEntryOut])
@@ -339,18 +380,6 @@ def list_task_entries(
 
 class CascadeRequest(BaseModel):
     new_start_date: datetime.date
-
-
-class CascadeResultOut(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
-
-    task_id: int
-    task_name: str
-    old_start_date: datetime.date
-    new_start_date: datetime.date
-    old_end_date: datetime.date
-    new_end_date: datetime.date
-    days_shifted: int
 
 
 def _cascade_result_to_out(r: CascadeResult) -> CascadeResultOut:

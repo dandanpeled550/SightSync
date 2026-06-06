@@ -84,6 +84,7 @@ export default function TaskPage() {
 
   const [saving, setSaving] = useState(false)
   const [saveError, setSaveError] = useState<string | null>(null)
+  const [cascadedCount, setCascadedCount] = useState<number | null>(null)
 
   // Load today's log id
   useEffect(() => {
@@ -183,7 +184,13 @@ export default function TaskPage() {
       if (logId && statusAction === 'done') {
         await markTaskDone(logId, numId)
       } else if (logId && statusAction === 'not_done' && selectedReason) {
-        await markTaskNotDone(logId, numId, editStartDate, selectedReason)
+        const result = await markTaskNotDone(logId, numId, editStartDate, selectedReason)
+        // cascade_results[0] is the root task itself; rest are downstream
+        const downstream = result.cascade_results.filter(r => r.task_id !== numId)
+        if (downstream.length > 0) {
+          setCascadedCount(downstream.length)
+          await new Promise(r => setTimeout(r, 1600))
+        }
       }
 
       navigate(-1)
@@ -448,6 +455,24 @@ export default function TaskPage() {
             </>
           )}
         </div>
+
+        {cascadedCount !== null && (
+          <div style={{
+            padding: '12px 16px',
+            background: colors.orangeSoft,
+            borderRadius: radius.card,
+            color: colors.orange,
+            fontSize: '13px',
+            fontWeight: 700,
+            marginBottom: '12px',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+          }}>
+            <span>⚡</span>
+            <span>{cascadedCount} downstream task{cascadedCount !== 1 ? 's' : ''} automatically rescheduled</span>
+          </div>
+        )}
 
         {saveError && (
           <div style={{ padding: '12px 16px', background: colors.redSoft, borderRadius: radius.card, color: colors.red, fontSize: '13px', marginBottom: '12px' }}>

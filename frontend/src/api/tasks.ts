@@ -24,6 +24,7 @@ export interface TaskLogEntry {
   action: string
   new_date: string | null
   reason: string | null
+  cascade_results: CascadeResult[]
 }
 
 export interface CascadeResult {

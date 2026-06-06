@@ -497,6 +497,109 @@ def test_list_task_entries_empty(seeded_client):
     assert r.json() == []
 
 
+# ── Auto-cascade on not_done ──────────────────────────────────────────────────
+
+def test_not_done_auto_cascades_downstream(seeded_client_with_tasks):
+    """Marking a task not_done must shift all downstream dependent tasks in DB."""
+    c = seeded_client_with_tasks
+    # task[0] → task[1] (lag 0) → task[2] (lag 1) — chain set up in fixture
+    root_id = c.task_ids[0]
+    new_start = (datetime.date.today() + datetime.timedelta(days=10)).isoformat()
+
+    r = c.post(f"/daily-logs/{c.log_id}/task-entries", json={
+        "task_id": root_id,
+        "action": "not_done",
+        "new_date": new_start,
+        "reason": "Weather delay",
+    })
+    assert r.status_code == 201
+
+    # Response must include cascade_results for downstream tasks
+    data = r.json()
+    assert "cascade_results" in data
+    assert len(data["cascade_results"]) >= 1  # at least root + 1 downstream
+
+    # Downstream tasks must have updated dates in DB
+    tasks = {t["id"]: t for t in c.get(f"/projects/{c.project_id}/tasks").json()}
+    child_id = c.task_ids[1]
+    grandchild_id = c.task_ids[2]
+
+    # Child starts at or after new root end_date
+    root_task = tasks[root_id]
+    assert tasks[child_id]["start_date"] >= root_task["end_date"]
+    # Grandchild starts at or after child end_date + lag (1 day)
+    assert tasks[grandchild_id]["start_date"] >= tasks[child_id]["end_date"]
+
+
+def test_not_done_cascade_results_in_response(seeded_client_with_tasks):
+    """cascade_results field must be present and contain correct shape."""
+    c = seeded_client_with_tasks
+    root_id = c.task_ids[0]
+    new_start = (datetime.date.today() + datetime.timedelta(days=7)).isoformat()
+
+    r = c.post(f"/daily-logs/{c.log_id}/task-entries", json={
+        "task_id": root_id,
+        "action": "not_done",
+        "new_date": new_start,
+    })
+    assert r.status_code == 201
+    data = r.json()
+    assert isinstance(data["cascade_results"], list)
+    for item in data["cascade_results"]:
+        assert "task_id" in item
+        assert "days_shifted" in item
+        assert "new_start_date" in item
+
+
+def test_not_done_cascade_empty_when_no_deps(seeded_client):
+    """A task with no successors returns cascade_results with only itself (root)."""
+    c = seeded_client
+    task_r = c.post(f"/projects/{c.project_id}/tasks", json=_task_payload(
+        name="Isolated Task", start_date=TODAY, duration_days=2
+    ))
+    task_id = task_r.json()["id"]
+
+    r = c.post(f"/daily-logs/{c.log_id}/task-entries", json={
+        "task_id": task_id,
+        "action": "not_done",
+        "new_date": TOMORROW,
+    })
+    assert r.status_code == 201
+    data = r.json()
+    assert "cascade_results" in data
+    # Only root task in results — no downstream deps
+    assert all(item["task_id"] == task_id for item in data["cascade_results"])
+
+
+def test_done_entry_has_empty_cascade_results(seeded_client_with_tasks):
+    """Marking done never cascades — cascade_results must be empty."""
+    c = seeded_client_with_tasks
+    r = c.post(f"/daily-logs/{c.log_id}/task-entries", json={
+        "task_id": c.task_ids[0],
+        "action": "done",
+    })
+    assert r.status_code == 201
+    assert r.json()["cascade_results"] == []
+
+
+def test_update_task_date_cascades_downstream(seeded_client_with_tasks):
+    """PUT /tasks/{id} with a new start_date must shift all downstream tasks."""
+    c = seeded_client_with_tasks
+    root_id = c.task_ids[0]
+
+    # Get current downstream dates before update
+    before = {t["id"]: t for t in c.get(f"/projects/{c.project_id}/tasks").json()}
+    old_child_start = before[c.task_ids[1]]["start_date"]
+
+    new_start = (datetime.date.today() + datetime.timedelta(days=20)).isoformat()
+    r = c.put(f"/tasks/{root_id}", json={"start_date": new_start})
+    assert r.status_code == 200
+
+    after = {t["id"]: t for t in c.get(f"/projects/{c.project_id}/tasks").json()}
+    # Child must have shifted forward
+    assert after[c.task_ids[1]]["start_date"] > old_child_start
+
+
 def test_list_task_entries_log_not_found_404(seeded_client):
     c = seeded_client
     r = c.get("/daily-logs/99999/task-entries")
