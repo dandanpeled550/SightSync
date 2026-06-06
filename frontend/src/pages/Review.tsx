@@ -31,7 +31,6 @@ export default function Review() {
   const [confirming, setConfirming] = useState(false)
   const [confirmError, setConfirmError] = useState<string | null>(null)
   const [activeDeps, setActiveDeps] = useState<InferredDependency[]>([])
-  const [collapsed, setCollapsed] = useState<Record<string, boolean>>({})
 
   // Initialise activeDeps from result when it arrives
   useEffect(() => {
@@ -97,15 +96,9 @@ export default function Review() {
     )
   }
 
-  function toggleSection(wfId: string) {
-    setCollapsed(prev => ({ ...prev, [wfId]: !prev[wfId] }))
-  }
-
   const taskCount = result.tasks.length
   const confidencePct = Math.round(result.confidence * 100)
-  const hasWorkflows = result.workflows && result.workflows.length > 0
 
-  // Build a lookup from task index -> task for dep labels
   const taskByIndex = (idx: number): ExtractedTask | undefined => result.tasks[idx]
 
   return (
@@ -150,148 +143,47 @@ export default function Review() {
         </div>
       </div>
 
-      {/* Dependency inference unavailable notice */}
-      {!hasWorkflows && (
-        <div style={{
-          margin: '0 16px 4px',
-          padding: '8px 14px',
-          background: colors.surface2,
-          borderRadius: radius.card,
-          display: 'flex',
-          alignItems: 'center',
-          gap: '8px',
-          border: `1px solid ${colors.line}`,
-        }}>
-          <span style={{ fontSize: '14px' }}>ℹ️</span>
-          <span style={{ fontSize: '12px', color: colors.muted }}>
-            Dependency inference unavailable
-          </span>
-        </div>
-      )}
 
       {/* Task content */}
       <div style={{ padding: '8px 16px 100px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
 
-        {hasWorkflows ? (
-          /* Grouped by workflow */
-          result.workflows.map(wf => {
-            const isCollapsed = collapsed[wf.id] ?? false
-            const wfDeps = activeDeps.filter(d =>
-              wf.task_indices.includes(d.task_index) || wf.task_indices.includes(d.depends_on_index)
-            )
-            return (
-              <div key={wf.id} style={{
-                border: `1.5px solid ${colors.line}`,
-                borderRadius: radius.card,
-                overflow: 'hidden',
-                background: colors.surface,
-              }}>
-                {/* Accordion header */}
-                <button
-                  onClick={() => toggleSection(wf.id)}
-                  style={{
-                    width: '100%',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    padding: '14px 16px',
-                    background: colors.surface2,
-                    border: 'none',
-                    borderBottom: isCollapsed ? 'none' : `1px solid ${colors.line}`,
-                    cursor: 'pointer',
-                    gap: '10px',
-                  }}
-                >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                    <span style={{ fontWeight: 700, fontSize: '15px', color: colors.text }}>
-                      {wf.name}
-                    </span>
-                    <span style={{
-                      background: colors.blueSoft,
-                      color: colors.blue,
-                      borderRadius: radius.pill,
-                      padding: '2px 8px',
-                      fontSize: '11px',
-                      fontWeight: 700,
-                    }}>
-                      {wf.task_indices.length} task{wf.task_indices.length !== 1 ? 's' : ''}
-                    </span>
-                    {wfDeps.length > 0 && (
-                      <span style={{
-                        background: colors.primarySoft,
-                        color: colors.primary,
-                        borderRadius: radius.pill,
-                        padding: '2px 8px',
-                        fontSize: '11px',
-                        fontWeight: 700,
-                      }}>
-                        {wfDeps.length} dep{wfDeps.length !== 1 ? 's' : ''}
-                      </span>
-                    )}
-                  </div>
-                  <span style={{
-                    fontSize: '16px',
-                    color: colors.muted,
-                    transform: isCollapsed ? 'rotate(-90deg)' : 'rotate(0deg)',
-                    transition: 'transform 0.15s',
-                    display: 'inline-block',
-                  }}>
-                    ▾
-                  </span>
-                </button>
+        {/* Flat task list */}
+        {result.tasks.map((task: ExtractedTask, idx: number) => (
+          <TaskCard key={idx} task={task} />
+        ))}
 
-                {/* Tasks in this workflow */}
-                {!isCollapsed && (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', padding: '10px 12px' }}>
-                    {wf.task_indices.map((taskIdx, i) => {
-                      const task = result.tasks[taskIdx]
-                      if (!task) return null
-                      return <TaskCard key={i} task={task} />
-                    })}
-
-                    {/* Dependencies sub-list */}
-                    {wfDeps.length > 0 && (
-                      <div style={{
-                        marginTop: '4px',
-                        padding: '10px 12px',
-                        background: colors.surface2,
-                        borderRadius: radius.card,
-                        border: `1px solid ${colors.line}`,
-                        display: 'flex',
-                        flexDirection: 'column',
-                        gap: '8px',
-                      }}>
-                        <div style={{
-                          fontSize: '11px',
-                          fontWeight: 700,
-                          color: colors.muted,
-                          textTransform: 'uppercase',
-                          letterSpacing: '0.06em',
-                          marginBottom: '2px',
-                        }}>
-                          Dependencies
-                        </div>
-                        {wfDeps.map((dep, di) => (
-                          <DepRow
-                            key={di}
-                            dep={dep}
-                            fromTask={taskByIndex(dep.task_index)}
-                            toTask={taskByIndex(dep.depends_on_index)}
-                            onRemove={() => removeDep(dep.task_index, dep.depends_on_index)}
-                          />
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
-            )
-          })
-        ) : (
-          /* Flat list fallback */
-          result.tasks.map((task: ExtractedTask, idx: number) => (
-            <TaskCard key={idx} task={task} />
-          ))
+        {/* Dependencies section */}
+        {activeDeps.length > 0 && (
+          <div style={{
+            marginTop: '4px',
+            padding: '12px 14px',
+            background: colors.surface2,
+            borderRadius: radius.card,
+            border: `1px solid ${colors.line}`,
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '8px',
+          }}>
+            <div style={{
+              fontSize: '11px',
+              fontWeight: 700,
+              color: colors.muted,
+              textTransform: 'uppercase',
+              letterSpacing: '0.06em',
+              marginBottom: '2px',
+            }}>
+              Dependencies ({activeDeps.length})
+            </div>
+            {activeDeps.map((dep, di) => (
+              <DepRow
+                key={di}
+                dep={dep}
+                fromTask={taskByIndex(dep.task_index)}
+                toTask={taskByIndex(dep.depends_on_index)}
+                onRemove={() => removeDep(dep.task_index, dep.depends_on_index)}
+              />
+            ))}
+          </div>
         )}
 
         {/* Confirm error */}
