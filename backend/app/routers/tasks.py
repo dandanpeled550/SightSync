@@ -165,6 +165,7 @@ def list_tasks_today(
         .filter(
             Task.project_id == project_id,
             Task.start_date <= today,
+            Task.end_date >= today,
             Task.status != "done",
         )
         .all()
