@@ -325,15 +325,19 @@ def infer_workflows_and_dependencies(
                 task_indices=list(wf_data.get("task_indices", [])),
             ))
 
-        # Parse dependencies — filter out low-confidence ones
+        # Parse dependencies — filter out low-confidence and self-referential ones
         dependencies = []
         for dep_data in data.get("dependencies", []):
             confidence = float(dep_data.get("confidence", 0.0))
             if confidence < 0.4:
                 continue
+            task_idx = int(dep_data["task_index"])
+            depends_on_idx = int(dep_data["depends_on_index"])
+            if task_idx == depends_on_idx:
+                continue
             dependencies.append(InferredDependency(
-                task_index=int(dep_data["task_index"]),
-                depends_on_index=int(dep_data["depends_on_index"]),
+                task_index=task_idx,
+                depends_on_index=depends_on_idx,
                 lag_days=int(dep_data.get("lag_days", 0)),
                 confidence=confidence,
                 reasoning=str(dep_data.get("reasoning", "")),

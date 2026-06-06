@@ -32,10 +32,9 @@ export default function Review() {
   const [confirmError, setConfirmError] = useState<string | null>(null)
   const [activeDeps, setActiveDeps] = useState<InferredDependency[]>([])
 
-  // Initialise activeDeps from result when it arrives
   useEffect(() => {
     if (result?.dependencies) {
-      setActiveDeps(result.dependencies)
+      setActiveDeps(result.dependencies.filter(d => d.task_index !== d.depends_on_index))
     }
   }, [result])
 
