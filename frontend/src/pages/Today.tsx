@@ -108,11 +108,38 @@ export default function Today() {
   const yearShort = String(today.getFullYear()).slice(2)
   const dateStr = today.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })
 
+  const fab = (
+    <button
+      onClick={() => navigate('/task/new')}
+      style={{
+        position: 'absolute',
+        bottom: '80px',
+        left: '50%',
+        transform: 'translateX(-50%)',
+        width: '58px',
+        height: '58px',
+        borderRadius: '50%',
+        display: 'grid',
+        placeItems: 'center',
+        background: gradients.primary,
+        color: '#fff',
+        fontSize: '30px',
+        boxShadow: '0 12px 28px rgba(37,99,235,.28)',
+        cursor: 'pointer',
+        border: 'none',
+        zIndex: 5,
+      }}
+    >
+      +
+    </button>
+  )
+
   return (
     <ScreenShell
       title="Tower B"
       subtitle={dateStr}
       desktopHideLeft
+      fab={fab}
       leftAction={
         <IconBtn onClick={() => navigate('/onboard')}>☰</IconBtn>
       }
@@ -381,30 +408,6 @@ export default function Today() {
         )}
       </div>
 
-      {/* FAB */}
-      <button
-        onClick={() => navigate('/task/new')}
-        style={{
-          position: 'absolute',
-          bottom: '80px',
-          left: '50%',
-          transform: 'translateX(-50%)',
-          width: '58px',
-          height: '58px',
-          borderRadius: '50%',
-          display: 'grid',
-          placeItems: 'center',
-          background: gradients.primary,
-          color: '#fff',
-          fontSize: '30px',
-          boxShadow: '0 12px 28px rgba(37,99,235,.28)',
-          cursor: 'pointer',
-          border: 'none',
-          zIndex: 5,
-        }}
-      >
-        +
-      </button>
     </ScreenShell>
   )
 }

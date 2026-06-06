@@ -12,6 +12,7 @@ interface ScreenShellProps {
   rightAction?: ReactNode
   hideBottomNav?: boolean
   desktopHideLeft?: boolean
+  fab?: ReactNode
   children: ReactNode
 }
 
@@ -22,6 +23,7 @@ export default function ScreenShell({
   rightAction,
   hideBottomNav = false,
   desktopHideLeft = false,
+  fab,
   children,
 }: ScreenShellProps) {
   const width = useWindowSize()
@@ -121,6 +123,7 @@ export default function ScreenShell({
         {children}
       </div>
 
+      {fab}
       {!hideBottomNav && <BottomNav />}
     </div>
   )
