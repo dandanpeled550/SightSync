@@ -83,6 +83,7 @@ class TaskLogEntryCreate(BaseModel):
     action: str  # "done" or "not_done"
     new_date: Optional[datetime.date] = None
     reason: Optional[str] = None
+    photo_url: Optional[str] = None
 
 
 class TaskLogEntryOut(BaseModel):
@@ -373,6 +374,7 @@ def create_task_entry(
         action=body.action,
         new_date=body.new_date,
         reason=body.reason,
+        photo_url=body.photo_url,
     )
     db.add(entry)
 
