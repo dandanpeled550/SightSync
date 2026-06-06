@@ -25,6 +25,8 @@ services:
         generateValue: true
       - key: PYTHON_VERSION
         value: 3.11.0
+      - key: PYTHONUNBUFFERED
+        value: "1"
 
   - type: web
     name: sightsync-web

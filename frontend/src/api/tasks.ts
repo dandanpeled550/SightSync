@@ -118,7 +118,7 @@ export async function uploadSchedule(file: File): Promise<ExtractionResult> {
   }
   const text = await response.text()
   if (!text.trim()) {
-    throw new Error('Backend returned empty response body (200 OK) — possible server timeout or CORS block')
+    throw new Error(`Empty body — status=${response.status} url=${url}`)
   }
   try {
     return JSON.parse(text) as ExtractionResult
