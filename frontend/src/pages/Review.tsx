@@ -146,8 +146,8 @@ export default function Review() {
       {/* Task content */}
       <div style={{ padding: '8px 16px 100px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
 
-        {/* Flat task list — deps shown inline beneath each task */}
-        {result.tasks.map((task: ExtractedTask, idx: number) => {
+        {/* Flat task list — sorted by start date, deps shown inline beneath each task */}
+        {[...result.tasks.map((task, idx) => ({ task, idx }))].sort((a, b) => a.task.start_date.localeCompare(b.task.start_date)).map(({ task, idx }) => {
           const taskDeps = activeDeps.filter(d => d.task_index === idx)
           return (
             <div key={idx} style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
