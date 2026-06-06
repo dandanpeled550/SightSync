@@ -30,6 +30,7 @@ class Project(Base):
     tasks = relationship("Task", back_populates="project", cascade="all, delete-orphan")
     members = relationship("ProjectMember", back_populates="project", cascade="all, delete-orphan")
     inventory_items = relationship("InventoryItem", back_populates="project", cascade="all, delete-orphan")
+    site_photos = relationship("SitePhoto", back_populates="project", cascade="all, delete-orphan")
 
 
 class ProjectMember(Base):
@@ -183,6 +184,7 @@ class TaskLogEntry(Base):
     action = Column(String(20), nullable=False)   # "done" or "not_done"
     new_date = Column(Date, nullable=True)          # required when action == "not_done"
     reason = Column(String(200))
+    photo_url = Column(String(500), nullable=True)
 
     daily_log = relationship("DailyLog", back_populates="task_log_entries")
     task = relationship("Task", back_populates="task_log_entries")
@@ -204,3 +206,16 @@ class CascadeDelayRecord(Base):
 
     daily_log = relationship("DailyLog", back_populates="cascade_delay_records")
     triggering_entry = relationship("TaskLogEntry", back_populates="cascade_delay_records")
+
+
+class SitePhoto(Base):
+    __tablename__ = "site_photos"
+
+    id = Column(Integer, primary_key=True)
+    project_id = Column(Integer, ForeignKey("projects.id", ondelete="CASCADE"), nullable=False)
+    daily_log_id = Column(Integer, ForeignKey("daily_logs.id", ondelete="SET NULL"), nullable=True)
+    photo_url = Column(String(500), nullable=False)
+    caption = Column(String(500), nullable=True)
+    created_at = Column(DateTime, default=_dt.utcnow, nullable=False)
+
+    project = relationship("Project", back_populates="site_photos")
