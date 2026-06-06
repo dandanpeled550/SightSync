@@ -136,6 +136,16 @@ class DelayGroupOut(BaseModel):
     impacts: List[CascadeDelayRecordOut]
 
 
+class AlertOut(BaseModel):
+    id: str
+    type: str
+    severity: str
+    title: str
+    message: str
+    affected_task_ids: List[int]
+    recommendation: str
+
+
 # ── Task CRUD ─────────────────────────────────────────────────────────────────
 
 @router.get("/projects/{project_id}/tasks", response_model=List[TaskOut])
@@ -537,3 +547,17 @@ def cascade_apply(
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc))
     return [_cascade_result_to_out(r) for r in results]
+
+
+# ── AI Learning Alerts ────────────────────────────────────────────────────────
+
+@router.get("/projects/{project_id}/alerts", response_model=List[AlertOut])
+def get_project_alerts(
+    project_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """AI-generated risk alerts based on historical delay patterns. Returns [] on degraded mode."""
+    require_project_member(project_id, current_user, db)
+    from app.services.ai_alerts import generate_alerts
+    return [AlertOut(**a) for a in generate_alerts(project_id, db)]

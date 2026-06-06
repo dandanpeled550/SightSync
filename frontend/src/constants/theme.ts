@@ -16,6 +16,8 @@ export const colors = {
   redBorder:   '#ffd0d0',
   orange:      '#f59e0b',
   orangeSoft:  '#fff7e6',
+  orangeBorder: '#fde68a',
+  blueBorder:  '#bfdbfe',
   text:        '#111820',
   muted:       '#667085',
   mutedLight:  '#98a2b3',

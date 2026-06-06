@@ -253,6 +253,21 @@ export async function updateTask(
 }
 
 // Confirm extracted tasks — clears existing tasks and inserts these, along with inferred deps
+export interface Alert {
+  id: string
+  type: 'risk' | 'pattern' | 'reminder'
+  severity: 'high' | 'medium' | 'low'
+  title: string
+  message: string
+  affected_task_ids: number[]
+  recommendation: string
+}
+
+export async function fetchAlerts(projectId: number): Promise<Alert[]> {
+  const res = await api.get<Alert[]>(`/projects/${projectId}/alerts`)
+  return res.data
+}
+
 export async function confirmSchedule(
   projectId: number,
   tasks: ExtractedTask[],
