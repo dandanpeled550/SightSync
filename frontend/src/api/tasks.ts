@@ -101,9 +101,7 @@ export interface ExtractedTask {
 export async function uploadSchedule(file: File): Promise<ExtractionResult> {
   const form = new FormData()
   form.append('file', file)
-  const { data } = await api.post<ExtractionResult>(`/projects/1/upload-schedule`, form, {
-    headers: { 'Content-Type': 'multipart/form-data' },
-  })
+  const { data } = await api.post<ExtractionResult>(`/projects/1/upload-schedule`, form)
   return data
 }
 
