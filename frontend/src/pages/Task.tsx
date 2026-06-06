@@ -5,11 +5,13 @@ import { colors, radius, gradients } from '../constants/theme'
 import { fetchTodayLog } from '../api/daily_log'
 import {
   fetchAllTasks,
+  fetchTaskDependencies,
   markTaskDone,
   markTaskNotDone,
   fetchCascadePreview,
   updateTask,
   type Task,
+  type TaskDependency,
   type CascadeResult,
 } from '../api/tasks'
 import { useProject } from '../contexts/ProjectContext'
@@ -60,6 +62,8 @@ export default function TaskPage() {
 
   const [logId, setLogId] = useState<number | null>(null)
   const [task, setTask] = useState<Task | null>(null)
+  const [allTasks, setAllTasks] = useState<Task[]>([])
+  const [projectDeps, setProjectDeps] = useState<TaskDependency[]>([])
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState<string | null>(null)
 
@@ -93,7 +97,7 @@ export default function TaskPage() {
       .catch(() => {})
   }, [])
 
-  // Load task and pre-fill fields
+  // Load task + all project deps in parallel
   useEffect(() => {
     if (isNaN(numId)) {
       setLoadError('Invalid task ID')
@@ -101,9 +105,15 @@ export default function TaskPage() {
       return
     }
     setLoading(true)
-    fetchAllTasks(PROJECT_ID)
-      .then(all => {
-        const found = (Array.isArray(all) ? all : []).find(t => t.id === numId) ?? null
+    Promise.all([
+      fetchAllTasks(PROJECT_ID),
+      fetchTaskDependencies(PROJECT_ID),
+    ])
+      .then(([all, deps]) => {
+        const tasksArr = Array.isArray(all) ? all : []
+        const found = tasksArr.find(t => t.id === numId) ?? null
+        setAllTasks(tasksArr)
+        setProjectDeps(deps)
         setTask(found)
         if (found) {
           setEditName(found.name)
@@ -123,9 +133,9 @@ export default function TaskPage() {
       .finally(() => setLoading(false))
   }, [taskId])
 
-  // Cascade preview — triggers when start date changes and action is not_done
+  // Cascade preview — triggers whenever start date changes from original (no status gate)
   useEffect(() => {
-    if (!task || statusAction !== 'not_done' || !editStartDate || editStartDate === task.start_date) {
+    if (!task || !editStartDate || editStartDate === task.start_date) {
       setCascade([])
       return
     }
@@ -134,12 +144,24 @@ export default function TaskPage() {
       .then(r => setCascade(r))
       .catch(() => setCascade([]))
       .finally(() => setCascadeLoading(false))
-  }, [editStartDate, statusAction, task])
+  }, [editStartDate, task])
 
   const computedDuration = editStartDate && editEndDate
     ? Math.max(1, Math.round((new Date(editEndDate + 'T00:00:00').getTime() - new Date(editStartDate + 'T00:00:00').getTime()) / 86400000))
     : null
 
+  // Tasks that THIS task depends on (predecessors) — must end before our start_date
+  const predecessorTasks: Task[] = projectDeps
+    .filter(d => d.task_id === numId)
+    .map(d => allTasks.find(t => t.id === d.depends_on_task_id))
+    .filter((t): t is Task => t !== undefined)
+
+  // Predecessors whose end_date is after the currently-edited start_date → violation
+  const predecessorViolations: Task[] = editStartDate
+    ? predecessorTasks.filter(p => p.end_date > editStartDate)
+    : []
+
+  // Downstream tasks that will be pushed forward by the date change
   const downstreamCascade = cascade.filter(item => item.task_id !== numId)
 
   const hasFieldChanges = task && (
@@ -154,7 +176,7 @@ export default function TaskPage() {
     editNotes !== (task.notes ?? '')
   )
 
-  const canSave = !saving && (
+  const canSave = !saving && predecessorViolations.length === 0 && (
     hasFieldChanges ||
     statusAction === 'done' ||
     (statusAction === 'not_done' && !!selectedReason)
@@ -178,6 +200,11 @@ export default function TaskPage() {
           start_date: editStartDate || undefined,
           duration_days: newDuration,
         })
+        // Show cascade banner when downstream tasks will be shifted
+        if (editStartDate !== task.start_date && downstreamCascade.length > 0) {
+          setCascadedCount(downstreamCascade.length)
+          await new Promise(r => setTimeout(r, 1600))
+        }
       }
 
       // 2. Log today's status if chosen
@@ -185,7 +212,6 @@ export default function TaskPage() {
         await markTaskDone(logId, numId)
       } else if (logId && statusAction === 'not_done' && selectedReason) {
         const result = await markTaskNotDone(logId, numId, editStartDate, selectedReason)
-        // cascade_results[0] is the root task itself; rest are downstream
         const downstream = result.cascade_results.filter(r => r.task_id !== numId)
         if (downstream.length > 0) {
           setCascadedCount(downstream.length)
@@ -218,6 +244,8 @@ export default function TaskPage() {
       </ScreenShell>
     )
   }
+
+  const dateChanged = editStartDate !== task.start_date
 
   return (
     <ScreenShell
@@ -277,7 +305,7 @@ export default function TaskPage() {
         {/* ── Dates ── */}
         <div style={{
           background: colors.surface,
-          border: `1.5px solid ${colors.line}`,
+          border: `1.5px solid ${predecessorViolations.length > 0 ? colors.red : colors.line}`,
           borderRadius: radius.card,
           padding: '16px',
           marginBottom: '16px',
@@ -295,7 +323,10 @@ export default function TaskPage() {
                   setEditStartDate(e.target.value)
                   if (editEndDate && e.target.value >= editEndDate) setEditEndDate('')
                 }}
-                style={inputStyle}
+                style={{
+                  ...inputStyle,
+                  borderColor: predecessorViolations.length > 0 ? colors.red : undefined,
+                }}
               />
             </Field>
             <Field label="End date">
@@ -310,12 +341,74 @@ export default function TaskPage() {
           </div>
 
           {computedDuration !== null && (
-            <div style={{ fontSize: '13px', color: colors.primary, fontWeight: 700 }}>
+            <div style={{ fontSize: '13px', color: colors.primary, fontWeight: 700, marginBottom: (predecessorViolations.length > 0 || (dateChanged && downstreamCascade.length > 0)) ? '12px' : 0 }}>
               {computedDuration} day{computedDuration !== 1 ? 's' : ''}
               {computedDuration !== task.duration_days && (
                 <span style={{ color: colors.muted, fontWeight: 400 }}> (was {task.duration_days}d)</span>
               )}
             </div>
+          )}
+
+          {/* Predecessor violation — blocks save */}
+          {predecessorViolations.length > 0 && (
+            <div style={{
+              background: colors.redSoft,
+              border: `1px solid ${colors.redBorder ?? colors.red}`,
+              borderRadius: radius.btn,
+              padding: '10px 12px',
+              marginBottom: downstreamCascade.length > 0 ? '10px' : 0,
+            }}>
+              <div style={{ fontSize: '12px', fontWeight: 800, color: colors.red, marginBottom: '4px' }}>
+                ✕ Cannot start this early
+              </div>
+              {predecessorViolations.map(p => (
+                <div key={p.id} style={{ fontSize: '12px', color: colors.red }}>
+                  "{p.name}" must finish first — ends {formatDate(p.end_date)}
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Downstream cascade preview — informational */}
+          {dateChanged && !cascadeLoading && downstreamCascade.length > 0 && (
+            <div>
+              <div style={{ fontSize: '12px', fontWeight: 700, color: colors.orange, marginBottom: '6px' }}>
+                ⚡ {downstreamCascade.length} task{downstreamCascade.length !== 1 ? 's' : ''} will be rescheduled
+              </div>
+              <div style={{ border: `1px solid ${colors.line}`, borderRadius: radius.card, overflow: 'hidden', background: colors.surface2 }}>
+                {downstreamCascade.map((item, i) => (
+                  <div
+                    key={item.task_id}
+                    style={{
+                      padding: '8px 12px',
+                      borderBottom: i < downstreamCascade.length - 1 ? `1px solid ${colors.line}` : 'none',
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                    }}
+                  >
+                    <div>
+                      <div style={{ fontSize: '13px', fontWeight: 600, color: colors.text }}>{item.task_name}</div>
+                      <div style={{ fontSize: '11px', color: colors.muted }}>
+                        {formatDate(item.old_start_date)} → {formatDate(item.new_start_date)}
+                      </div>
+                    </div>
+                    <div style={{
+                      fontSize: '12px', fontWeight: 800, color: colors.orange,
+                      background: colors.orangeSoft, borderRadius: radius.pill, padding: '4px 8px',
+                    }}>
+                      +{item.days_shifted}d
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+          {dateChanged && cascadeLoading && (
+            <div style={{ fontSize: '12px', color: colors.muted }}>Calculating impact…</div>
+          )}
+          {dateChanged && !cascadeLoading && downstreamCascade.length === 0 && predecessorViolations.length === 0 && (
+            <div style={{ fontSize: '12px', color: colors.muted }}>No downstream tasks affected.</div>
           )}
         </div>
 
@@ -387,7 +480,7 @@ export default function TaskPage() {
           {statusAction === 'not_done' && (
             <>
               <div style={{ fontSize: '13px', fontWeight: 700, color: colors.text, marginBottom: '8px' }}>Why not completed?</div>
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginBottom: '12px' }}>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
                 {REASON_CODES.map(r => {
                   const active = selectedReason === r
                   return (
@@ -410,48 +503,6 @@ export default function TaskPage() {
                   )
                 })}
               </div>
-
-              {/* Cascade preview — only when start date differs from original */}
-              {editStartDate !== task.start_date && (
-                <div>
-                  <div style={{ fontSize: '13px', fontWeight: 700, color: colors.text, marginBottom: '8px' }}>
-                    Affected tasks
-                  </div>
-                  {cascadeLoading && <div style={{ fontSize: '12px', color: colors.muted }}>Calculating cascade…</div>}
-                  {!cascadeLoading && downstreamCascade.length === 0 && (
-                    <div style={{ fontSize: '12px', color: colors.muted }}>No downstream tasks affected.</div>
-                  )}
-                  {!cascadeLoading && downstreamCascade.length > 0 && (
-                    <div style={{ border: `1px solid ${colors.line}`, borderRadius: radius.card, overflow: 'hidden', background: colors.surface2 }}>
-                      {downstreamCascade.map((item, i) => (
-                        <div
-                          key={item.task_id}
-                          style={{
-                            padding: '10px 14px',
-                            borderBottom: i < downstreamCascade.length - 1 ? `1px solid ${colors.line}` : 'none',
-                            display: 'flex',
-                            justifyContent: 'space-between',
-                            alignItems: 'center',
-                          }}
-                        >
-                          <div>
-                            <div style={{ fontSize: '13px', fontWeight: 600, color: colors.text }}>{item.task_name}</div>
-                            <div style={{ fontSize: '11px', color: colors.muted }}>
-                              {formatDate(item.old_start_date)} → {formatDate(item.new_start_date)}
-                            </div>
-                          </div>
-                          <div style={{
-                            fontSize: '12px', fontWeight: 800, color: colors.orange,
-                            background: colors.orangeSoft, borderRadius: radius.pill, padding: '4px 8px',
-                          }}>
-                            +{item.days_shifted}d
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              )}
             </>
           )}
         </div>
@@ -496,7 +547,7 @@ export default function TaskPage() {
             transition: 'all 0.15s',
           }}
         >
-          {saving ? 'Saving…' : 'Save changes'}
+          {saving ? 'Saving…' : predecessorViolations.length > 0 ? 'Fix dates to save' : 'Save changes'}
         </button>
       </div>
     </ScreenShell>

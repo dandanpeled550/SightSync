@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useLocation } from 'react-router-dom'
 import ScreenShell, { IconBtn } from '../components/ScreenShell'
 import { colors, gradients, radius, shadow } from '../constants/theme'
 import { fetchAllTasks, type Task } from '../api/tasks'
@@ -25,6 +25,7 @@ const TABS = ['Weekly', 'Monthly', 'Schedule']
 
 export default function Plans() {
   const navigate    = useNavigate()
+  const location    = useLocation()
   const { currentProject } = useProject()
   const PROJECT_ID = currentProject?.id ?? 1
   const [tasks, setTasks]     = useState<Task[]>([])
@@ -46,7 +47,7 @@ export default function Plans() {
       }
     }
     load()
-  }, [])
+  }, [location.key])
 
   const sorted = [...tasks].sort(
     (a, b) => new Date(a.start_date).getTime() - new Date(b.start_date).getTime()

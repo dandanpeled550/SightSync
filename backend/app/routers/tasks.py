@@ -226,6 +226,24 @@ def update_task(
     return task
 
 
+@router.get("/projects/{project_id}/task-dependencies", response_model=List[TaskDependencyOut])
+def list_task_dependencies(
+    project_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    require_project_member(project_id, current_user, db)
+    task_id_list = [
+        row[0]
+        for row in db.query(Task.id).filter(Task.project_id == project_id).all()
+    ]
+    return (
+        db.query(TaskDependency)
+        .filter(TaskDependency.task_id.in_(task_id_list))
+        .all()
+    )
+
+
 @router.delete("/tasks/{task_id}", status_code=204)
 def delete_task(
     task_id: int,

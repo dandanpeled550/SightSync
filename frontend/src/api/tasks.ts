@@ -158,6 +158,18 @@ export async function uploadSchedule(file: File, projectId: number): Promise<Ext
   }
 }
 
+export interface TaskDependency {
+  id: number
+  task_id: number
+  depends_on_task_id: number
+  lag_days: number
+}
+
+export async function fetchTaskDependencies(projectId: number): Promise<TaskDependency[]> {
+  const res = await api.get<TaskDependency[]>(`/projects/${projectId}/task-dependencies`)
+  return res.data
+}
+
 export async function updateTask(
   taskId: number,
   update: {
