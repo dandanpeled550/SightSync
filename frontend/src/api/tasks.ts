@@ -104,13 +104,17 @@ export async function uploadSchedule(file: File): Promise<ExtractionResult> {
   const form = new FormData()
   form.append('file', file)
   const baseURL = (api.defaults.baseURL ?? 'http://localhost:8000').replace(/\/$/, '')
-  const response = await fetch(`${baseURL}/projects/1/upload-schedule`, {
-    method: 'POST',
-    body: form,
-  })
+  const url = `${baseURL}/projects/1/upload-schedule`
+  let response: Response
+  try {
+    response = await fetch(url, { method: 'POST', body: form })
+  } catch (networkErr) {
+    const msg = networkErr instanceof Error ? networkErr.message : String(networkErr)
+    throw new Error(`Network error (${url}): ${msg}`)
+  }
   if (!response.ok) {
-    const err = await response.json().catch(() => ({ detail: 'Upload failed' }))
-    throw new Error(err.detail ?? 'Upload failed')
+    const body = await response.text().catch(() => '(no body)')
+    throw new Error(`HTTP ${response.status} from ${url}: ${body}`)
   }
   return response.json()
 }
