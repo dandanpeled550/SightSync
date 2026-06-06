@@ -51,7 +51,7 @@ export default function MaterialsBlock({ logId, readOnly = false }: Props) {
   async function handleAdd() {
     const qty = parseFloat(form.quantity)
     if (isNaN(qty) || qty <= 0) { setError('A valid quantity is required.'); return }
-    if (!form.unit.trim()) { setError('Unit is required.'); return }
+    if (fromInventory && !form.unit.trim()) { setError('Unit is required.'); return }
 
     if (fromInventory) {
       if (selectedItemId === '') { setError('Select an inventory item.'); return }
@@ -188,12 +188,14 @@ export default function MaterialsBlock({ logId, readOnly = false }: Props) {
               value={form.quantity}
               onChange={e => setForm(f => ({ ...f, quantity: e.target.value }))}
             />
-            <input
-              style={{ ...s.input, flex: 1 }}
-              placeholder="Unit (e.g. m³)"
-              value={form.unit}
-              onChange={e => setForm(f => ({ ...f, unit: e.target.value }))}
-            />
+            {fromInventory && (
+              <input
+                style={{ ...s.input, flex: 1 }}
+                placeholder="Unit (e.g. m³)"
+                value={form.unit}
+                onChange={e => setForm(f => ({ ...f, unit: e.target.value }))}
+              />
+            )}
           </div>
           <input
             style={s.input}
@@ -242,11 +244,15 @@ const s: Record<string, React.CSSProperties> = {
     background: 'transparent',
     border: `1px solid ${colors.redBorder}`,
     color: colors.red,
-    borderRadius: '6px',
-    padding: '3px 7px',
+    borderRadius: '8px',
+    padding: '0',
     cursor: 'pointer',
-    fontSize: '11px',
+    fontSize: '13px',
     flexShrink: 0,
+    minWidth: '36px',
+    minHeight: '36px',
+    display: 'grid',
+    placeItems: 'center',
   },
   form: {
     borderTop: `1px solid ${colors.line}`,

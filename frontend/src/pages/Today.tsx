@@ -4,7 +4,8 @@ import ScreenShell, { IconBtn } from '../components/ScreenShell'
 import MaterialsBlock from '../components/MaterialsBlock'
 import SafetyBlock from '../components/SafetyBlock'
 import PhotoUploader from '../components/PhotoUploader'
-import { colors, radius, animations } from '../constants/theme'
+import { colors, radius, animations, desktop } from '../constants/theme'
+import { useWindowSize } from '../hooks/useWindowSize'
 import { fetchTodayLog } from '../api/daily_log'
 import { fetchTodayTasks, markTaskDone, type Task } from '../api/tasks'
 import { fetchAttendance } from '../api/crew'
@@ -44,6 +45,7 @@ export default function Today() {
   const navigate = useNavigate()
   const { currentProject } = useProject()
   const PROJECT_ID = currentProject?.id ?? 1
+  const isMobile = useWindowSize() < desktop.breakpoint
   const [logId, setLogId]                   = useState<number | null>(null)
   const [tasks, setTasks]                   = useState<Task[]>([])
   const [loading, setLoading]               = useState(true)
@@ -220,7 +222,7 @@ export default function Today() {
             className="fade-up"
             style={{
               display: 'grid',
-              gridTemplateColumns: '42px 1fr 44px 44px',
+              gridTemplateColumns: isMobile ? '42px 1fr 44px' : '42px 1fr 44px 44px',
               gap: '9px',
               alignItems: 'center',
               border: `1px solid ${colors.line}`,
@@ -280,25 +282,27 @@ export default function Today() {
               ✓
             </button>
 
-            {/* Not done × */}
-            <button
-              onClick={() => navigate(`/task/${task.id}`)}
-              disabled={!!markingId}
-              style={{
-                height: '44px',
-                borderRadius: '14px',
-                display: 'grid',
-                placeItems: 'center',
-                fontWeight: 900,
-                fontSize: '18px',
-                cursor: markingId ? 'not-allowed' : 'pointer',
-                background: colors.redSoft,
-                color: colors.red,
-                border: `1px solid ${colors.redBorder}`,
-              }}
-            >
-              ×
-            </button>
+            {/* Not done × — desktop only (mobile is home-screen-only) */}
+            {!isMobile && (
+              <button
+                onClick={() => navigate(`/task/${task.id}`)}
+                disabled={!!markingId}
+                style={{
+                  height: '44px',
+                  borderRadius: '14px',
+                  display: 'grid',
+                  placeItems: 'center',
+                  fontWeight: 900,
+                  fontSize: '18px',
+                  cursor: markingId ? 'not-allowed' : 'pointer',
+                  background: colors.redSoft,
+                  color: colors.red,
+                  border: `1px solid ${colors.redBorder}`,
+                }}
+              >
+                ×
+              </button>
+            )}
           </div>
         ))}
 
@@ -306,7 +310,7 @@ export default function Today() {
         {/* Crew summary card */}
         {!loading && !error && (
           <button
-            onClick={() => navigate('/crew/attendance')}
+            onClick={isMobile ? undefined : () => navigate('/crew/attendance')}
             style={{
               width: '100%',
               display: 'flex',
@@ -317,7 +321,7 @@ export default function Today() {
               borderRadius: radius.task,
               padding: '14px 16px',
               marginTop: '8px',
-              cursor: 'pointer',
+              cursor: isMobile ? 'default' : 'pointer',
               textAlign: 'left',
             }}
           >
@@ -362,21 +366,23 @@ export default function Today() {
                 Safety documentation
               </span>
               <div style={{ flex: 1, height: '1px', background: colors.line }} />
-              <button
-                onClick={() => navigate('/safety')}
-                style={{
-                  fontSize: '12px',
-                  fontWeight: 700,
-                  color: colors.primary,
-                  background: 'none',
-                  border: 'none',
-                  cursor: 'pointer',
-                  padding: 0,
-                  flexShrink: 0,
-                }}
-              >
-                View all →
-              </button>
+              {!isMobile && (
+                <button
+                  onClick={() => navigate('/safety')}
+                  style={{
+                    fontSize: '12px',
+                    fontWeight: 700,
+                    color: colors.primary,
+                    background: 'none',
+                    border: 'none',
+                    cursor: 'pointer',
+                    padding: '6px 0',
+                    flexShrink: 0,
+                  }}
+                >
+                  View all →
+                </button>
+              )}
             </div>
             <SafetyBlock logId={logId} />
           </div>
@@ -397,7 +403,7 @@ export default function Today() {
             right: 0,
             background: colors.surface,
             borderRadius: `${radius.card} ${radius.card} 0 0`,
-            padding: '24px 20px 36px',
+            padding: '24px 20px calc(36px + env(safe-area-inset-bottom))',
             zIndex: 21,
             display: 'flex',
             flexDirection: 'column',

@@ -17,9 +17,10 @@ export default function BottomNav() {
   const { pathname } = useLocation()
   const width = useWindowSize()
 
+  // Mobile is home-screen-only; desktop navigation is handled by SidebarNav.
+  if (width < desktop.breakpoint) return null
   const hide = HIDDEN_ON.some(p => pathname === p || pathname.startsWith(p + '/'))
-  const shouldHide = hide || width >= desktop.breakpoint
-  if (shouldHide) return null
+  if (hide || width >= desktop.breakpoint) return null
 
   return (
     <div style={{

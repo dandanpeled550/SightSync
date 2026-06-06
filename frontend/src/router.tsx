@@ -1,5 +1,6 @@
 import { createBrowserRouter } from 'react-router-dom'
 import DesktopShell from './components/DesktopShell'
+import MobileGuard from './components/MobileGuard'
 import ProtectedRoute from './components/ProtectedRoute'
 import Login from './pages/Login'
 import Register from './pages/Register'
@@ -28,20 +29,25 @@ export const router = createBrowserRouter([
   {
     element: <ProtectedRoute><DesktopShell /></ProtectedRoute>,
     children: [
-      { path: '/',               element: <Today /> },
-      { path: '/task/new',       element: <NewTask /> },
-      { path: '/task/:taskId',   element: <Task /> },
-      { path: '/plans',          element: <Plans /> },
-      { path: '/alerts',         element: <Alerts /> },
-      { path: '/report',         element: <Report /> },
-      { path: '/summary',        element: <Summary /> },
-      { path: '/export',         element: <Export /> },
-      { path: '/onboard',        element: <Upload /> },
-      { path: '/onboard/review', element: <Review /> },
-      { path: '/crew',            element: <CrewManagement /> },
-      { path: '/crew/attendance', element: <CrewAttendance /> },
-      { path: '/inventory',       element: <Inventory /> },
-      { path: '/safety',          element: <SafetyHistory /> },
+      {
+        element: <MobileGuard />,
+        children: [
+          { path: '/',               element: <Today /> },
+          { path: '/task/new',       element: <NewTask /> },
+          { path: '/task/:taskId',   element: <Task /> },
+          { path: '/plans',          element: <Plans /> },
+          { path: '/alerts',         element: <Alerts /> },
+          { path: '/report',         element: <Report /> },
+          { path: '/summary',        element: <Summary /> },
+          { path: '/export',         element: <Export /> },
+          { path: '/onboard',        element: <Upload /> },
+          { path: '/onboard/review', element: <Review /> },
+          { path: '/crew',            element: <CrewManagement /> },
+          { path: '/crew/attendance', element: <CrewAttendance /> },
+          { path: '/inventory',       element: <Inventory /> },
+          { path: '/safety',          element: <SafetyHistory /> },
+        ],
+      },
     ],
   },
 ])
