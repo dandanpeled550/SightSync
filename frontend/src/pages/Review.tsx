@@ -1,9 +1,14 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import ScreenShell from '../components/ScreenShell'
 import { IconBtn } from '../components/ScreenShell'
 import { colors, radius } from '../constants/theme'
-import { confirmSchedule, type ExtractionResult, type ExtractedTask } from '../api/tasks'
+import {
+  confirmSchedule,
+  type ExtractionResult,
+  type ExtractedTask,
+  type InferredDependency,
+} from '../api/tasks'
 import { useProject } from '../contexts/ProjectContext'
 
 function formatDate(iso: string): string {
@@ -25,6 +30,15 @@ export default function Review() {
 
   const [confirming, setConfirming] = useState(false)
   const [confirmError, setConfirmError] = useState<string | null>(null)
+  const [activeDeps, setActiveDeps] = useState<InferredDependency[]>([])
+  const [collapsed, setCollapsed] = useState<Record<string, boolean>>({})
+
+  // Initialise activeDeps from result when it arrives
+  useEffect(() => {
+    if (result?.dependencies) {
+      setActiveDeps(result.dependencies)
+    }
+  }, [result])
 
   // No extraction result — guard screen
   if (!result) {
@@ -67,7 +81,7 @@ export default function Review() {
     setConfirming(true)
     setConfirmError(null)
     try {
-      await confirmSchedule(result!.tasks, PROJECT_ID)
+      await confirmSchedule(PROJECT_ID, result!.tasks, activeDeps)
       navigate('/plans')
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Import failed. Please try again.'
@@ -77,8 +91,22 @@ export default function Review() {
     }
   }
 
+  function removeDep(taskIndex: number, dependsOnIndex: number) {
+    setActiveDeps(prev =>
+      prev.filter(d => !(d.task_index === taskIndex && d.depends_on_index === dependsOnIndex))
+    )
+  }
+
+  function toggleSection(wfId: string) {
+    setCollapsed(prev => ({ ...prev, [wfId]: !prev[wfId] }))
+  }
+
   const taskCount = result.tasks.length
   const confidencePct = Math.round(result.confidence * 100)
+  const hasWorkflows = result.workflows && result.workflows.length > 0
+
+  // Build a lookup from task index -> task for dep labels
+  const taskByIndex = (idx: number): ExtractedTask | undefined => result.tasks[idx]
 
   return (
     <ScreenShell
@@ -122,11 +150,149 @@ export default function Review() {
         </div>
       </div>
 
-      {/* Task list */}
+      {/* Dependency inference unavailable notice */}
+      {!hasWorkflows && (
+        <div style={{
+          margin: '0 16px 4px',
+          padding: '8px 14px',
+          background: colors.surface2,
+          borderRadius: radius.card,
+          display: 'flex',
+          alignItems: 'center',
+          gap: '8px',
+          border: `1px solid ${colors.line}`,
+        }}>
+          <span style={{ fontSize: '14px' }}>ℹ️</span>
+          <span style={{ fontSize: '12px', color: colors.muted }}>
+            Dependency inference unavailable
+          </span>
+        </div>
+      )}
+
+      {/* Task content */}
       <div style={{ padding: '8px 16px 100px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
-        {result.tasks.map((task: ExtractedTask, idx: number) => (
-          <TaskCard key={idx} task={task} />
-        ))}
+
+        {hasWorkflows ? (
+          /* Grouped by workflow */
+          result.workflows.map(wf => {
+            const isCollapsed = collapsed[wf.id] ?? false
+            const wfDeps = activeDeps.filter(d =>
+              wf.task_indices.includes(d.task_index) || wf.task_indices.includes(d.depends_on_index)
+            )
+            return (
+              <div key={wf.id} style={{
+                border: `1.5px solid ${colors.line}`,
+                borderRadius: radius.card,
+                overflow: 'hidden',
+                background: colors.surface,
+              }}>
+                {/* Accordion header */}
+                <button
+                  onClick={() => toggleSection(wf.id)}
+                  style={{
+                    width: '100%',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    padding: '14px 16px',
+                    background: colors.surface2,
+                    border: 'none',
+                    borderBottom: isCollapsed ? 'none' : `1px solid ${colors.line}`,
+                    cursor: 'pointer',
+                    gap: '10px',
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    <span style={{ fontWeight: 700, fontSize: '15px', color: colors.text }}>
+                      {wf.name}
+                    </span>
+                    <span style={{
+                      background: colors.blueSoft,
+                      color: colors.blue,
+                      borderRadius: radius.pill,
+                      padding: '2px 8px',
+                      fontSize: '11px',
+                      fontWeight: 700,
+                    }}>
+                      {wf.task_indices.length} task{wf.task_indices.length !== 1 ? 's' : ''}
+                    </span>
+                    {wfDeps.length > 0 && (
+                      <span style={{
+                        background: colors.primarySoft,
+                        color: colors.primary,
+                        borderRadius: radius.pill,
+                        padding: '2px 8px',
+                        fontSize: '11px',
+                        fontWeight: 700,
+                      }}>
+                        {wfDeps.length} dep{wfDeps.length !== 1 ? 's' : ''}
+                      </span>
+                    )}
+                  </div>
+                  <span style={{
+                    fontSize: '16px',
+                    color: colors.muted,
+                    transform: isCollapsed ? 'rotate(-90deg)' : 'rotate(0deg)',
+                    transition: 'transform 0.15s',
+                    display: 'inline-block',
+                  }}>
+                    ▾
+                  </span>
+                </button>
+
+                {/* Tasks in this workflow */}
+                {!isCollapsed && (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', padding: '10px 12px' }}>
+                    {wf.task_indices.map((taskIdx, i) => {
+                      const task = result.tasks[taskIdx]
+                      if (!task) return null
+                      return <TaskCard key={i} task={task} />
+                    })}
+
+                    {/* Dependencies sub-list */}
+                    {wfDeps.length > 0 && (
+                      <div style={{
+                        marginTop: '4px',
+                        padding: '10px 12px',
+                        background: colors.surface2,
+                        borderRadius: radius.card,
+                        border: `1px solid ${colors.line}`,
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: '8px',
+                      }}>
+                        <div style={{
+                          fontSize: '11px',
+                          fontWeight: 700,
+                          color: colors.muted,
+                          textTransform: 'uppercase',
+                          letterSpacing: '0.06em',
+                          marginBottom: '2px',
+                        }}>
+                          Dependencies
+                        </div>
+                        {wfDeps.map((dep, di) => (
+                          <DepRow
+                            key={di}
+                            dep={dep}
+                            fromTask={taskByIndex(dep.task_index)}
+                            toTask={taskByIndex(dep.depends_on_index)}
+                            onRemove={() => removeDep(dep.task_index, dep.depends_on_index)}
+                          />
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            )
+          })
+        ) : (
+          /* Flat list fallback */
+          result.tasks.map((task: ExtractedTask, idx: number) => (
+            <TaskCard key={idx} task={task} />
+          ))
+        )}
 
         {/* Confirm error */}
         {confirmError && (
@@ -271,6 +437,105 @@ function TaskCard({ task }: { task: ExtractedTask }) {
       <div style={{ fontSize: '13px', color: colors.muted }}>
         {formatDate(task.start_date)} · {task.duration_days} day{task.duration_days !== 1 ? 's' : ''}
       </div>
+    </div>
+  )
+}
+
+function confidenceBadgeColors(confidence: number): { bg: string; color: string } {
+  if (confidence >= 0.8) return { bg: colors.greenSoft, color: colors.green }
+  if (confidence >= 0.6) return { bg: colors.orangeSoft, color: colors.orange }
+  return { bg: colors.redSoft, color: colors.red }
+}
+
+function DepRow({
+  dep,
+  fromTask,
+  toTask,
+  onRemove,
+}: {
+  dep: InferredDependency
+  fromTask: ExtractedTask | undefined
+  toTask: ExtractedTask | undefined
+  onRemove: () => void
+}) {
+  const badge = confidenceBadgeColors(dep.confidence)
+  const pct = Math.round(dep.confidence * 100)
+
+  return (
+    <div style={{
+      display: 'flex',
+      alignItems: 'flex-start',
+      gap: '8px',
+    }}>
+      {/* Arrow icon */}
+      <span style={{ fontSize: '14px', color: colors.muted, marginTop: '1px', flexShrink: 0 }}>→</span>
+
+      {/* Content */}
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ fontSize: '13px', color: colors.text, fontWeight: 600, lineHeight: 1.4 }}>
+          <span style={{ color: colors.blue }}>{fromTask?.name ?? `Task ${dep.task_index}`}</span>
+          <span style={{ color: colors.muted, fontWeight: 400 }}> depends on </span>
+          <span style={{ color: colors.text }}>{toTask?.name ?? `Task ${dep.depends_on_index}`}</span>
+        </div>
+        {dep.lag_days > 0 && (
+          <div style={{ fontSize: '11px', color: colors.muted, marginTop: '2px' }}>
+            +{dep.lag_days} day{dep.lag_days !== 1 ? 's' : ''} lag
+          </div>
+        )}
+        {dep.reasoning && (
+          <div style={{
+            fontSize: '11px',
+            color: colors.muted,
+            marginTop: '3px',
+            fontStyle: 'italic',
+            lineHeight: 1.4,
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            whiteSpace: 'nowrap',
+          }}>
+            {dep.reasoning}
+          </div>
+        )}
+      </div>
+
+      {/* Confidence badge */}
+      <span style={{
+        background: badge.bg,
+        color: badge.color,
+        borderRadius: radius.pill,
+        padding: '2px 7px',
+        fontSize: '11px',
+        fontWeight: 700,
+        flexShrink: 0,
+        alignSelf: 'center',
+      }}>
+        {pct}%
+      </span>
+
+      {/* Remove button */}
+      <button
+        onClick={onRemove}
+        title="Remove dependency"
+        style={{
+          flexShrink: 0,
+          alignSelf: 'center',
+          width: '22px',
+          height: '22px',
+          borderRadius: '50%',
+          border: `1px solid ${colors.line}`,
+          background: colors.surface,
+          color: colors.muted,
+          fontSize: '13px',
+          cursor: 'pointer',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          padding: 0,
+          lineHeight: 1,
+        }}
+      >
+        ×
+      </button>
     </div>
   )
 }
