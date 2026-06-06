@@ -129,55 +129,63 @@ class TestExportPdf:
 # ---------------------------------------------------------------------------
 
 class TestAiSummary:
-    def test_ai_summary_stored_on_mocked_call(self, seeded_client, SessionFactory):
-        """generate_and_store_summary stores Claude's text in log.ai_summary."""
+    def _make_openai_mock(self, text: str) -> MagicMock:
+        """Build a mock that mimics openai.OpenAI().chat.completions.create() response."""
+        mock_message = MagicMock()
+        mock_message.content = text
+        mock_choice = MagicMock()
+        mock_choice.message = mock_message
         mock_response = MagicMock()
-        mock_response.content = [MagicMock(text="Great day on site. All tasks completed.")]
-
+        mock_response.choices = [mock_choice]
         mock_client_instance = MagicMock()
-        mock_client_instance.messages.create.return_value = mock_response
+        mock_client_instance.chat.completions.create.return_value = mock_response
+        return mock_client_instance
+
+    def test_ai_summary_stored_on_mocked_call(self, seeded_client, SessionFactory):
+        """generate_and_store_summary stores GPT-4o's text in log.ai_summary."""
+        mock_client_instance = self._make_openai_mock("✅ [TREND] All tasks completed on schedule today.")
 
         db = SessionFactory()
         try:
-            with patch("anthropic.Anthropic", return_value=mock_client_instance), \
+            with patch("openai.OpenAI", return_value=mock_client_instance), \
                  patch("app.services.ai_summary.settings") as mock_settings:
-                mock_settings.anthropic_api_key = "test-key"
-                mock_settings.anthropic_model = "claude-sonnet-4-6"
+                mock_settings.openai_api_key = "test-key"
+                mock_settings.openai_model = "gpt-4o"
                 generate_and_store_summary(seeded_client.log_id, db)
 
             from app.models import DailyLog
             log = db.query(DailyLog).filter(DailyLog.id == seeded_client.log_id).first()
-            assert log.ai_summary == "Great day on site. All tasks completed."
+            assert log.ai_summary == "✅ [TREND] All tasks completed on schedule today."
         finally:
             db.close()
 
     def test_ai_summary_stored_on_failure(self, seeded_client, SessionFactory):
-        """When Claude raises an exception, a fallback string is stored (not null)."""
+        """When GPT-4o raises an exception, a fallback string is stored (not null)."""
         mock_client_instance = MagicMock()
-        mock_client_instance.messages.create.side_effect = RuntimeError("API timeout")
+        mock_client_instance.chat.completions.create.side_effect = RuntimeError("API timeout")
 
         db = SessionFactory()
         try:
-            with patch("anthropic.Anthropic", return_value=mock_client_instance), \
+            with patch("openai.OpenAI", return_value=mock_client_instance), \
                  patch("app.services.ai_summary.settings") as mock_settings:
-                mock_settings.anthropic_api_key = "test-key"
-                mock_settings.anthropic_model = "claude-sonnet-4-6"
+                mock_settings.openai_api_key = "test-key"
+                mock_settings.openai_model = "gpt-4o"
                 generate_and_store_summary(seeded_client.log_id, db)
 
             from app.models import DailyLog
             log = db.query(DailyLog).filter(DailyLog.id == seeded_client.log_id).first()
             assert log.ai_summary is not None
-            assert "failed" in log.ai_summary.lower() or "Summary" in log.ai_summary
+            assert "failed" in log.ai_summary.lower()
         finally:
             db.close()
 
     def test_ai_summary_graceful_no_api_key(self, seeded_client, SessionFactory):
-        """When anthropic_api_key is empty, a graceful fallback string is stored."""
+        """When openai_api_key is empty, a graceful fallback string is stored."""
         db = SessionFactory()
         try:
             with patch("app.services.ai_summary.settings") as mock_settings:
-                mock_settings.anthropic_api_key = ""
-                mock_settings.anthropic_model = "claude-sonnet-4-6"
+                mock_settings.openai_api_key = ""
+                mock_settings.openai_model = "gpt-4o"
                 generate_and_store_summary(seeded_client.log_id, db)
 
             from app.models import DailyLog
