@@ -42,9 +42,16 @@ def _make_xlsx(rows=None) -> bytes:
 
 
 def _mock_claude_response(tasks: list[dict], confidence: float = 0.85) -> MagicMock:
-    """Build a fake anthropic message response object."""
-    payload = json.dumps({"tasks": tasks, "confidence": confidence})
-    content_block = SimpleNamespace(text=payload)
+    """Build a fake anthropic message response object.
+
+    Returns only the continuation after the assistant prefill '{"tasks": [',
+    matching what the real API returns when prefill is used.
+    """
+    from app.services.ai_extraction import _ANTHROPIC_PREFILL
+    full = json.dumps({"tasks": tasks, "confidence": confidence})
+    # Strip the prefill so that prepending it in _call_anthropic yields valid JSON.
+    continuation = full[len(_ANTHROPIC_PREFILL):]
+    content_block = SimpleNamespace(text=continuation)
     message = MagicMock()
     message.content = [content_block]
     return message

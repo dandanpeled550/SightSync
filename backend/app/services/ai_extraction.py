@@ -156,8 +156,15 @@ def _build_prompt(text: str) -> str:
     return template.replace("{{XLSX_TEXT}}", text)
 
 
+_ANTHROPIC_PREFILL = '{"tasks": ['
+
+
 def _call_anthropic(prompt: str) -> str:
-    """Call Claude and return the raw response text. Raises on any error."""
+    """Call Claude and return the raw response text. Raises on any error.
+
+    Uses assistant prefill to guarantee the response opens as valid JSON,
+    eliminating markdown fences and preamble prose.
+    """
     import anthropic
     logger.debug("AI prompt [anthropic/%s] (%d chars):\n%s", settings.anthropic_model, len(prompt), prompt)
     start = time.perf_counter()
@@ -165,9 +172,12 @@ def _call_anthropic(prompt: str) -> str:
     message = client.messages.create(
         model=settings.anthropic_model,
         max_tokens=16000,
-        messages=[{"role": "user", "content": prompt}],
+        messages=[
+            {"role": "user", "content": prompt},
+            {"role": "assistant", "content": _ANTHROPIC_PREFILL},
+        ],
     )
-    text = message.content[0].text
+    text = _ANTHROPIC_PREFILL + message.content[0].text
     elapsed = int((time.perf_counter() - start) * 1000)
     logger.info(
         "AI call [anthropic/%s] done in %dms — %d chars (stop_reason=%s)",
@@ -175,8 +185,8 @@ def _call_anthropic(prompt: str) -> str:
     )
     if message.stop_reason == "max_tokens":
         raise ValueError(
-            f"Claude response was truncated (hit max_tokens). "
-            f"The file may be too large — try splitting it into smaller sheets."
+            "Claude response was truncated (hit max_tokens). "
+            "The file may be too large — try splitting it into smaller sheets."
         )
     logger.debug("AI response:\n%s", text)
     return text
@@ -215,9 +225,21 @@ def _strip_fences(text: str) -> str:
     return text
 
 
+def _load_json_tolerant(text: str) -> dict:
+    """Try strict parse first; fall back to json_repair on failure."""
+    try:
+        return json.loads(text)
+    except json.JSONDecodeError:
+        from json_repair import repair_json
+        repaired = repair_json(text, return_objects=True)
+        if not isinstance(repaired, dict):
+            raise ValueError(f"Could not parse AI response as JSON object (got {type(repaired).__name__})")
+        return repaired
+
+
 def _parse_response(response_text: str, text_length: int) -> ExtractionResult:
     """Parse the JSON response from any provider into an ExtractionResult."""
-    data = json.loads(_strip_fences(response_text))
+    data = _load_json_tolerant(_strip_fences(response_text))
     raw_tasks = data.get("tasks", [])
     confidence = float(data.get("confidence", 0.0))
 
@@ -285,7 +307,7 @@ def infer_workflows_and_dependencies(
         )
         response_text = message.content[0].text
 
-        data = json.loads(_strip_fences(response_text))
+        data = _load_json_tolerant(_strip_fences(response_text))
 
         # Parse workflows
         workflows = []
