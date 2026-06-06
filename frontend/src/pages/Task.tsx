@@ -10,8 +10,7 @@ import {
   type Task,
   type CascadeResult,
 } from '../api/tasks'
-
-const PROJECT_ID = 1
+import { useProject } from '../contexts/ProjectContext'
 
 const REASON_CODES = [
   'Weather delay',
@@ -29,6 +28,8 @@ function formatDate(iso: string): string {
 export default function Task() {
   const { taskId } = useParams<{ taskId: string }>()
   const navigate = useNavigate()
+  const { currentProject } = useProject()
+  const PROJECT_ID = currentProject?.id ?? 1
   const isNew = taskId === 'new'
 
   const [logId, setLogId] = useState<number | null>(null)

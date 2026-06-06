@@ -4,8 +4,7 @@ import ScreenShell, { IconBtn } from '../components/ScreenShell'
 import { colors, radius, gradients, animations } from '../constants/theme'
 import { fetchTodayLog } from '../api/daily_log'
 import { fetchTodayTasks, markTaskDone, type Task } from '../api/tasks'
-
-const PROJECT_ID = 1
+import { useProject } from '../contexts/ProjectContext'
 
 const TRADE_ICONS: Record<string, string> = {
   electrical: '⚡',
@@ -54,6 +53,8 @@ function formatDate(iso: string): string {
 
 export default function Today() {
   const navigate = useNavigate()
+  const { currentProject } = useProject()
+  const PROJECT_ID = currentProject?.id ?? 1
   const [logId, setLogId]         = useState<number | null>(null)
   const [weather, setWeather]     = useState<string | null>(null)
   const [tasks, setTasks]         = useState<Task[]>([])

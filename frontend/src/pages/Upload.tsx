@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import ScreenShell from '../components/ScreenShell'
 import { colors, radius } from '../constants/theme'
 import { uploadSchedule, type ExtractionResult } from '../api/tasks'
+import { useProject } from '../contexts/ProjectContext'
 
 interface UploadRow {
   icon: string
@@ -19,6 +20,8 @@ const rows: UploadRow[] = [
 
 export default function Upload() {
   const navigate = useNavigate()
+  const { currentProject } = useProject()
+  const PROJECT_ID = currentProject?.id ?? 1
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -27,7 +30,7 @@ export default function Upload() {
     setLoading(true)
     setError(null)
     try {
-      const result: ExtractionResult = await uploadSchedule(file)
+      const result: ExtractionResult = await uploadSchedule(file, PROJECT_ID)
       if (result.error) {
         setError(`${result.error} (text_len=${result.raw_text_length})`)
       } else {

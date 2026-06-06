@@ -100,7 +100,8 @@ export interface ExtractedTask {
 // Upload a .xlsx file; returns ExtractionResult (always 200, check .error field)
 // Uses fetch instead of axios — axios's default Content-Type: application/json overrides
 // FormData's multipart boundary, breaking the upload. fetch lets the browser set it correctly.
-export async function uploadSchedule(file: File): Promise<ExtractionResult> {
+export async function uploadSchedule(file: File, projectId: number): Promise<ExtractionResult> {
+  const token = localStorage.getItem('auth_token')
   const form = new FormData()
   form.append('file', file)
   let baseURL = (api.defaults.baseURL ?? 'http://localhost:8000').replace(/\/$/, '')
@@ -108,10 +109,14 @@ export async function uploadSchedule(file: File): Promise<ExtractionResult> {
   // hostname or service name with no scheme. A schemeless value becomes a relative URL
   // in fetch(), hitting the static site instead of the API.
   if (baseURL && !baseURL.startsWith('http')) baseURL = `https://${baseURL}`
-  const url = `${baseURL}/projects/1/upload-schedule`
+  const url = `${baseURL}/projects/${projectId}/upload-schedule`
   let response: Response
   try {
-    response = await fetch(url, { method: 'POST', body: form })
+    response = await fetch(url, {
+      method: 'POST',
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+      body: form,
+    })
   } catch (networkErr) {
     const msg = networkErr instanceof Error ? networkErr.message : String(networkErr)
     throw new Error(`Network error (${url}): ${msg}`)
@@ -132,7 +137,7 @@ export async function uploadSchedule(file: File): Promise<ExtractionResult> {
 }
 
 // Confirm extracted tasks — clears existing tasks and inserts these
-export async function confirmSchedule(tasks: ExtractedTask[]): Promise<{ tasks_created: number }> {
-  const { data } = await api.post<{ tasks_created: number }>(`/projects/1/confirm-schedule`, { tasks })
+export async function confirmSchedule(tasks: ExtractedTask[], projectId: number): Promise<{ tasks_created: number }> {
+  const { data } = await api.post<{ tasks_created: number }>(`/projects/${projectId}/confirm-schedule`, { tasks })
   return data
 }

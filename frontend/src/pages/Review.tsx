@@ -4,6 +4,7 @@ import ScreenShell from '../components/ScreenShell'
 import { IconBtn } from '../components/ScreenShell'
 import { colors, radius } from '../constants/theme'
 import { confirmSchedule, type ExtractionResult, type ExtractedTask } from '../api/tasks'
+import { useProject } from '../contexts/ProjectContext'
 
 function formatDate(iso: string): string {
   const d = new Date(iso + 'T00:00:00')
@@ -17,6 +18,8 @@ interface LocationState {
 export default function Review() {
   const navigate = useNavigate()
   const location = useLocation()
+  const { currentProject } = useProject()
+  const PROJECT_ID = currentProject?.id ?? 1
   const state = location.state as LocationState | null
   const result = state?.result ?? null
 
@@ -64,7 +67,7 @@ export default function Review() {
     setConfirming(true)
     setConfirmError(null)
     try {
-      await confirmSchedule(result!.tasks)
+      await confirmSchedule(result!.tasks, PROJECT_ID)
       navigate('/plans')
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Import failed. Please try again.'
