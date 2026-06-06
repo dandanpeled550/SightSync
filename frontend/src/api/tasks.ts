@@ -103,7 +103,11 @@ export interface ExtractedTask {
 export async function uploadSchedule(file: File): Promise<ExtractionResult> {
   const form = new FormData()
   form.append('file', file)
-  const baseURL = (api.defaults.baseURL ?? 'http://localhost:8000').replace(/\/$/, '')
+  let baseURL = (api.defaults.baseURL ?? 'http://localhost:8000').replace(/\/$/, '')
+  // Guard: Render's property:host gives "https://..." but property:url can give a bare
+  // hostname or service name with no scheme. A schemeless value becomes a relative URL
+  // in fetch(), hitting the static site instead of the API.
+  if (baseURL && !baseURL.startsWith('http')) baseURL = `https://${baseURL}`
   const url = `${baseURL}/projects/1/upload-schedule`
   let response: Response
   try {

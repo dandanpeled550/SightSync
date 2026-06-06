@@ -20,7 +20,7 @@ services:
         fromService:
           name: sightsync-web
           type: web
-          property: url
+          property: host
       - key: SECRET_KEY
         generateValue: true
       - key: PYTHON_VERSION
@@ -38,7 +38,7 @@ services:
         fromService:
           name: sightsync-api
           type: web
-          property: url
+          property: host
     headers:
       - path: /*
         name: X-Frame-Options
