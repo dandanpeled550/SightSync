@@ -7,12 +7,13 @@ import {
   CrewMember,
   CrewMemberCreate,
 } from '../api/crew'
-
-const PROJECT_ID = 1
+import { useProject } from '../contexts/ProjectContext'
 
 const emptyForm: CrewMemberCreate = { name: '', id_number: '', profession: '', reason: '' }
 
 export default function CrewManagement() {
+  const { currentProject } = useProject()
+  const PROJECT_ID = currentProject?.id ?? 1
   const [crew, setCrew] = useState<CrewMember[]>([])
   const [form, setForm] = useState<CrewMemberCreate>(emptyForm)
   const [editingId, setEditingId] = useState<number | null>(null)

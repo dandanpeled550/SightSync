@@ -5,6 +5,7 @@ import { fetchTodayLog } from '../api/daily_log'
 import { fetchTodayTasks, type Task } from '../api/tasks'
 import { fetchAttendance, type AttendanceRecord } from '../api/crew'
 import { fetchWeather, type DailyForecast } from '../api/weather'
+import { useProject } from '../contexts/ProjectContext'
 
 const WMO_EMOJI: Record<number, string> = {
   0: '☀️', 1: '🌤', 2: '⛅', 3: '☁️',
@@ -22,6 +23,9 @@ const AVATAR_COLORS = [colors.blue, '#7c3aed', '#0891b2', '#059669', '#d97706']
 
 export default function AsidePanel() {
   const navigate = useNavigate()
+  const { currentProject } = useProject()
+  const projectId = currentProject?.id ?? 1
+  const projectCity = currentProject?.location_city ?? 'Tel Aviv'
 
   const [forecast, setForecast]     = useState<DailyForecast[]>([])
   const [tasks, setTasks]           = useState<Task[]>([])
@@ -34,11 +38,10 @@ export default function AsidePanel() {
       try {
         const log = await fetchTodayLog()
         if (cancelled) return
-        // Tel Aviv — hardcoded to match PROJECT_ID=1 seed data
         const [todayTasks, att, wx] = await Promise.all([
-          fetchTodayTasks(1),
+          fetchTodayTasks(projectId),
           fetchAttendance(log.id),
-          fetchWeather('Tel Aviv'),
+          fetchWeather(projectCity),
         ])
         if (cancelled) return
         setTasks(Array.isArray(todayTasks) ? todayTasks : [])
@@ -52,7 +55,7 @@ export default function AsidePanel() {
     }
     load()
     return () => { cancelled = true }
-  }, [])
+  }, [projectId, projectCity])
 
   const doneCount    = tasks.filter(t => t.status === 'done').length
   const totalCount   = tasks.length
@@ -104,7 +107,7 @@ export default function AsidePanel() {
     }}>
       {/* Weather */}
       <div style={cardStyle}>
-        <div style={sectionLabel}>Weather · Tel Aviv</div>
+        <div style={sectionLabel}>Weather · {projectCity}</div>
         {forecast.length > 0 ? (
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
             {forecast.map(day => {

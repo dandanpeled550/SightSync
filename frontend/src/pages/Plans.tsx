@@ -3,8 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import ScreenShell, { IconBtn } from '../components/ScreenShell'
 import { colors, radius, shadow } from '../constants/theme'
 import { fetchAllTasks, type Task } from '../api/tasks'
-
-const PROJECT_ID = 1
+import { useProject } from '../contexts/ProjectContext'
 
 function getPillStyle(trade: string | null): { bg: string; text: string; solid: string } {
   if (!trade) return { bg: '#f1f5f9', text: '#64748b', solid: '#64748b' }
@@ -26,6 +25,8 @@ const TABS = ['Weekly', 'Monthly', 'Schedule']
 
 export default function Plans() {
   const navigate    = useNavigate()
+  const { currentProject } = useProject()
+  const PROJECT_ID = currentProject?.id ?? 1
   const [tasks, setTasks]     = useState<Task[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError]     = useState<string | null>(null)

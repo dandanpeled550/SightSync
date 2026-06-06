@@ -3,8 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom'
 import ScreenShell, { IconBtn } from '../components/ScreenShell'
 import { colors } from '../constants/theme'
 import { fetchAllTasks, type Task } from '../api/tasks'
-
-const PROJECT_ID = 1
+import { useProject } from '../contexts/ProjectContext'
 
 function getDotColor(tasks: Task[]): string {
   if (tasks.length === 0)              return colors.mutedLight
@@ -20,6 +19,8 @@ function formatDate(iso: string): string {
 
 export default function Site() {
   const navigate = useNavigate()
+  const { currentProject } = useProject()
+  const PROJECT_ID = currentProject?.id ?? 1
   const [searchParams] = useSearchParams()
   const activeLevelParam = searchParams.get('level')
 
