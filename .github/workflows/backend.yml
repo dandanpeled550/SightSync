@@ -24,7 +24,7 @@ jobs:
             --cov-report=term-missing \
             --cov-fail-under=70
         env:
-          DATABASE_URL: sqlite:///:memory:
+          DATABASE_URL: "sqlite:///:memory:"
           FRONTEND_URL: http://localhost:5173
           CORS_ORIGINS: '["http://localhost:5173"]'
           ANTHROPIC_API_KEY: ''
