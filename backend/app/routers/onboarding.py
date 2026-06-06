@@ -11,10 +11,11 @@ from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, UploadFile
 from pydantic import BaseModel
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.database import get_db
-from app.models import Task, User
+from app.models import Task, TaskDependency, User
 from app.services.ai_extraction import ExtractionResult, extract_tasks_from_xlsx
 from app.services.auth_service import get_current_user, require_project_member
 
@@ -33,10 +34,28 @@ class ExtractedTaskOut(BaseModel):
     room_tag: Optional[str]
     start_date: str
     duration_days: int
+    workflow_id: str = ""
+
+
+class WorkflowOut(BaseModel):
+    id: str
+    name: str
+    task_indices: list
+
+
+class InferredDependencyOut(BaseModel):
+    task_index: int
+    depends_on_index: int
+    lag_days: int
+    confidence: float
+    reasoning: str
+    type: str
 
 
 class ExtractionResultOut(BaseModel):
     tasks: list[ExtractedTaskOut]
+    workflows: list[WorkflowOut]
+    dependencies: list[InferredDependencyOut]
     confidence: float
     error: Optional[str]
     raw_text_length: int
@@ -52,12 +71,20 @@ class ExtractedTaskIn(BaseModel):
     duration_days: int
 
 
+class InferredDependencyIn(BaseModel):
+    task_index: int
+    depends_on_index: int
+    lag_days: int = 0
+
+
 class ConfirmScheduleIn(BaseModel):
     tasks: list[ExtractedTaskIn]
+    dependencies: list[InferredDependencyIn] = []
 
 
 class ConfirmScheduleOut(BaseModel):
     tasks_created: int
+    deps_created: int = 0
 
 
 # ---------------------------------------------------------------------------
@@ -95,8 +122,28 @@ async def upload_schedule(
                 room_tag=t.room_tag,
                 start_date=t.start_date,
                 duration_days=t.duration_days,
+                workflow_id=t.workflow_id,
             )
             for t in result.tasks
+        ],
+        workflows=[
+            WorkflowOut(
+                id=wf.id,
+                name=wf.name,
+                task_indices=wf.task_indices,
+            )
+            for wf in result.workflows
+        ],
+        dependencies=[
+            InferredDependencyOut(
+                task_index=dep.task_index,
+                depends_on_index=dep.depends_on_index,
+                lag_days=dep.lag_days,
+                confidence=dep.confidence,
+                reasoning=dep.reasoning,
+                type=dep.type,
+            )
+            for dep in result.dependencies
         ],
         confidence=result.confidence,
         error=result.error,
@@ -120,7 +167,8 @@ def confirm_schedule(
     db.query(Task).filter(Task.project_id == project_id).delete(synchronize_session=False)
     db.flush()
 
-    # Insert new tasks
+    # Insert new tasks — keep track of inserted DB ids by index
+    inserted_tasks = []
     for task_in in body.tasks:
         start = date.fromisoformat(task_in.start_date)
         end = start + timedelta(days=task_in.duration_days)
@@ -138,6 +186,44 @@ def confirm_schedule(
             source="ai",
         )
         db.add(task)
+        inserted_tasks.append(task)
+
+    db.flush()  # populate task IDs before inserting dependencies
+
+    # Insert dependencies — map task_index → DB task id
+    deps_created = 0
+    for dep_in in body.dependencies:
+        task_idx = dep_in.task_index
+        depends_on_idx = dep_in.depends_on_index
+
+        # Validate indices are in range
+        if task_idx < 0 or task_idx >= len(inserted_tasks):
+            continue
+        if depends_on_idx < 0 or depends_on_idx >= len(inserted_tasks):
+            continue
+
+        task_id = inserted_tasks[task_idx].id
+        depends_on_task_id = inserted_tasks[depends_on_idx].id
+
+        # Skip self-dependencies
+        if task_id == depends_on_task_id:
+            continue
+
+        # Check for duplicate — skip silently
+        existing = db.query(TaskDependency).filter(
+            TaskDependency.task_id == task_id,
+            TaskDependency.depends_on_task_id == depends_on_task_id,
+        ).first()
+        if existing:
+            continue
+
+        dep = TaskDependency(
+            task_id=task_id,
+            depends_on_task_id=depends_on_task_id,
+            lag_days=dep_in.lag_days,
+        )
+        db.add(dep)
+        deps_created += 1
 
     db.commit()
-    return ConfirmScheduleOut(tasks_created=len(body.tasks))
+    return ConfirmScheduleOut(tasks_created=len(body.tasks), deps_created=deps_created)

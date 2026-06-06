@@ -84,8 +84,25 @@ export async function fetchCascadePreview(
   return res.data
 }
 
+export interface Workflow {
+  id: string          // "wf_0", "wf_1", ...
+  name: string        // e.g. "Electrical", "Structural"
+  task_indices: number[]  // ordered task indices in this workflow
+}
+
+export interface InferredDependency {
+  task_index: number
+  depends_on_index: number
+  lag_days: number
+  confidence: number
+  reasoning: string
+  type: 'intra_workflow' | 'cross_workflow_handoff'
+}
+
 export interface ExtractionResult {
   tasks: ExtractedTask[]
+  workflows: Workflow[]              // may be empty if Pass 2 unavailable
+  dependencies: InferredDependency[] // may be empty
   confidence: number
   error: string | null
   raw_text_length: number
@@ -140,8 +157,15 @@ export async function uploadSchedule(file: File, projectId: number): Promise<Ext
   }
 }
 
-// Confirm extracted tasks — clears existing tasks and inserts these
-export async function confirmSchedule(tasks: ExtractedTask[], projectId: number): Promise<{ tasks_created: number }> {
-  const { data } = await api.post<{ tasks_created: number }>(`/projects/${projectId}/confirm-schedule`, { tasks })
+// Confirm extracted tasks — clears existing tasks and inserts these, along with inferred deps
+export async function confirmSchedule(
+  projectId: number,
+  tasks: ExtractedTask[],
+  dependencies: InferredDependency[],
+): Promise<{ tasks_created: number; deps_created: number }> {
+  const { data } = await api.post<{ tasks_created: number; deps_created: number }>(
+    `/projects/${projectId}/confirm-schedule`,
+    { tasks, dependencies },
+  )
   return data
 }
