@@ -13,7 +13,7 @@ const emptyForm: CrewMemberCreate = { name: '', id_number: '', profession: '', r
 
 export default function CrewManagement() {
   const { currentProject } = useProject()
-  const PROJECT_ID = currentProject?.id ?? 1
+  const PROJECT_ID = currentProject!.id
   const [crew, setCrew] = useState<CrewMember[]>([])
   const [form, setForm] = useState<CrewMemberCreate>(emptyForm)
   const [editingId, setEditingId] = useState<number | null>(null)

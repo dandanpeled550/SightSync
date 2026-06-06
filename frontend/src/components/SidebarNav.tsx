@@ -9,6 +9,7 @@ const navItems = [
   { label: 'Alerts',  icon: '🔔', path: '/alerts' },
   { label: 'Reports', icon: '▣',  path: '/report' },
   { label: 'Site',    icon: '☷',  path: '/site' },
+  { label: 'Crew',    icon: '👷', path: '/crew' },
 ]
 
 export default function SidebarNav() {

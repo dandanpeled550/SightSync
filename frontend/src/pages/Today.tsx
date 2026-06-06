@@ -4,6 +4,7 @@ import ScreenShell, { IconBtn } from '../components/ScreenShell'
 import { colors, radius, gradients, animations } from '../constants/theme'
 import { fetchTodayLog } from '../api/daily_log'
 import { fetchTodayTasks, markTaskDone, type Task } from '../api/tasks'
+import { fetchAttendance } from '../api/crew'
 import { useProject } from '../contexts/ProjectContext'
 
 const TRADE_ICONS: Record<string, string> = {
@@ -46,12 +47,14 @@ export default function Today() {
   const navigate = useNavigate()
   const { currentProject } = useProject()
   const PROJECT_ID = currentProject?.id ?? 1
-  const [logId, setLogId]         = useState<number | null>(null)
-  const [weather, setWeather]     = useState<string | null>(null)
-  const [tasks, setTasks]         = useState<Task[]>([])
-  const [loading, setLoading]     = useState(true)
-  const [error, setError]         = useState<string | null>(null)
-  const [markingId, setMarkingId] = useState<number | null>(null)
+  const [logId, setLogId]             = useState<number | null>(null)
+  const [weather, setWeather]         = useState<string | null>(null)
+  const [tasks, setTasks]             = useState<Task[]>([])
+  const [loading, setLoading]         = useState(true)
+  const [error, setError]             = useState<string | null>(null)
+  const [markingId, setMarkingId]     = useState<number | null>(null)
+  const [crewPresent, setCrewPresent] = useState<number>(0)
+  const [crewTotal, setCrewTotal]     = useState<number>(0)
 
   useEffect(() => {
     let cancelled = false
@@ -64,9 +67,14 @@ export default function Today() {
         setLogId(log.id)
         const w = log.weather
         if (w && w.temp_max != null) setWeather(`${Math.round(w.temp_max)}°`)
-        const todayTasks = await fetchTodayTasks(PROJECT_ID)
+        const [todayTasks, attendance] = await Promise.all([
+          fetchTodayTasks(PROJECT_ID),
+          fetchAttendance(log.id),
+        ])
         if (cancelled) return
         setTasks(Array.isArray(todayTasks) ? todayTasks : [])
+        setCrewTotal(attendance.length)
+        setCrewPresent(attendance.filter(a => a.status === 'present').length)
       } catch (err: unknown) {
         if (cancelled) return
         setError(err instanceof Error ? err.message : "Failed to load today's tasks")
@@ -289,6 +297,45 @@ export default function Today() {
             </button>
           </div>
         ))}
+
+
+        {/* Crew summary card */}
+        {!loading && !error && (
+          <button
+            onClick={() => navigate('/crew/attendance')}
+            style={{
+              width: '100%',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              background: crewPresent > 0 ? colors.greenSoft : colors.surface2,
+              border: `1px solid ${crewPresent > 0 ? colors.greenBorder : colors.line}`,
+              borderRadius: radius.task,
+              padding: '14px 16px',
+              marginTop: '8px',
+              cursor: 'pointer',
+              textAlign: 'left',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <span style={{ fontSize: '22px', lineHeight: 1 }}>👷</span>
+              <span style={{ fontSize: '14px', fontWeight: 800, color: colors.text }}>
+                Crew on site
+              </span>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <span style={{
+                fontSize: '16px',
+                fontWeight: 900,
+                letterSpacing: '-0.03em',
+                color: crewPresent > 0 ? colors.green : colors.muted,
+              }}>
+                {crewPresent} / {crewTotal}
+              </span>
+              <span style={{ fontSize: '12px', color: colors.mutedLight }}>›</span>
+            </div>
+          </button>
+        )}
       </div>
 
       {/* FAB */}

@@ -260,6 +260,32 @@ export default function Report() {
           />
         </div>
 
+        {/* Mark attendance shortcut */}
+        <button
+          onClick={() => navigate('/crew/attendance')}
+          style={{
+            width: '100%',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            background: colors.surface2,
+            border: `1px solid ${colors.line}`,
+            borderRadius: radius.btn,
+            padding: '12px 16px',
+            marginBottom: '20px',
+            cursor: 'pointer',
+            textAlign: 'left',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <span style={{ fontSize: '18px', lineHeight: 1 }}>👷</span>
+            <span style={{ fontSize: '14px', fontWeight: 700, color: colors.text }}>
+              Mark attendance
+            </span>
+          </div>
+          <span style={{ fontSize: '13px', color: colors.primary, fontWeight: 700 }}>→</span>
+        </button>
+
         {/* Completed today */}
         {doneTasks.length > 0 && (
           <div style={{ marginBottom: '20px' }}>
