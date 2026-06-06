@@ -1,6 +1,7 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { fetchProjects, createProject, type Project, type CreateProjectPayload } from '../api/projects'
+import { searchCities, type CityResult } from '../api/weather'
 import { useProject } from '../contexts/ProjectContext'
 import { useAuth } from '../contexts/AuthContext'
 import { colors, radius, gradients } from '../constants/theme'
@@ -20,9 +21,59 @@ export default function ProjectSelect() {
   const [form, setForm] = useState<CreateProjectPayload>(emptyForm)
   const [creating, setCreating] = useState(false)
   const [createError, setCreateError] = useState<string | null>(null)
+
+  // City search combobox state
+  const [cityQuery, setCityQuery] = useState('')
+  const [cityResults, setCityResults] = useState<CityResult[]>([])
+  const [citySearching, setCitySearching] = useState(false)
+  const [cityDropdownOpen, setCityDropdownOpen] = useState(false)
+  const cityInputRef = useRef<HTMLInputElement>(null)
+
   const { setCurrentProject } = useProject()
   const { user, logout } = useAuth()
   const navigate = useNavigate()
+
+  // Debounced city search
+  useEffect(() => {
+    if (!cityQuery.trim() || form.location_city) {
+      setCityResults([])
+      setCityDropdownOpen(false)
+      return
+    }
+    setCitySearching(true)
+    const timer = setTimeout(() => {
+      searchCities(cityQuery)
+        .then(results => {
+          setCityResults(results)
+          setCityDropdownOpen(results.length > 0)
+        })
+        .finally(() => setCitySearching(false))
+    }, 300)
+    return () => clearTimeout(timer)
+  }, [cityQuery, form.location_city])
+
+  function handleCitySelect(city: CityResult) {
+    const label = city.admin1 ? `${city.name}, ${city.admin1}, ${city.country}` : `${city.name}, ${city.country}`
+    setCityQuery(label)
+    setForm(f => ({ ...f, location_city: city.name, latitude: city.latitude, longitude: city.longitude }))
+    setCityResults([])
+    setCityDropdownOpen(false)
+  }
+
+  function handleCityInputChange(value: string) {
+    setCityQuery(value)
+    // Clear selection if user edits after picking
+    setForm(f => ({ ...f, location_city: '', latitude: 0, longitude: 0 }))
+  }
+
+  function resetForm() {
+    setShowForm(false)
+    setForm(emptyForm)
+    setCreateError(null)
+    setCityQuery('')
+    setCityResults([])
+    setCityDropdownOpen(false)
+  }
 
   useEffect(() => {
     setLoading(true)
@@ -40,7 +91,7 @@ export default function ProjectSelect() {
 
   async function handleCreate(e: React.FormEvent) {
     e.preventDefault()
-    if (!form.name.trim() || !form.location_city.trim()) return
+    if (!form.name.trim() || !form.location_city.trim() || form.latitude === 0) return
     setCreating(true)
     setCreateError(null)
     try {
@@ -339,18 +390,94 @@ export default function ProjectSelect() {
                   style={inputStyle}
                 />
               </div>
-              <div style={{ marginBottom: '20px' }}>
+              <div style={{ marginBottom: '20px', position: 'relative' }}>
                 <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: colors.text, marginBottom: '6px' }}>
                   City *
                 </label>
-                <input
-                  type="text"
-                  value={form.location_city}
-                  onChange={e => setForm(f => ({ ...f, location_city: e.target.value }))}
-                  required
-                  placeholder="Tel Aviv"
-                  style={inputStyle}
-                />
+                <div style={{ position: 'relative' }}>
+                  <input
+                    ref={cityInputRef}
+                    type="text"
+                    value={cityQuery}
+                    onChange={e => handleCityInputChange(e.target.value)}
+                    onFocus={() => { if (cityResults.length > 0) setCityDropdownOpen(true) }}
+                    onBlur={() => setTimeout(() => setCityDropdownOpen(false), 150)}
+                    placeholder="Search for a city…"
+                    autoComplete="off"
+                    style={{
+                      ...inputStyle,
+                      paddingRight: citySearching ? '40px' : '14px',
+                      borderColor: form.location_city ? colors.blue : undefined,
+                    }}
+                  />
+                  {citySearching && (
+                    <span style={{
+                      position: 'absolute',
+                      right: '12px',
+                      top: '50%',
+                      transform: 'translateY(-50%)',
+                      fontSize: '12px',
+                      color: colors.muted,
+                    }}>…</span>
+                  )}
+                  {form.location_city && (
+                    <span style={{
+                      position: 'absolute',
+                      right: '12px',
+                      top: '50%',
+                      transform: 'translateY(-50%)',
+                      fontSize: '16px',
+                      color: colors.blue,
+                    }}>✓</span>
+                  )}
+                </div>
+                {!form.location_city && cityQuery.length > 0 && !citySearching && cityResults.length === 0 && (
+                  <p style={{ margin: '4px 0 0', fontSize: '12px', color: colors.muted }}>No cities found</p>
+                )}
+                {!form.location_city && cityQuery.length > 0 && (
+                  <p style={{ margin: '4px 0 0', fontSize: '12px', color: colors.muted }}>Select a city from the list</p>
+                )}
+                {cityDropdownOpen && cityResults.length > 0 && (
+                  <div style={{
+                    position: 'absolute',
+                    top: 'calc(100% + 4px)',
+                    left: 0,
+                    right: 0,
+                    background: colors.surface,
+                    border: `1.5px solid ${colors.blue}`,
+                    borderRadius: radius.card,
+                    boxShadow: '0 8px 24px rgba(37,99,235,0.12)',
+                    zIndex: 100,
+                    overflow: 'hidden',
+                  }}>
+                    {cityResults.map((city, idx) => (
+                      <button
+                        key={idx}
+                        type="button"
+                        onMouseDown={() => handleCitySelect(city)}
+                        style={{
+                          display: 'flex',
+                          flexDirection: 'column',
+                          width: '100%',
+                          padding: '10px 14px',
+                          background: 'transparent',
+                          border: 'none',
+                          borderBottom: idx < cityResults.length - 1 ? `1px solid ${colors.line}` : 'none',
+                          cursor: 'pointer',
+                          textAlign: 'left',
+                          transition: 'background 0.1s',
+                        }}
+                        onMouseEnter={e => { e.currentTarget.style.background = colors.blueSoft }}
+                        onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}
+                      >
+                        <span style={{ fontSize: '14px', fontWeight: 600, color: colors.text }}>
+                          {city.name}{city.admin1 ? `, ${city.admin1}` : ''}
+                        </span>
+                        <span style={{ fontSize: '12px', color: colors.muted }}>{city.country}</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
               {createError && (
                 <div style={{
@@ -369,7 +496,7 @@ export default function ProjectSelect() {
               <div style={{ display: 'flex', gap: '10px' }}>
                 <button
                   type="button"
-                  onClick={() => { setShowForm(false); setForm(emptyForm); setCreateError(null) }}
+                  onClick={resetForm}
                   style={{
                     flex: '0 0 auto',
                     padding: '12px 18px',
@@ -386,18 +513,18 @@ export default function ProjectSelect() {
                 </button>
                 <button
                   type="submit"
-                  disabled={creating}
+                  disabled={creating || !form.location_city}
                   style={{
                     flex: 1,
                     padding: '12px 18px',
-                    background: creating ? colors.mutedLight : gradients.bluePrimary,
+                    background: (creating || !form.location_city) ? colors.mutedLight : gradients.bluePrimary,
                     border: 'none',
                     borderRadius: radius.btn,
                     fontSize: '14px',
                     fontWeight: 700,
                     color: colors.surface,
-                    cursor: creating ? 'not-allowed' : 'pointer',
-                    boxShadow: creating ? 'none' : '0 6px 16px rgba(37,99,235,0.2)',
+                    cursor: (creating || !form.location_city) ? 'not-allowed' : 'pointer',
+                    boxShadow: (creating || !form.location_city) ? 'none' : '0 6px 16px rgba(37,99,235,0.2)',
                   }}
                 >
                   {creating ? 'Creating…' : 'Create project'}
