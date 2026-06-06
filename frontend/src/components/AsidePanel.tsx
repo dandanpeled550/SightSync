@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
-import { colors, radius, gradients } from '../constants/theme'
+import { colors, radius } from '../constants/theme'
 import { fetchTodayLog } from '../api/daily_log'
 import { fetchTodayTasks, type Task } from '../api/tasks'
 import { fetchAttendance, type AttendanceRecord } from '../api/crew'
@@ -22,7 +21,6 @@ function initials(name: string): string {
 const AVATAR_COLORS = [colors.blue, '#7c3aed', '#0891b2', '#059669', '#d97706']
 
 export default function AsidePanel() {
-  const navigate = useNavigate()
   const { currentProject } = useProject()
   const projectId = currentProject?.id ?? 1
   const projectCity = currentProject?.location_city ?? 'Tel Aviv'
@@ -202,63 +200,6 @@ export default function AsidePanel() {
         </div>
       )}
 
-      {/* Quick actions */}
-      <div style={cardStyle}>
-        <div style={sectionLabel}>Quick Actions</div>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-          <button
-            onClick={() => navigate('/task/new')}
-            style={{
-              padding: '10px 14px',
-              background: colors.surface2,
-              border: `1px solid ${colors.line}`,
-              borderRadius: radius.btn,
-              color: colors.text,
-              fontWeight: 600,
-              fontSize: '13px',
-              cursor: 'pointer',
-              textAlign: 'left',
-              letterSpacing: '-0.01em',
-            }}
-          >
-            📋 Log delay
-          </button>
-          <button
-            onClick={() => navigate('/report')}
-            style={{
-              padding: '10px 14px',
-              background: colors.surface2,
-              border: `1px solid ${colors.line}`,
-              borderRadius: radius.btn,
-              color: colors.text,
-              fontWeight: 600,
-              fontSize: '13px',
-              cursor: 'pointer',
-              textAlign: 'left',
-              letterSpacing: '-0.01em',
-            }}
-          >
-            📊 Daily report
-          </button>
-          <button
-            onClick={() => navigate('/')}
-            style={{
-              padding: '10px 14px',
-              background: gradients.primary,
-              border: 'none',
-              borderRadius: radius.btn,
-              color: colors.surface,
-              fontWeight: 700,
-              fontSize: '13px',
-              cursor: 'pointer',
-              textAlign: 'left',
-              letterSpacing: '-0.01em',
-            }}
-          >
-            ✓ Submit day
-          </button>
-        </div>
-      </div>
     </div>
   )
 }
