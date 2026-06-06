@@ -7,6 +7,7 @@ export interface Incident {
   description: string
   people_involved: string | null
   corrective_action: string | null
+  photo_url: string | null
 }
 
 export interface IncidentWithDate extends Incident {
@@ -14,10 +15,8 @@ export interface IncidentWithDate extends Incident {
 }
 
 export interface IncidentCreate {
-  incident_type: string
   description: string
-  people_involved?: string
-  corrective_action?: string
+  photo_url?: string
 }
 
 export async function fetchIncidents(logId: number): Promise<Incident[]> {
@@ -37,4 +36,13 @@ export async function deleteIncident(logId: number, incidentId: number): Promise
 export async function fetchAllProjectIncidents(projectId: number): Promise<IncidentWithDate[]> {
   const res = await api.get<IncidentWithDate[]>(`/projects/${projectId}/incidents`)
   return res.data
+}
+
+export async function uploadIncidentPhoto(file: File): Promise<string> {
+  const form = new FormData()
+  form.append('file', file)
+  const res = await api.post<{ url: string }>('/uploads/photo', form, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  })
+  return res.data.url
 }

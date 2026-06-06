@@ -1,12 +1,17 @@
 import { useEffect, useState } from 'react'
-import { fetchIncidents, createIncident, deleteIncident, Incident } from '../api/incidents'
+import { fetchIncidents, createIncident, deleteIncident, type Incident } from '../api/incidents'
+import PhotoUploader from './PhotoUploader'
+import { colors, radius } from '../constants/theme'
 
 interface Props {
   logId: number
   readOnly?: boolean
 }
 
-const BLANK_FORM = { incident_type: '', description: '', people_involved: '', corrective_action: '' }
+const BLANK_FORM = {
+  description: '',
+  photo_url: null as string | null,
+}
 
 export default function SafetyBlock({ logId, readOnly = false }: Props) {
   const [incidents, setIncidents] = useState<Incident[]>([])
@@ -17,27 +22,25 @@ export default function SafetyBlock({ logId, readOnly = false }: Props) {
   useEffect(() => {
     fetchIncidents(logId)
       .then(setIncidents)
-      .catch(() => setError('Failed to load incidents.'))
+      .catch(() => setError('Failed to load safety documentation.'))
   }, [logId])
 
   async function handleAdd() {
-    if (!form.incident_type.trim() || !form.description.trim()) {
-      setError('Type and description are required.')
+    if (!form.description.trim()) {
+      setError('Description is required.')
       return
     }
     setSubmitting(true)
     setError('')
     try {
       const created = await createIncident(logId, {
-        incident_type: form.incident_type.trim(),
         description: form.description.trim(),
-        people_involved: form.people_involved.trim() || undefined,
-        corrective_action: form.corrective_action.trim() || undefined,
+        photo_url: form.photo_url ?? undefined,
       })
       setIncidents((prev) => [...prev, created])
       setForm(BLANK_FORM)
     } catch {
-      setError('Failed to add incident.')
+      setError('Failed to add entry.')
     } finally {
       setSubmitting(false)
     }
@@ -49,13 +52,12 @@ export default function SafetyBlock({ logId, readOnly = false }: Props) {
       await deleteIncident(logId, incident.id)
     } catch {
       setIncidents((prev) => [...prev, incident])
-      setError('Failed to delete incident.')
+      setError('Failed to delete entry.')
     }
   }
 
   return (
     <div style={s.block}>
-      <h3 style={s.heading}>Safety Documentation</h3>
       {error && <p style={s.error}>{error}</p>}
 
       {incidents.length === 0 ? (
@@ -63,54 +65,44 @@ export default function SafetyBlock({ logId, readOnly = false }: Props) {
       ) : (
         incidents.map((inc) => (
           <div key={inc.id} style={s.card}>
-            <div style={s.cardHeader}>
-              <span style={s.type}>{inc.incident_type}</span>
+            <div style={{ display: 'flex', gap: '10px', alignItems: 'flex-start' }}>
+              {inc.photo_url && (
+                <img
+                  src={inc.photo_url}
+                  alt="incident"
+                  style={{
+                    width: '56px',
+                    height: '56px',
+                    objectFit: 'cover',
+                    borderRadius: radius.icon,
+                    border: `1px solid ${colors.line}`,
+                    flexShrink: 0,
+                  }}
+                />
+              )}
+              <p style={{ ...s.field, flex: 1 }}>{inc.description}</p>
               {!readOnly && (
-                <button style={s.deleteBtn} onClick={() => handleDelete(inc)}>
-                  Delete
-                </button>
+                <button style={s.deleteBtn} onClick={() => handleDelete(inc)}>✕</button>
               )}
             </div>
-            <p style={s.field}>{inc.description}</p>
-            {inc.people_involved && (
-              <p style={s.meta}><strong>People involved:</strong> {inc.people_involved}</p>
-            )}
-            {inc.corrective_action && (
-              <p style={s.meta}><strong>Corrective action:</strong> {inc.corrective_action}</p>
-            )}
           </div>
         ))
       )}
 
       {!readOnly && (
         <div style={s.form}>
-          <h4 style={s.formHeading}>Add Incident</h4>
-          <input
-            style={s.input}
-            placeholder="Incident type (e.g. Near Miss)"
-            value={form.incident_type}
-            onChange={(e) => setForm((f) => ({ ...f, incident_type: e.target.value }))}
+          <PhotoUploader
+            value={form.photo_url}
+            onChange={(url) => setForm((f) => ({ ...f, photo_url: url }))}
           />
           <textarea
             style={s.textarea}
-            placeholder="Description"
+            placeholder="Describe what happened…"
             value={form.description}
             onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
           />
-          <input
-            style={s.input}
-            placeholder="People involved (optional)"
-            value={form.people_involved}
-            onChange={(e) => setForm((f) => ({ ...f, people_involved: e.target.value }))}
-          />
-          <textarea
-            style={s.textarea}
-            placeholder="Corrective action (optional)"
-            value={form.corrective_action}
-            onChange={(e) => setForm((f) => ({ ...f, corrective_action: e.target.value }))}
-          />
           <button style={s.addBtn} onClick={handleAdd} disabled={submitting}>
-            {submitting ? 'Adding…' : 'Add Incident'}
+            {submitting ? 'Saving…' : 'Add entry'}
           </button>
         </div>
       )}
@@ -119,19 +111,60 @@ export default function SafetyBlock({ logId, readOnly = false }: Props) {
 }
 
 const s: Record<string, React.CSSProperties> = {
-  block: { border: '1px solid #ddd', borderRadius: '8px', padding: '1.25rem', marginBottom: '1.5rem' },
-  heading: { margin: '0 0 1rem', fontSize: '1rem', color: '#333' },
-  error: { color: '#c0392b', fontSize: '0.85rem', marginBottom: '0.5rem' },
-  none: { color: '#888', fontSize: '0.88rem' },
-  card: { border: '1px solid #f0c0c0', borderRadius: '6px', padding: '0.75rem 1rem', marginBottom: '0.75rem', background: '#fff8f8' },
-  cardHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.4rem' },
-  type: { fontWeight: 700, fontSize: '0.9rem', color: '#c0392b' },
-  field: { margin: '0 0 0.3rem', fontSize: '0.88rem', color: '#333' },
-  meta: { margin: '0.2rem 0 0', fontSize: '0.82rem', color: '#555' },
-  deleteBtn: { background: 'transparent', border: '1px solid #e74c3c', color: '#e74c3c', borderRadius: '4px', padding: '0.15rem 0.5rem', cursor: 'pointer', fontSize: '0.78rem' },
-  form: { borderTop: '1px solid #eee', paddingTop: '1rem', marginTop: '0.75rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' },
-  formHeading: { margin: '0 0 0.5rem', fontSize: '0.88rem', color: '#555', fontWeight: 600 },
-  input: { padding: '0.4rem 0.6rem', border: '1px solid #ddd', borderRadius: '4px', fontSize: '0.88rem' },
-  textarea: { padding: '0.4rem 0.6rem', border: '1px solid #ddd', borderRadius: '4px', fontSize: '0.88rem', minHeight: '64px', resize: 'vertical' },
-  addBtn: { alignSelf: 'flex-start', padding: '0.4rem 1rem', background: '#e74c3c', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 600, fontSize: '0.85rem' },
+  block: {
+    border: `1px solid ${colors.line}`,
+    borderRadius: radius.card,
+    padding: '16px',
+    marginBottom: '1.5rem',
+    background: colors.surface,
+  },
+  error: { color: colors.red, fontSize: '13px', marginBottom: '8px' },
+  none: { color: colors.muted, fontSize: '13px' },
+  card: {
+    border: `1px solid ${colors.redBorder}`,
+    borderRadius: radius.task,
+    padding: '10px 12px',
+    marginBottom: '10px',
+    background: colors.redSoft,
+  },
+  field: { margin: 0, fontSize: '13px', color: colors.text, lineHeight: 1.5 },
+  deleteBtn: {
+    background: 'transparent',
+    border: 'none',
+    color: colors.muted,
+    cursor: 'pointer',
+    fontSize: '14px',
+    padding: '2px 4px',
+    flexShrink: 0,
+  },
+  form: {
+    borderTop: `1px solid ${colors.line}`,
+    paddingTop: '14px',
+    marginTop: '10px',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '10px',
+  },
+  textarea: {
+    padding: '10px 12px',
+    border: `1px solid ${colors.line}`,
+    borderRadius: radius.btn,
+    fontSize: '13px',
+    resize: 'vertical',
+    fontFamily: 'inherit',
+    color: colors.text,
+    background: colors.surface2,
+    outline: 'none',
+  },
+  addBtn: {
+    alignSelf: 'flex-start',
+    padding: '10px 20px',
+    background: colors.red,
+    color: '#fff',
+    border: 'none',
+    borderRadius: radius.btn,
+    fontWeight: 800,
+    fontSize: '13px',
+    cursor: 'pointer',
+  },
 }

@@ -14,10 +14,9 @@ router = APIRouter(tags=["incidents"])
 # ── Schemas ──────────────────────────────────────────────────────────────────
 
 class IncidentCreate(BaseModel):
-    incident_type: str
     description: str
-    people_involved: Optional[str] = None
-    corrective_action: Optional[str] = None
+    photo_url: Optional[str] = None
+    incident_type: str = "Safety Documentation"
 
 
 class IncidentOut(BaseModel):
@@ -27,6 +26,7 @@ class IncidentOut(BaseModel):
     description: str
     people_involved: Optional[str]
     corrective_action: Optional[str]
+    photo_url: Optional[str]
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -90,6 +90,7 @@ def list_project_incidents(
             description=inc.description,
             people_involved=inc.people_involved,
             corrective_action=inc.corrective_action,
+            photo_url=inc.photo_url,
             date=str(date),
         )
         for inc, date in rows
