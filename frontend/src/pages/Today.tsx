@@ -51,7 +51,6 @@ export default function Today() {
   const { currentProject } = useProject()
   const PROJECT_ID = currentProject?.id ?? 1
   const [logId, setLogId]                   = useState<number | null>(null)
-  const [weather, setWeather]               = useState<string | null>(null)
   const [tasks, setTasks]                   = useState<Task[]>([])
   const [loading, setLoading]               = useState(true)
   const [error, setError]                   = useState<string | null>(null)
@@ -70,8 +69,6 @@ export default function Today() {
         const log = await fetchTodayLog(PROJECT_ID)
         if (cancelled) return
         setLogId(log.id)
-        const w = log.weather
-        if (w && w.temp_max != null) setWeather(`${Math.round(w.temp_max)}°`)
         const [todayTasks, attendance] = await Promise.all([
           fetchTodayTasks(PROJECT_ID),
           fetchAttendance(log.id),
