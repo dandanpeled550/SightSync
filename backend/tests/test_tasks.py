@@ -765,3 +765,146 @@ def test_not_done_without_new_date_returns_422_with_message(seeded_client_with_t
     assert resp.status_code == 422
     detail = resp.json().get("detail", "")
     assert "new_date" in detail.lower() or "not_done" in detail.lower()
+
+
+# ── AI Learning Alerts ────────────────────────────────────────────────────────
+
+def test_alerts_no_api_key(seeded_client):
+    """Returns 200 with [] when ANTHROPIC_API_KEY is absent."""
+    import os
+    from unittest.mock import patch
+    c = seeded_client
+    with patch.dict(os.environ, {"ANTHROPIC_API_KEY": ""}):
+        # Patch the settings object directly since it's already instantiated
+        from app.config import settings
+        original = settings.anthropic_api_key
+        settings.anthropic_api_key = ""
+        try:
+            r = c.get(f"/projects/{c.project_id}/alerts")
+            assert r.status_code == 200
+            assert r.json() == []
+        finally:
+            settings.anthropic_api_key = original
+
+
+def test_alerts_insufficient_history(seeded_client):
+    """Returns [] when fewer than 3 not_done entries exist (below threshold)."""
+    from unittest.mock import patch
+    c = seeded_client
+    # Only 0 not_done entries → below _MIN_DELAYS (3)
+    with patch("app.services.ai_alerts.settings") as mock_settings:
+        mock_settings.anthropic_api_key = "test-key"
+        mock_settings.anthropic_model = "claude-sonnet-4-6"
+        r = c.get(f"/projects/{c.project_id}/alerts")
+        assert r.status_code == 200
+        assert r.json() == []
+
+
+def test_alerts_requires_auth(SessionFactory):
+    """Returns 401 when no Authorization header is provided."""
+    import os
+    from fastapi.testclient import TestClient
+    os.environ.setdefault("DATABASE_URL", "sqlite:///:memory:")
+    from app.main import app
+    from app.database import get_db
+    from sqlalchemy import create_engine
+    from sqlalchemy.orm import sessionmaker
+    from sqlalchemy.pool import StaticPool
+    from app.database import Base
+
+    engine = create_engine("sqlite:///:memory:", connect_args={"check_same_thread": False}, poolclass=StaticPool)
+    Base.metadata.create_all(bind=engine)
+    sf = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+
+    def override_db():
+        db = sf()
+        try:
+            yield db
+        finally:
+            db.close()
+
+    app.dependency_overrides[get_db] = override_db
+    # Do NOT override get_current_user — we want the real auth to run
+    with TestClient(app) as client:
+        r = client.get("/projects/1/alerts")
+    app.dependency_overrides.clear()
+    assert r.status_code == 401
+
+
+def test_alerts_wrong_project_returns_403(seeded_client):
+    """Returns 403 when user is not a member of the requested project."""
+    c = seeded_client
+    non_member_project_id = c.project_id + 999
+    r = c.get(f"/projects/{non_member_project_id}/alerts")
+    assert r.status_code in (403, 404)
+
+
+def test_alerts_returns_valid_structure(seeded_client_with_tasks):
+    """With mocked Claude and sufficient history, AlertOut fields are all present."""
+    import datetime
+    from unittest.mock import patch
+    import json
+    c = seeded_client_with_tasks
+
+    # Create 3 not_done entries to pass the _MIN_DELAYS threshold
+    log_id = c.log_id
+    for task_id in c.task_ids:
+        new_date = (datetime.date.today() + datetime.timedelta(days=7)).isoformat()
+        c.post(
+            f"/daily-logs/{log_id}/task-entries",
+            json={"task_id": task_id, "action": "not_done", "new_date": new_date, "reason": "Crew unavailable"},
+        )
+
+    mock_response = json.dumps({
+        "alerts": [
+            {
+                "type": "risk",
+                "severity": "high",
+                "title": "Electrical tasks frequently delayed",
+                "message": "3 of your recent electrical tasks were delayed. The pattern suggests crew availability issues.",
+                "affected_task_ids": [],
+                "recommendation": "Confirm electrical crew for next week."
+            }
+        ]
+    })
+
+    with patch("app.services.ai_alerts._call_claude", return_value=mock_response):
+        with patch("app.services.ai_alerts.settings") as mock_settings:
+            mock_settings.anthropic_api_key = "test-key"
+            mock_settings.anthropic_model = "claude-sonnet-4-6"
+            r = c.get(f"/projects/{c.project_id}/alerts")
+
+    assert r.status_code == 200
+    data = r.json()
+    assert isinstance(data, list)
+    assert len(data) == 1
+    alert = data[0]
+    for field in ("id", "type", "severity", "title", "message", "affected_task_ids", "recommendation"):
+        assert field in alert, f"Missing field: {field}"
+    assert alert["id"] == "alert_0"
+    assert alert["severity"] == "high"
+    assert isinstance(alert["affected_task_ids"], list)
+
+
+def test_alerts_graceful_on_claude_failure(seeded_client_with_tasks):
+    """Returns 200 with [] when Claude raises an exception."""
+    import datetime
+    from unittest.mock import patch
+    c = seeded_client_with_tasks
+
+    log_id = c.log_id
+    for task_id in c.task_ids:
+        new_date = (datetime.date.today() + datetime.timedelta(days=7)).isoformat()
+        c.post(
+            f"/daily-logs/{log_id}/task-entries",
+            json={"task_id": task_id, "action": "not_done", "new_date": new_date, "reason": "Weather"},
+        )
+
+    with patch("app.services.ai_alerts._call_claude", side_effect=RuntimeError("Claude is down")):
+        with patch("app.services.ai_alerts.settings") as mock_settings:
+            mock_settings.anthropic_api_key = "test-key"
+            mock_settings.anthropic_model = "claude-sonnet-4-6"
+            r = c.get(f"/projects/{c.project_id}/alerts")
+
+    assert r.status_code == 200
+    assert r.json() == []

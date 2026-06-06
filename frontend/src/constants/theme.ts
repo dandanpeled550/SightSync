@@ -16,13 +16,15 @@ export const colors = {
   redBorder:   '#ffd0d0',
   orange:      '#f59e0b',
   orangeSoft:  '#fff7e6',
+  orangeBorder: '#fde68a',
+  blueBorder:  '#bfdbfe',
   text:        '#111820',
   muted:       '#667085',
   mutedLight:  '#98a2b3',
   surface:     '#ffffff',
   surface2:    '#f7f8fa',
   bg:          '#f2f4f7',
-  line:        '#dde2e8',
+  line:        '#b8c4cf',
 }
 
 export const radius = {

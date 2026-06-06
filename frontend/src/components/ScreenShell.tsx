@@ -76,9 +76,11 @@ export default function ScreenShell({
         flexShrink: 0,
       }}>
         {/* Left slot */}
-        <div style={{ width: '40px', flexShrink: 0 }}>
-          {(desktopHideLeft && isDesktop) ? <div /> : (leftAction ?? <div />)}
-        </div>
+        {!(desktopHideLeft && isDesktop) && (
+          <div style={{ width: '40px', flexShrink: 0 }}>
+            {leftAction ?? <div />}
+          </div>
+        )}
 
         {/* Title block */}
         <div style={{ flex: 1, textAlign: 'left' }}>
