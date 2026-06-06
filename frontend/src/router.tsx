@@ -16,6 +16,7 @@ import Upload from './pages/Upload'
 import Review from './pages/Review'
 import CrewManagement from './pages/CrewManagement'
 import CrewAttendance from './pages/CrewAttendance'
+import Inventory from './pages/Inventory'
 
 export const router = createBrowserRouter([
   { path: '/login', element: <Login /> },
@@ -36,6 +37,7 @@ export const router = createBrowserRouter([
       { path: '/onboard/review', element: <Review /> },
       { path: '/crew',            element: <CrewManagement /> },
       { path: '/crew/attendance', element: <CrewAttendance /> },
+      { path: '/inventory',       element: <Inventory /> },
     ],
   },
 ])

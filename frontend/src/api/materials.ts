@@ -7,6 +7,7 @@ export interface Material {
   quantity: number
   unit: string
   notes: string | null
+  inventory_item_id: number | null
 }
 
 export interface MaterialCreate {
@@ -14,6 +15,7 @@ export interface MaterialCreate {
   quantity: number
   unit: string
   notes?: string
+  inventory_item_id?: number
 }
 
 export async function fetchMaterials(logId: number): Promise<Material[]> {

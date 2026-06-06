@@ -29,6 +29,7 @@ class Project(Base):
     crew_members = relationship("CrewMember", back_populates="project", cascade="all, delete-orphan")
     tasks = relationship("Task", back_populates="project", cascade="all, delete-orphan")
     members = relationship("ProjectMember", back_populates="project", cascade="all, delete-orphan")
+    inventory_items = relationship("InventoryItem", back_populates="project", cascade="all, delete-orphan")
 
 
 class ProjectMember(Base):
@@ -120,8 +121,23 @@ class MaterialEntry(Base):
     unit = Column(String(50), nullable=False)
     notes = Column(Text)
     photo_url = Column(String(500))
+    inventory_item_id = Column(Integer, ForeignKey("inventory_items.id", ondelete="SET NULL"), nullable=True)
 
     daily_log = relationship("DailyLog", back_populates="material_entries")
+    inventory_item = relationship("InventoryItem")
+
+
+class InventoryItem(Base):
+    __tablename__ = "inventory_items"
+
+    id = Column(Integer, primary_key=True)
+    project_id = Column(Integer, ForeignKey("projects.id", ondelete="CASCADE"), nullable=False)
+    name = Column(String(200), nullable=False)
+    unit = Column(String(50), nullable=False, default="")
+    current_stock = Column(Float, nullable=False, default=0.0)
+    min_stock_alert = Column(Float, nullable=True)
+
+    project = relationship("Project", back_populates="inventory_items")
 
 
 class Task(Base):

@@ -1,41 +1,88 @@
 import { useEffect, useState } from 'react'
 import { fetchMaterials, createMaterial, deleteMaterial, Material } from '../api/materials'
+import { fetchInventory, InventoryItem } from '../api/inventory'
+import { useProject } from '../contexts/ProjectContext'
+import { colors, radius } from '../constants/theme'
 
 interface Props {
   logId: number
   readOnly?: boolean
 }
 
-const BLANK_FORM = { material_name: '', quantity: '', unit: '', notes: '' }
+const BLANK_FORM = { quantity: '', unit: '', notes: '' }
 
 export default function MaterialsBlock({ logId, readOnly = false }: Props) {
-  const [materials, setMaterials] = useState<Material[]>([])
-  const [form, setForm] = useState(BLANK_FORM)
-  const [submitting, setSubmitting] = useState(false)
-  const [error, setError] = useState('')
+  const { currentProject } = useProject()
+  const PROJECT_ID = currentProject?.id ?? 1
+
+  const [materials, setMaterials]     = useState<Material[]>([])
+  const [inventory, setInventory]     = useState<InventoryItem[]>([])
+  const [fromInventory, setFromInventory] = useState(true)
+  const [selectedItemId, setSelectedItemId] = useState<number | ''>('')
+  const [freeTextName, setFreeTextName] = useState('')
+  const [form, setForm]               = useState(BLANK_FORM)
+  const [submitting, setSubmitting]   = useState(false)
+  const [error, setError]             = useState('')
 
   useEffect(() => {
-    fetchMaterials(logId)
-      .then(setMaterials)
-      .catch(() => setError('Failed to load materials.'))
-  }, [logId])
+    fetchMaterials(logId).then(setMaterials).catch(() => setError('Failed to load materials.'))
+    fetchInventory(PROJECT_ID).then(setInventory).catch(() => {/* non-critical */})
+  }, [logId, PROJECT_ID])
+
+  function switchMode(toInventory: boolean) {
+    setFromInventory(toInventory)
+    setSelectedItemId('')
+    setFreeTextName('')
+    setForm(BLANK_FORM)
+    setError('')
+  }
+
+  // When an inventory item is selected, auto-fill the unit
+  function handleSelectItem(id: number | '') {
+    setSelectedItemId(id)
+    if (id !== '') {
+      const item = inventory.find(i => i.id === id)
+      if (item) setForm(f => ({ ...f, unit: item.unit }))
+    } else {
+      setForm(f => ({ ...f, unit: '' }))
+    }
+  }
 
   async function handleAdd() {
     const qty = parseFloat(form.quantity)
-    if (!form.material_name.trim() || isNaN(qty) || !form.unit.trim()) {
-      setError('Name, quantity, and unit are required.')
-      return
+    if (isNaN(qty) || qty <= 0) { setError('A valid quantity is required.'); return }
+    if (!form.unit.trim()) { setError('Unit is required.'); return }
+
+    if (fromInventory) {
+      if (selectedItemId === '') { setError('Select an inventory item.'); return }
+    } else {
+      if (!freeTextName.trim()) { setError('Material name is required.'); return }
     }
+
     setSubmitting(true)
     setError('')
+
+    const selectedItem = fromInventory ? inventory.find(i => i.id === selectedItemId) : null
+
     try {
       const created = await createMaterial(logId, {
-        material_name: form.material_name.trim(),
+        material_name: fromInventory ? (selectedItem?.name ?? '') : freeTextName.trim(),
         quantity: qty,
         unit: form.unit.trim(),
         notes: form.notes.trim() || undefined,
+        inventory_item_id: fromInventory && selectedItemId !== '' ? (selectedItemId as number) : undefined,
       })
-      setMaterials((prev) => [...prev, created])
+      setMaterials(prev => [...prev, created])
+      // Deduct from local inventory state for immediate feedback
+      if (fromInventory && selectedItemId !== '') {
+        setInventory(prev => prev.map(i =>
+          i.id === selectedItemId
+            ? { ...i, current_stock: Math.max(0, i.current_stock - qty) }
+            : i
+        ))
+      }
+      setSelectedItemId('')
+      setFreeTextName('')
       setForm(BLANK_FORM)
     } catch {
       setError('Failed to add material.')
@@ -45,11 +92,19 @@ export default function MaterialsBlock({ logId, readOnly = false }: Props) {
   }
 
   async function handleDelete(entry: Material) {
-    setMaterials((prev) => prev.filter((m) => m.id !== entry.id))
+    setMaterials(prev => prev.filter(m => m.id !== entry.id))
     try {
       await deleteMaterial(logId, entry.id)
+      // Restore local inventory stock for immediate feedback
+      if (entry.inventory_item_id != null) {
+        setInventory(prev => prev.map(i =>
+          i.id === entry.inventory_item_id
+            ? { ...i, current_stock: i.current_stock + entry.quantity }
+            : i
+        ))
+      }
     } catch {
-      setMaterials((prev) => [...prev, entry])
+      setMaterials(prev => [...prev, entry])
       setError('Failed to delete material entry.')
     }
   }
@@ -60,48 +115,70 @@ export default function MaterialsBlock({ logId, readOnly = false }: Props) {
       {error && <p style={s.error}>{error}</p>}
 
       {materials.length === 0 ? (
-        <p style={s.none}>None</p>
+        <p style={s.none}>None logged yet.</p>
       ) : (
-        <table style={s.table}>
-          <thead>
-            <tr>
-              <th style={s.th}>Material</th>
-              <th style={s.th}>Qty</th>
-              <th style={s.th}>Unit</th>
-              <th style={s.th}>Notes</th>
-              {!readOnly && <th style={s.th} />}
-            </tr>
-          </thead>
-          <tbody>
-            {materials.map((m) => (
-              <tr key={m.id}>
-                <td style={s.td}>{m.material_name}</td>
-                <td style={s.td}>{m.quantity}</td>
-                <td style={s.td}>{m.unit}</td>
-                <td style={s.td}>{m.notes ?? '—'}</td>
-                {!readOnly && (
-                  <td style={s.td}>
-                    <button style={s.deleteBtn} onClick={() => handleDelete(m)}>
-                      Delete
-                    </button>
-                  </td>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginBottom: '12px' }}>
+          {materials.map(m => (
+            <div key={m.id} style={s.materialRow}>
+              <div style={{ flex: 1 }}>
+                <span style={{ fontWeight: 700, fontSize: '13px', color: colors.text }}>{m.material_name}</span>
+                {m.inventory_item_id != null && (
+                  <span style={s.inventoryBadge}>📦 inventory</span>
                 )}
-              </tr>
-            ))}
-          </tbody>
-        </table>
+                {m.notes && <span style={{ fontSize: '11px', color: colors.muted, marginLeft: '6px' }}>{m.notes}</span>}
+              </div>
+              <span style={{ fontSize: '13px', fontWeight: 700, color: colors.text, whiteSpace: 'nowrap' }}>
+                {m.quantity} {m.unit}
+              </span>
+              {!readOnly && (
+                <button style={s.deleteBtn} onClick={() => handleDelete(m)}>✕</button>
+              )}
+            </div>
+          ))}
+        </div>
       )}
 
       {!readOnly && (
         <div style={s.form}>
-          <h4 style={s.formHeading}>Add Material</h4>
-          <div style={s.row}>
+          {/* Mode toggle */}
+          <div style={s.modeToggle}>
+            <button
+              style={{ ...s.modeBtn, ...(fromInventory ? s.modeBtnActive : {}) }}
+              onClick={() => switchMode(true)}
+            >
+              📦 From inventory
+            </button>
+            <button
+              style={{ ...s.modeBtn, ...(!fromInventory ? s.modeBtnActive : {}) }}
+              onClick={() => switchMode(false)}
+            >
+              ✏️ Enter manually
+            </button>
+          </div>
+
+          {fromInventory ? (
+            <select
+              style={s.select}
+              value={selectedItemId}
+              onChange={e => handleSelectItem(e.target.value === '' ? '' : parseInt(e.target.value))}
+            >
+              <option value="">Select inventory item…</option>
+              {inventory.map(item => (
+                <option key={item.id} value={item.id}>
+                  {item.name} ({item.current_stock} {item.unit} in stock)
+                </option>
+              ))}
+            </select>
+          ) : (
             <input
-              style={{ ...s.input, flex: 2 }}
+              style={s.input}
               placeholder="Material name"
-              value={form.material_name}
-              onChange={(e) => setForm((f) => ({ ...f, material_name: e.target.value }))}
+              value={freeTextName}
+              onChange={e => setFreeTextName(e.target.value)}
             />
+          )}
+
+          <div style={s.row}>
             <input
               style={{ ...s.input, flex: 1 }}
               placeholder="Quantity"
@@ -109,20 +186,20 @@ export default function MaterialsBlock({ logId, readOnly = false }: Props) {
               min="0"
               step="any"
               value={form.quantity}
-              onChange={(e) => setForm((f) => ({ ...f, quantity: e.target.value }))}
+              onChange={e => setForm(f => ({ ...f, quantity: e.target.value }))}
             />
             <input
               style={{ ...s.input, flex: 1 }}
               placeholder="Unit (e.g. m³)"
               value={form.unit}
-              onChange={(e) => setForm((f) => ({ ...f, unit: e.target.value }))}
+              onChange={e => setForm(f => ({ ...f, unit: e.target.value }))}
             />
           </div>
           <input
             style={s.input}
             placeholder="Notes (optional)"
             value={form.notes}
-            onChange={(e) => setForm((f) => ({ ...f, notes: e.target.value }))}
+            onChange={e => setForm(f => ({ ...f, notes: e.target.value }))}
           />
           <button style={s.addBtn} onClick={handleAdd} disabled={submitting}>
             {submitting ? 'Adding…' : 'Add Material'}
@@ -134,17 +211,102 @@ export default function MaterialsBlock({ logId, readOnly = false }: Props) {
 }
 
 const s: Record<string, React.CSSProperties> = {
-  block: { border: '1px solid #ddd', borderRadius: '8px', padding: '1.25rem', marginBottom: '1.5rem' },
-  heading: { margin: '0 0 1rem', fontSize: '1rem', color: '#333' },
-  error: { color: '#c0392b', fontSize: '0.85rem', marginBottom: '0.5rem' },
-  none: { color: '#888', fontSize: '0.88rem' },
-  table: { width: '100%', borderCollapse: 'collapse', fontSize: '0.88rem', marginBottom: '0.5rem' },
-  th: { textAlign: 'left', padding: '0.4rem 0.6rem', borderBottom: '2px solid #ddd', fontWeight: 600, color: '#555' },
-  td: { padding: '0.4rem 0.6rem', borderBottom: '1px solid #eee', verticalAlign: 'middle' },
-  deleteBtn: { background: 'transparent', border: '1px solid #e74c3c', color: '#e74c3c', borderRadius: '4px', padding: '0.15rem 0.5rem', cursor: 'pointer', fontSize: '0.78rem' },
-  form: { borderTop: '1px solid #eee', paddingTop: '1rem', marginTop: '0.75rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' },
-  formHeading: { margin: '0 0 0.5rem', fontSize: '0.88rem', color: '#555', fontWeight: 600 },
-  row: { display: 'flex', gap: '0.5rem' },
-  input: { padding: '0.4rem 0.6rem', border: '1px solid #ddd', borderRadius: '4px', fontSize: '0.88rem', width: '100%', boxSizing: 'border-box' },
-  addBtn: { alignSelf: 'flex-start', padding: '0.4rem 1rem', background: '#2980b9', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 600, fontSize: '0.85rem' },
+  block: {
+    border: `1px solid ${colors.line}`,
+    borderRadius: radius.card,
+    padding: '16px',
+    marginBottom: '16px',
+    background: colors.surface,
+  },
+  heading: { margin: '0 0 12px', fontSize: '13px', fontWeight: 900, color: colors.text, letterSpacing: '-0.01em' },
+  error: { color: colors.red, fontSize: '12px', marginBottom: '8px' },
+  none: { color: colors.muted, fontSize: '13px', margin: '0 0 8px' },
+  materialRow: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '8px',
+    padding: '8px 10px',
+    background: colors.surface2,
+    borderRadius: '10px',
+  },
+  inventoryBadge: {
+    marginLeft: '6px',
+    fontSize: '10px',
+    background: colors.blueSoft,
+    color: colors.blue,
+    borderRadius: '6px',
+    padding: '1px 5px',
+    fontWeight: 700,
+  },
+  deleteBtn: {
+    background: 'transparent',
+    border: `1px solid ${colors.redBorder}`,
+    color: colors.red,
+    borderRadius: '6px',
+    padding: '3px 7px',
+    cursor: 'pointer',
+    fontSize: '11px',
+    flexShrink: 0,
+  },
+  form: {
+    borderTop: `1px solid ${colors.line}`,
+    paddingTop: '12px',
+    marginTop: '8px',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '8px',
+  },
+  modeToggle: {
+    display: 'flex',
+    gap: '6px',
+  },
+  modeBtn: {
+    flex: 1,
+    padding: '7px 8px',
+    border: `1px solid ${colors.line}`,
+    borderRadius: '10px',
+    background: colors.surface2,
+    color: colors.muted,
+    fontSize: '12px',
+    fontWeight: 700,
+    cursor: 'pointer',
+  },
+  modeBtnActive: {
+    background: colors.primarySoft,
+    color: colors.primary,
+    borderColor: '#ffc197',
+  },
+  select: {
+    padding: '8px 10px',
+    border: `1px solid ${colors.line}`,
+    borderRadius: '10px',
+    fontSize: '13px',
+    color: colors.text,
+    background: colors.surface,
+    width: '100%',
+    outline: 'none',
+  },
+  row: { display: 'flex', gap: '8px' },
+  input: {
+    padding: '8px 10px',
+    border: `1px solid ${colors.line}`,
+    borderRadius: '10px',
+    fontSize: '13px',
+    width: '100%',
+    boxSizing: 'border-box' as const,
+    color: colors.text,
+    background: colors.surface,
+    outline: 'none',
+  },
+  addBtn: {
+    alignSelf: 'flex-start',
+    padding: '8px 16px',
+    background: colors.primary,
+    color: '#fff',
+    border: 'none',
+    borderRadius: '10px',
+    cursor: 'pointer',
+    fontWeight: 700,
+    fontSize: '13px',
+  },
 }

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import ScreenShell, { IconBtn } from '../components/ScreenShell'
+import MaterialsBlock from '../components/MaterialsBlock'
 import { colors, radius, gradients, animations } from '../constants/theme'
 import { fetchTodayLog } from '../api/daily_log'
 import { fetchTodayTasks, markTaskDone, type Task } from '../api/tasks'
@@ -335,6 +336,19 @@ export default function Today() {
               <span style={{ fontSize: '12px', color: colors.mutedLight }}>›</span>
             </div>
           </button>
+        )}
+
+        {/* Materials used today */}
+        {!loading && !error && logId != null && (
+          <div style={{ marginTop: '20px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '14px' }}>
+              <span style={{ fontSize: '13px', fontWeight: 900, color: colors.text, letterSpacing: '-0.01em', flexShrink: 0 }}>
+                Materials used today
+              </span>
+              <div style={{ flex: 1, height: '1px', background: colors.line }} />
+            </div>
+            <MaterialsBlock logId={logId} />
+          </div>
         )}
       </div>
 

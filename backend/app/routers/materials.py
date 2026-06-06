@@ -5,7 +5,7 @@ from pydantic import BaseModel, ConfigDict
 from sqlalchemy.orm import Session
 
 from app.database import get_db
-from app.models import DailyLog, MaterialEntry, User
+from app.models import DailyLog, MaterialEntry, InventoryItem, User
 from app.services.auth_service import get_current_user, require_project_member
 
 router = APIRouter(tags=["materials"])
@@ -18,6 +18,7 @@ class MaterialCreate(BaseModel):
     quantity: float
     unit: str
     notes: Optional[str] = None
+    inventory_item_id: Optional[int] = None
 
 
 class MaterialOut(BaseModel):
@@ -27,6 +28,7 @@ class MaterialOut(BaseModel):
     quantity: float
     unit: str
     notes: Optional[str]
+    inventory_item_id: Optional[int]
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -57,6 +59,13 @@ def create_material(
     if not log:
         raise HTTPException(status_code=404, detail="Daily log not found")
     require_project_member(log.project_id, current_user, db)
+
+    if body.inventory_item_id is not None:
+        inv = db.query(InventoryItem).filter(InventoryItem.id == body.inventory_item_id).first()
+        if not inv:
+            raise HTTPException(status_code=404, detail="Inventory item not found")
+        inv.current_stock = max(0.0, inv.current_stock - body.quantity)
+
     entry = MaterialEntry(daily_log_id=log_id, **body.model_dump())
     db.add(entry)
     db.commit()
@@ -82,5 +91,11 @@ def delete_material(
     )
     if not entry:
         raise HTTPException(status_code=404, detail="Material entry not found")
+
+    if entry.inventory_item_id is not None:
+        inv = db.query(InventoryItem).filter(InventoryItem.id == entry.inventory_item_id).first()
+        if inv:
+            inv.current_stock += entry.quantity
+
     db.delete(entry)
     db.commit()

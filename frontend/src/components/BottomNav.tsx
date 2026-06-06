@@ -5,11 +5,12 @@ import { useWindowSize } from '../hooks/useWindowSize'
 const HIDDEN_ON = ['/task', '/summary', '/export', '/onboard']
 
 const tabs = [
-  { label: 'Home',    icon: '🏠', path: '/' },
-  { label: 'Plans',   icon: '📅', path: '/plans' },
-  { label: 'Alerts',  icon: '🔔', path: '/alerts' },
-  { label: 'Reports', icon: '▣',  path: '/report' },
-  { label: 'Site',    icon: '☷',  path: '/site' },
+  { label: 'Home',      icon: '🏠', path: '/' },
+  { label: 'Plans',     icon: '📅', path: '/plans' },
+  { label: 'Alerts',    icon: '🔔', path: '/alerts' },
+  { label: 'Inventory', icon: '📦', path: '/inventory' },
+  { label: 'Reports',   icon: '▣',  path: '/report' },
+  { label: 'Site',      icon: '☷',  path: '/site' },
 ]
 
 export default function BottomNav() {
@@ -35,7 +36,7 @@ export default function BottomNav() {
     }}>
       <div style={{
         display: 'grid',
-        gridTemplateColumns: 'repeat(5, 1fr)',
+        gridTemplateColumns: 'repeat(6, 1fr)',
         padding: '6px 14px 8px',
       }}>
       {tabs.map(tab => {
@@ -59,9 +60,9 @@ export default function BottomNav() {
               transition: 'color 0.15s',
             }}
           >
-            <span style={{ fontSize: '20px', lineHeight: 1 }}>{tab.icon}</span>
+            <span style={{ fontSize: '18px', lineHeight: 1 }}>{tab.icon}</span>
             <span style={{
-              fontSize: '11px',
+              fontSize: '9px',
               fontWeight: active ? 800 : 500,
               letterSpacing: active ? '-0.01em' : 0,
             }}>

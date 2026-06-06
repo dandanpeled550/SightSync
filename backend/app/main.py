@@ -6,7 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import settings
 from app.logging_config import setup_logging
-from app.routers import health, weather, daily_log, crew, incidents, materials, tasks, onboarding, auth, projects
+from app.routers import health, weather, daily_log, crew, incidents, materials, tasks, onboarding, auth, projects, inventory
 
 setup_logging()
 logger = logging.getLogger(__name__)
@@ -37,3 +37,4 @@ app.include_router(tasks.router)
 app.include_router(onboarding.router)
 app.include_router(auth.router)
 app.include_router(projects.router)
+app.include_router(inventory.router)
