@@ -171,8 +171,17 @@ class TestUploadSchedule:
                 "duration_days": 8,
             }
         ]
+        # Pass 2 (dependency inference) also calls OpenAI — provide two responses.
+        pass2_payload = json.dumps({"workflows": [{"id": "wf_0", "name": "Structural", "task_indices": [0]}], "dependencies": []})
+        pass2_choice = SimpleNamespace(message=SimpleNamespace(content=pass2_payload))
+        pass2_response = MagicMock()
+        pass2_response.choices = [pass2_choice]
+
         mock_instance = MagicMock()
-        mock_instance.chat.completions.create.return_value = _mock_openai_response(task_payload)
+        mock_instance.chat.completions.create.side_effect = [
+            _mock_openai_response(task_payload),
+            pass2_response,
+        ]
         mock_openai_cls.return_value = mock_instance
 
         resp = _upload(seeded_client, _make_xlsx())
@@ -181,7 +190,7 @@ class TestUploadSchedule:
         assert data["error"] is None
         assert len(data["tasks"]) == 1
         assert data["tasks"][0]["name"] == "Framing Work"
-        mock_instance.chat.completions.create.assert_called_once()
+        assert mock_instance.chat.completions.create.call_count == 2
 
     @patch("app.services.ai_extraction.settings")
     @patch("openai.OpenAI")

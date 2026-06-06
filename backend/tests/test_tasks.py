@@ -697,3 +697,71 @@ def test_create_dependency_cross_project_rejected_404(seeded_client_with_tasks):
         "lag_days": 0,
     })
     assert resp.status_code == 404
+
+
+# ---------------------------------------------------------------------------
+# Sprint 8 — today endpoint field verification + task-entry validation
+# ---------------------------------------------------------------------------
+
+def test_today_endpoint_returns_required_fields(seeded_client_with_tasks):
+    """GET /tasks/today returns all 8 required fields for each task."""
+    import datetime
+    c = seeded_client_with_tasks
+    today = datetime.date.today().isoformat()
+    c.put(f"/tasks/{c.task_ids[0]}", json={"start_date": today, "duration_days": 3, "status": "in_progress"})
+    resp = c.get(f"/projects/{c.project_id}/tasks/today")
+    assert resp.status_code == 200
+    tasks = resp.json()
+    assert len(tasks) >= 1
+    required_fields = {"id", "name", "level_tag", "trade_tag", "start_date", "end_date", "status", "duration_days"}
+    for task in tasks:
+        assert required_fields.issubset(task.keys()), f"Missing fields: {required_fields - task.keys()}"
+
+
+def test_today_excludes_task_with_end_date_in_past(seeded_client_with_tasks):
+    """Tasks whose end_date is before today are excluded from /tasks/today."""
+    import datetime
+    c = seeded_client_with_tasks
+    three_days_ago = (datetime.date.today() - datetime.timedelta(days=3)).isoformat()
+    # end_date = three_days_ago + 2 days = yesterday
+    c.put(f"/tasks/{c.task_ids[2]}", json={"start_date": three_days_ago, "duration_days": 2, "status": "in_progress"})
+    resp = c.get(f"/projects/{c.project_id}/tasks/today")
+    assert resp.status_code == 200
+    task_ids = [t["id"] for t in resp.json()]
+    assert c.task_ids[2] not in task_ids
+
+
+def test_today_excludes_task_with_start_date_in_future(seeded_client_with_tasks):
+    """Tasks whose start_date is after today are excluded from /tasks/today."""
+    import datetime
+    c = seeded_client_with_tasks
+    tomorrow = (datetime.date.today() + datetime.timedelta(days=1)).isoformat()
+    c.put(f"/tasks/{c.task_ids[0]}", json={"start_date": tomorrow, "duration_days": 5, "status": "in_progress"})
+    resp = c.get(f"/projects/{c.project_id}/tasks/today")
+    assert resp.status_code == 200
+    task_ids = [t["id"] for t in resp.json()]
+    assert c.task_ids[0] not in task_ids
+
+
+def test_today_excludes_done_task_with_active_dates(seeded_client_with_tasks):
+    """Tasks marked status='done' are excluded even when their dates span today."""
+    import datetime
+    c = seeded_client_with_tasks
+    today = datetime.date.today().isoformat()
+    c.put(f"/tasks/{c.task_ids[0]}", json={"start_date": today, "duration_days": 3, "status": "done"})
+    resp = c.get(f"/projects/{c.project_id}/tasks/today")
+    assert resp.status_code == 200
+    task_ids = [t["id"] for t in resp.json()]
+    assert c.task_ids[0] not in task_ids
+
+
+def test_not_done_without_new_date_returns_422_with_message(seeded_client_with_tasks):
+    """POST task-entries with action='not_done' and no new_date returns 422."""
+    c = seeded_client_with_tasks
+    resp = c.post(
+        f"/daily-logs/{c.log_id}/task-entries",
+        json={"action": "not_done", "task_id": c.task_ids[0]},  # missing new_date
+    )
+    assert resp.status_code == 422
+    detail = resp.json().get("detail", "")
+    assert "new_date" in detail.lower() or "not_done" in detail.lower()
