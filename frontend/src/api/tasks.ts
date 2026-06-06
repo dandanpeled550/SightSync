@@ -7,6 +7,8 @@ export interface Task {
   description: string | null
   level_tag: string
   trade_tag: string | null
+  apartment_tag: string | null
+  room_tag: string | null
   start_date: string
   duration_days: number
   end_date: string
@@ -93,6 +95,8 @@ export interface ExtractedTask {
   name: string
   level_tag: string
   trade_tag: string | null
+  apartment_tag: string | null
+  room_tag: string | null
   start_date: string   // "YYYY-MM-DD"
   duration_days: number
 }

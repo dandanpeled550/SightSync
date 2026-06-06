@@ -21,6 +21,8 @@ class TaskCreate(BaseModel):
     description: Optional[str] = None
     level_tag: str
     trade_tag: Optional[str] = None
+    apartment_tag: Optional[str] = None
+    room_tag: Optional[str] = None
     start_date: datetime.date
     duration_days: int = 1
     status: str = "pending"
@@ -33,6 +35,8 @@ class TaskUpdate(BaseModel):
     description: Optional[str] = None
     level_tag: Optional[str] = None
     trade_tag: Optional[str] = None
+    apartment_tag: Optional[str] = None
+    room_tag: Optional[str] = None
     start_date: Optional[datetime.date] = None
     duration_days: Optional[int] = None
     status: Optional[str] = None
@@ -49,6 +53,8 @@ class TaskOut(BaseModel):
     description: Optional[str]
     level_tag: str
     trade_tag: Optional[str]
+    apartment_tag: Optional[str]
+    room_tag: Optional[str]
     start_date: datetime.date
     duration_days: int
     end_date: datetime.date

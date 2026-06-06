@@ -29,6 +29,8 @@ class ExtractedTaskOut(BaseModel):
     name: str
     level_tag: str
     trade_tag: Optional[str]
+    apartment_tag: Optional[str]
+    room_tag: Optional[str]
     start_date: str
     duration_days: int
 
@@ -44,6 +46,8 @@ class ExtractedTaskIn(BaseModel):
     name: str
     level_tag: str
     trade_tag: Optional[str] = None
+    apartment_tag: Optional[str] = None
+    room_tag: Optional[str] = None
     start_date: str   # ISO date "YYYY-MM-DD"
     duration_days: int
 
@@ -87,6 +91,8 @@ async def upload_schedule(
                 name=t.name,
                 level_tag=t.level_tag,
                 trade_tag=t.trade_tag,
+                apartment_tag=t.apartment_tag,
+                room_tag=t.room_tag,
                 start_date=t.start_date,
                 duration_days=t.duration_days,
             )
@@ -123,6 +129,8 @@ def confirm_schedule(
             name=task_in.name,
             level_tag=task_in.level_tag,
             trade_tag=task_in.trade_tag,
+            apartment_tag=task_in.apartment_tag,
+            room_tag=task_in.room_tag,
             start_date=start,
             duration_days=task_in.duration_days,
             end_date=end,

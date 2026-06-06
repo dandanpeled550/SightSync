@@ -239,6 +239,32 @@ function TaskCard({ task }: { task: ExtractedTask }) {
             {task.trade_tag}
           </span>
         )}
+        {task.apartment_tag && (
+          <span style={{
+            background: colors.surface2,
+            color: colors.muted,
+            borderRadius: radius.pill,
+            padding: '3px 10px',
+            fontSize: '12px',
+            fontWeight: 600,
+            border: `1px solid ${colors.line}`,
+          }}>
+            {task.apartment_tag}
+          </span>
+        )}
+        {task.room_tag && (
+          <span style={{
+            background: colors.surface2,
+            color: colors.muted,
+            borderRadius: radius.pill,
+            padding: '3px 10px',
+            fontSize: '12px',
+            fontWeight: 600,
+            border: `1px solid ${colors.line}`,
+          }}>
+            {task.room_tag}
+          </span>
+        )}
       </div>
 
       {/* Date + duration */}

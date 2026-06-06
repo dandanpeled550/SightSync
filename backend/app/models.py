@@ -133,6 +133,8 @@ class Task(Base):
     description = Column(Text)
     level_tag = Column(String(100), nullable=False)
     trade_tag = Column(String(100))
+    apartment_tag = Column(String(100))
+    room_tag = Column(String(100))
     start_date = Column(Date, nullable=False)
     duration_days = Column(Integer, nullable=False, default=1)
     end_date = Column(Date, nullable=False)
