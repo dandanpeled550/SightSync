@@ -103,7 +103,7 @@ export default function Today() {
       title="Tower B"
       subtitle={dateStr}
       leftAction={
-        <IconBtn>☰</IconBtn>
+        <IconBtn onClick={() => navigate('/onboard')}>☰</IconBtn>
       }
       rightAction={
         weather ? (
