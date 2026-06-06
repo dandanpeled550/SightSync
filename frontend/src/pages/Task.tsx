@@ -87,11 +87,7 @@ export default function TaskPage() {
   const [cascadeLoading, setCascadeLoading] = useState(false)
 
   // Reschedule date + cascade preview for "not done" flow
-  const [notDoneDate, setNotDoneDate] = useState<string>(() => {
-    const d = new Date()
-    d.setDate(d.getDate() + 1)
-    return d.toISOString().split('T')[0]
-  })
+  const [notDoneDate, setNotDoneDate] = useState<string>('')
   const [notDoneCascade, setNotDoneCascade] = useState<CascadeResult[]>([])
   const [notDoneCascadeLoading, setNotDoneCascadeLoading] = useState(false)
 
@@ -526,16 +522,21 @@ export default function TaskPage() {
                 })}
               </div>
 
-              {/* Reschedule date */}
-              <div style={{ fontSize: '13px', fontWeight: 700, color: colors.text, marginBottom: '8px' }}>
-                Reschedule to:
+              {/* Reschedule date — required */}
+              <div style={{ fontSize: '13px', fontWeight: 700, color: notDoneDate ? colors.text : colors.red, marginBottom: '8px' }}>
+                Reschedule to: <span style={{ fontWeight: 400, fontSize: '12px' }}>(required)</span>
               </div>
               <input
                 type="date"
                 value={notDoneDate}
                 min={new Date().toISOString().split('T')[0]}
                 onChange={e => setNotDoneDate(e.target.value)}
-                style={{ ...inputStyle, marginBottom: '12px' }}
+                style={{
+                  ...inputStyle,
+                  marginBottom: '12px',
+                  borderColor: notDoneDate ? colors.line : colors.red,
+                  background: notDoneDate ? colors.surface : colors.redSoft,
+                }}
               />
 
               {/* Live cascade preview for reschedule */}
@@ -576,7 +577,7 @@ export default function TaskPage() {
                   </div>
                 </div>
               )}
-              {!notDoneCascadeLoading && notDoneCascade.filter(c => c.task_id !== numId).length === 0 && notDoneDate && (
+              {!notDoneCascadeLoading && !!notDoneDate && notDoneCascade.filter(c => c.task_id !== numId).length === 0 && (
                 <div style={{ fontSize: '12px', color: colors.muted }}>No downstream tasks affected.</div>
               )}
             </>
@@ -623,7 +624,15 @@ export default function TaskPage() {
             transition: 'all 0.15s',
           }}
         >
-          {saving ? 'Saving…' : predecessorViolations.length > 0 ? 'Fix dates to save' : 'Save changes'}
+          {saving
+            ? 'Saving…'
+            : predecessorViolations.length > 0
+              ? 'Fix dates to save'
+              : statusAction === 'not_done' && !notDoneDate
+                ? 'Pick a reschedule date'
+                : statusAction === 'not_done' && !selectedReason
+                  ? 'Pick a reason'
+                  : 'Save changes'}
         </button>
       </div>
     </ScreenShell>
