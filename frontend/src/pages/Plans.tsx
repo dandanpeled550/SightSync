@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import ScreenShell, { IconBtn } from '../components/ScreenShell'
-import { colors, gradients, radius, shadow } from '../constants/theme'
+import { colors, gradients, radius } from '../constants/theme'
 import { fetchAllTasks, type Task } from '../api/tasks'
 import { useProject } from '../contexts/ProjectContext'
 
@@ -21,8 +21,6 @@ function formatDate(iso: string): string {
   return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
 }
 
-const TABS = ['Weekly', 'Monthly', 'Schedule']
-
 export default function Plans() {
   const navigate    = useNavigate()
   const location    = useLocation()
@@ -31,7 +29,6 @@ export default function Plans() {
   const [tasks, setTasks]     = useState<Task[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError]     = useState<string | null>(null)
-  const [activeTab, setActiveTab] = useState(0)
 
   useEffect(() => {
     setLoading(true)
@@ -59,43 +56,6 @@ export default function Plans() {
       subtitle="This week"
       leftAction={<IconBtn onClick={() => navigate(-1)}>‹</IconBtn>}
     >
-      {/* Segmented pill tabs */}
-      <div style={{ padding: '16px 24px 0' }}>
-        <div style={{
-          display: 'inline-flex',
-          background: colors.surface2,
-          border: `1px solid ${colors.line}`,
-          borderRadius: '999px',
-          padding: '4px',
-          gap: '2px',
-        }}>
-          {TABS.map((tab, i) => {
-            const active = activeTab === i
-            return (
-              <button
-                key={tab}
-                onClick={() => setActiveTab(i)}
-                style={{
-                  background: active ? gradients.primary : 'transparent',
-                  color: active ? colors.surface : colors.muted,
-                  border: 'none',
-                  borderRadius: '999px',
-                  padding: '7px 18px',
-                  fontSize: '13px',
-                  fontWeight: active ? 800 : 500,
-                  cursor: 'pointer',
-                  boxShadow: active ? shadow.card : 'none',
-                  transition: 'all 0.15s',
-                  letterSpacing: active ? '-0.01em' : 0,
-                }}
-              >
-                {tab}
-              </button>
-            )
-          })}
-        </div>
-      </div>
-
       <div style={{ padding: '14px 24px 0' }}>
         {loading && [0,1,2,3].map(i => (
           <div key={i} className="shimmer" style={{ height: '68px', borderRadius: '20px', marginBottom: '10px' }} />
