@@ -11,6 +11,10 @@ class Settings(BaseSettings):
         "http://127.0.0.1:5173",
         "http://127.0.0.1:5174",
     ]
+    anthropic_api_key: str = ""
+    anthropic_model: str = "claude-sonnet-4-6"
+    openai_api_key: str = ""
+    openai_model: str = "gpt-4o"
 
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
