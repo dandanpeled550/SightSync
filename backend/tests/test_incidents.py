@@ -62,16 +62,14 @@ class TestCreateIncident:
         payload = {
             "incident_type": "Near Miss",
             "description": "Scaffold plank shifted underfoot",
-            "people_involved": "Avi Cohen",
-            "corrective_action": "All planks secured and inspected",
+            "photo_url": "https://example.com/photo.jpg",
         }
         resp = seeded_client.post(f"/daily-logs/{log_id}/incidents", json=payload)
         assert resp.status_code == 201
         body = resp.json()
         assert body["incident_type"] == "Near Miss"
         assert body["description"] == "Scaffold plank shifted underfoot"
-        assert body["people_involved"] == "Avi Cohen"
-        assert body["corrective_action"] == "All planks secured and inspected"
+        assert body["photo_url"] == "https://example.com/photo.jpg"
         assert body["daily_log_id"] == log_id
         assert "id" in body
 
@@ -93,12 +91,13 @@ class TestCreateIncident:
         )
         assert resp.status_code == 422
 
-    def test_create_missing_incident_type_returns_422(self, seeded_client):
+    def test_create_without_incident_type_uses_default(self, seeded_client):
         resp = seeded_client.post(
             f"/daily-logs/{seeded_client.log_id}/incidents",
             json={"description": "Something happened"},
         )
-        assert resp.status_code == 422
+        assert resp.status_code == 201
+        assert resp.json()["incident_type"] == "Safety Documentation"
 
     def test_create_on_nonexistent_log_returns_404(self, client):
         resp = client.post(
