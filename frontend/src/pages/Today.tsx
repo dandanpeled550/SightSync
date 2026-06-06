@@ -121,7 +121,7 @@ export default function Today() {
           fetchAttendance(log.id),
         ])
         if (cancelled) return
-        setTasks(Array.isArray(todayTasks) ? todayTasks : [])
+        setTasks(Array.isArray(todayTasks) ? [...todayTasks].sort((a, b) => a.start_date.localeCompare(b.start_date)) : [])
         setCrewTotal(attendance.length)
         setCrewPresent(attendance.filter(a => a.status === 'present').length)
         const active = Array.isArray(allTasks)
