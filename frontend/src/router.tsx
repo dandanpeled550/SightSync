@@ -6,6 +6,7 @@ import Register from './pages/Register'
 import ProjectSelect from './pages/ProjectSelect'
 import Today from './pages/Today'
 import Task from './pages/Task'
+import NewTask from './pages/NewTask'
 import Plans from './pages/Plans'
 import Site from './pages/Site'
 import Alerts from './pages/Alerts'
@@ -27,6 +28,7 @@ export const router = createBrowserRouter([
     element: <ProtectedRoute><DesktopShell /></ProtectedRoute>,
     children: [
       { path: '/',               element: <Today /> },
+      { path: '/task/new',       element: <NewTask /> },
       { path: '/task/:taskId',   element: <Task /> },
       { path: '/plans',          element: <Plans /> },
       { path: '/site',           element: <Site /> },

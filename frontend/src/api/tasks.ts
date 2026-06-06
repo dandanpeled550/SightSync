@@ -175,6 +175,39 @@ export async function fetchTaskDependencies(projectId: number): Promise<TaskDepe
   return res.data
 }
 
+export async function createTask(
+  projectId: number,
+  body: {
+    name: string
+    level_tag: string
+    trade_tag?: string | null
+    start_date: string
+    duration_days: number
+    description?: string | null
+    notes?: string | null
+  },
+): Promise<Task> {
+  const { data } = await api.post<Task>(`/projects/${projectId}/tasks`, {
+    ...body,
+    source: 'manual',
+    status: 'pending',
+  })
+  return data
+}
+
+export async function createDependency(
+  projectId: number,
+  taskId: number,
+  dependsOnTaskId: number,
+  lagDays = 0,
+): Promise<TaskDependency> {
+  const { data } = await api.post<TaskDependency>(
+    `/projects/${projectId}/task-dependencies`,
+    { task_id: taskId, depends_on_task_id: dependsOnTaskId, lag_days: lagDays },
+  )
+  return data
+}
+
 export async function updateTask(
   taskId: number,
   update: {
