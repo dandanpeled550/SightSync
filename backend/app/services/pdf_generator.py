@@ -60,10 +60,6 @@ def _make_numbered_canvas(project_name: str, log_date: str, location: str):
         def _draw_page(self, total_pages: int) -> None:
             page_num = self._pageNumber
 
-            # Cream background
-            self.setFillColor(CREAM)
-            self.rect(0, 0, PAGE_W, PAGE_H, stroke=0, fill=1)
-
             # Header: project name left, "simple." right
             y_top = PAGE_H - 14 * mm
             self.setFillColor(NAVY)
@@ -333,6 +329,13 @@ def generate_daily_log_pdf(log_id: int, db: Session) -> bytes:
     story.append(safety_box)
 
     # ── Build ─────────────────────────────────────────────────────────────────
+    def _draw_background(canvas, doc):
+        # Must run before flowables so background sits beneath content in the stream
+        canvas.saveState()
+        canvas.setFillColor(CREAM)
+        canvas.rect(0, 0, PAGE_W, PAGE_H, stroke=0, fill=1)
+        canvas.restoreState()
+
     buffer = io.BytesIO()
     doc = SimpleDocTemplate(
         buffer,
@@ -342,5 +345,10 @@ def generate_daily_log_pdf(log_id: int, db: Session) -> bytes:
         topMargin=T_MAR,
         bottomMargin=B_MAR,
     )
-    doc.build(story, canvasmaker=_make_numbered_canvas(project_name, log_date, location))
+    doc.build(
+        story,
+        onFirstPage=_draw_background,
+        onLaterPages=_draw_background,
+        canvasmaker=_make_numbered_canvas(project_name, log_date, location),
+    )
     return buffer.getvalue()
