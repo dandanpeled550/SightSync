@@ -1,6 +1,6 @@
 from datetime import datetime as _dt
 
-from sqlalchemy import Boolean, Column, DateTime, Integer, String, Float, Date, ForeignKey, Text, UniqueConstraint
+from sqlalchemy import Boolean, Column, DateTime, Integer, String, Float, Date, ForeignKey, LargeBinary, Text, UniqueConstraint
 from sqlalchemy.orm import relationship
 
 from app.database import Base
@@ -219,3 +219,13 @@ class SitePhoto(Base):
     created_at = Column(DateTime, default=_dt.utcnow, nullable=False)
 
     project = relationship("Project", back_populates="site_photos")
+
+
+class StoredPhoto(Base):
+    """Binary photo storage — persists uploaded images in the DB instead of local disk."""
+    __tablename__ = "stored_photos"
+
+    id           = Column(Integer, primary_key=True)
+    content_type = Column(String(100), nullable=False)
+    data         = Column(LargeBinary, nullable=False)
+    created_at   = Column(DateTime, default=_dt.utcnow, nullable=False)

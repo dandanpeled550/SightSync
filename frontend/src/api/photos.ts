@@ -3,8 +3,10 @@ import api from './client'
 export async function uploadPhoto(file: File): Promise<string> {
   const form = new FormData()
   form.append('file', file)
-  // Do NOT set Content-Type manually — Axios sets multipart boundary automatically
-  const res = await api.post<{ url: string }>('/uploads/photo', form)
+  // Unset the instance default so axios auto-sets multipart/form-data with boundary
+  const res = await api.post<{ url: string }>('/uploads/photo', form, {
+    headers: { 'Content-Type': undefined },
+  })
   return res.data.url
 }
 
