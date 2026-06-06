@@ -59,7 +59,7 @@ export default function Today() {
       setLoading(true)
       setError(null)
       try {
-        const log = await fetchTodayLog()
+        const log = await fetchTodayLog(PROJECT_ID)
         if (cancelled) return
         setLogId(log.id)
         const w = log.weather

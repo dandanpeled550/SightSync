@@ -1,11 +1,14 @@
 import { useEffect, useState } from 'react'
 import { fetchTodayLog, fetchLogByDate, refetchWeather, DailyLog } from '../api/daily_log'
+import { useProject } from '../contexts/ProjectContext'
 import WeatherBlock from '../components/WeatherBlock'
 import CrewAttendanceBlock from '../components/CrewAttendanceBlock'
 import SafetyBlock from '../components/SafetyBlock'
 import MaterialsBlock from '../components/MaterialsBlock'
 
 export default function LogEntryForm() {
+  const { currentProject } = useProject()
+  const PROJECT_ID = currentProject?.id ?? 1
   const todayIso = new Date().toISOString().slice(0, 10)
   const [selectedDate, setSelectedDate] = useState(todayIso)
   const [log, setLog] = useState<DailyLog | null>(null)
@@ -16,7 +19,7 @@ export default function LogEntryForm() {
     setStatus('loading')
     setLog(null)
     const isToday = selectedDate === todayIso
-    const load = isToday ? fetchTodayLog() : fetchLogByDate(selectedDate)
+    const load = isToday ? fetchTodayLog(PROJECT_ID) : fetchLogByDate(PROJECT_ID, selectedDate)
     load
       .then((data) => { setLog(data); setStatus('success') })
       .catch(() => setStatus('error'))
@@ -26,7 +29,7 @@ export default function LogEntryForm() {
     if (!log) return
     setRefetching(true)
     try {
-      const updated = await refetchWeather(log.id)
+      const updated = await refetchWeather(PROJECT_ID, log.id)
       setLog(updated)
     } finally {
       setRefetching(false)

@@ -16,17 +16,17 @@ export interface DailyLog {
   weather: WeatherData
 }
 
-export async function fetchTodayLog(): Promise<DailyLog> {
-  const res = await api.post<DailyLog>('/daily-logs/today')
+export async function fetchTodayLog(projectId: number): Promise<DailyLog> {
+  const res = await api.post<DailyLog>(`/projects/${projectId}/daily-logs/today`)
   return res.data
 }
 
-export async function fetchLogByDate(date: string): Promise<DailyLog> {
-  const res = await api.get<DailyLog>(`/daily-logs/${date}`)
+export async function fetchLogByDate(projectId: number, date: string): Promise<DailyLog> {
+  const res = await api.get<DailyLog>(`/projects/${projectId}/daily-logs/${date}`)
   return res.data
 }
 
-export async function refetchWeather(logId: number): Promise<DailyLog> {
-  const res = await api.post<DailyLog>(`/daily-logs/${logId}/refetch-weather`)
+export async function refetchWeather(projectId: number, logId: number): Promise<DailyLog> {
+  const res = await api.post<DailyLog>(`/projects/${projectId}/daily-logs/${logId}/refetch-weather`)
   return res.data
 }

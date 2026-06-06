@@ -36,7 +36,7 @@ export default function AsidePanel() {
     let cancelled = false
     async function load() {
       try {
-        const log = await fetchTodayLog()
+        const log = await fetchTodayLog(projectId)
         if (cancelled) return
         const [todayTasks, att, wx] = await Promise.all([
           fetchTodayTasks(projectId),

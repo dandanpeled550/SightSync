@@ -87,7 +87,7 @@ export default function TaskPage() {
 
   // Load today's log id
   useEffect(() => {
-    fetchTodayLog()
+    fetchTodayLog(PROJECT_ID)
       .then(log => setLogId(log.id))
       .catch(() => {})
   }, [])

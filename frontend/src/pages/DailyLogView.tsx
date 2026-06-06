@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { fetchTodayLog, fetchLogByDate, DailyLog } from '../api/daily_log'
+import { useProject } from '../contexts/ProjectContext'
 import WeatherBlock from '../components/WeatherBlock'
 import CrewAttendanceBlock from '../components/CrewAttendanceBlock'
 import SafetyBlock from '../components/SafetyBlock'
@@ -18,6 +19,8 @@ function formatDate(iso: string): string {
 }
 
 export default function DailyLogView() {
+  const { currentProject } = useProject()
+  const PROJECT_ID = currentProject?.id ?? 1
   const [log, setLog] = useState<DailyLog | null>(null)
   const [status, setStatus] = useState<'loading' | 'success' | 'empty' | 'error'>('loading')
   const [currentDate, setCurrentDate] = useState<string>(new Date().toISOString().slice(0, 10))
@@ -27,8 +30,8 @@ export default function DailyLogView() {
     setStatus('loading')
     setLog(null)
     const load = isToday
-      ? fetchTodayLog()
-      : fetchLogByDate(currentDate)
+      ? fetchTodayLog(PROJECT_ID)
+      : fetchLogByDate(PROJECT_ID, currentDate)
 
     load
       .then((data) => { setLog(data); setStatus('success') })
