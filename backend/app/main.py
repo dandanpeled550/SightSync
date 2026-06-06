@@ -1,12 +1,15 @@
 import logging
 from contextlib import asynccontextmanager
+from pathlib import Path
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 
 from app.config import settings
 from app.logging_config import setup_logging
 from app.routers import health, weather, daily_log, crew, incidents, materials, tasks, onboarding, auth, projects, inventory
+from app.routers import uploads, photos
 
 setup_logging()
 logger = logging.getLogger(__name__)
@@ -38,3 +41,10 @@ app.include_router(onboarding.router)
 app.include_router(auth.router)
 app.include_router(projects.router)
 app.include_router(inventory.router)
+app.include_router(uploads.router)
+app.include_router(photos.router)
+
+# Serve uploaded images as /static/uploads/<filename>
+_upload_dir = Path("uploads")
+_upload_dir.mkdir(exist_ok=True)
+app.mount("/static/uploads", StaticFiles(directory=str(_upload_dir)), name="uploads")

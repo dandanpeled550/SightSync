@@ -78,12 +78,13 @@ export async function fetchAllTasks(projectId: number): Promise<Task[]> {
 export async function markTaskDone(
   logId: number,
   taskId: number,
-  reason?: string,
+  opts?: { reason?: string; photo_url?: string },
 ): Promise<TaskLogEntry> {
   const res = await api.post<TaskLogEntry>(`/daily-logs/${logId}/task-entries`, {
     task_id: taskId,
     action: 'done',
-    reason: reason ?? null,
+    reason: opts?.reason ?? null,
+    photo_url: opts?.photo_url ?? null,
   })
   return res.data
 }

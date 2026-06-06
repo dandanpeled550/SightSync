@@ -11,34 +11,10 @@
 | 4 | Excel/AI Extraction + Onboarding UI | ✅ Done |
 | 5 | User Module + Multi-Project | ✅ Done |
 | 6 | AI Dependency Inference (extend onboarding) | ✅ Done |
-| 7 | Submission + AI Summary + PDF | ⏳ Next |
-| 8 | Today View Polish + Alerts/Report UI | ⏳ Not started |
+| 7 | Submission + AI Summary + PDF | ✅ Done (backend) / 🟡 FE stubs remain |
+| 8 | Today View Polish + Alerts/Report UI | 🟡 Next — backend done, FE stubs only |
 
-**Next action:** Execute Sprint 7 — log submission, AI daily summary, PDF export.
-
----
-
-## Sprint 6 — AI Dependency Inference ✅ DONE
-
-**What was built:**
-
-### Backend
-- `backend/app/services/ai_extraction.py` — Extended with `Workflow`, `InferredDependency` dataclasses; `ExtractedTask` gains `workflow_id`; new `_load_prompt()` + `infer_workflows_and_dependencies()` (Pass 2 pipeline); full graceful degradation (Pass 2 fail → tasks only, no 500)
-- `backend/app/services/prompts/task_extraction.md` — NEW: existing inline Pass 1 prompt moved to file
-- `backend/app/services/prompts/dependency_inference.md` — NEW: full construction expert Pass 2 prompt (workflow grouping + sequential/cross-workflow dep inference; acts as a senior PM with 20+ years experience)
-- `backend/app/routers/onboarding.py` — `upload-schedule` response now includes `workflows` + `dependencies`; `confirm-schedule` now accepts deps and inserts `TaskDependency` records; returns `{ tasks_created, deps_created }`
-- `backend/tests/test_onboarding.py` — 10 new Pass 2 tests (mocked Claude, all paths including degradation, confidence filtering, idempotency)
-
-### Frontend
-- `frontend/src/api/tasks.ts` — Added `Workflow`, `InferredDependency` interfaces; extended `ExtractionResult`; updated `confirmSchedule(projectId, tasks, dependencies)` signature; added `updateTask()` for full task field editing
-- `frontend/src/pages/Review.tsx` — Tasks grouped by workflow accordion sections; inferred deps shown with reasoning + confidence badge (green/orange/red); × button removes deps from local state; falls back to flat list when `workflows` is empty
-
-**Test results:** 160 backend tests passing / 0 failed. Frontend: TypeScript clean.
-
-### Post-sprint fixes (same session)
-- `frontend/src/components/SidebarNav.tsx` — Restored Upload (⬆️) link dropped during Sprint 5 sidebar rebuild
-- `frontend/src/pages/Task.tsx` — **Full rewrite**: Task screen now shows all current task data pre-filled in editable fields (name, description, level, trade, apartment, room, start/end dates, notes). "Today's status" (Done/Not Done) is an optional collapsible section at the bottom. Save calls `PUT /tasks/{id}` for field edits and optionally logs a task entry. Cascade preview only shows when start date is changed and "Not done" is selected, and correctly excludes the root task from "Affected tasks".
-- `frontend/src/pages/Task.tsx` (cascade bug) — `preview_cascade()` always prepended the root task to results; fixed in FE by filtering `item.task_id !== numId` from the display.
+**Next action:** Execute Sprint 8 FE — build real Alerts screen (upcoming/past tabs, cascade-aware cards) and Report screen (6 stat cards wired to live data, "Generate report" → submit flow).
 
 ---
 
@@ -672,9 +648,9 @@ The agent does not proceed to the next sprint until the user explicitly approves
 | 3 | Cascade engine | Screens: today, task, plans, site | ✅ Done |
 | 4 | Excel + AI task extraction (no deps) | Screens: upload, review | ✅ Done |
 | 5 | User model + JWT auth + multi-project | Login, register, project selector screens | ✅ Done |
-| 6 | AI dependency inference (Pass 2) | Review screen — workflow grouping + reviewable deps | ⏳ Next |
-| 7 | Submit + AI summary + PDF | Screens: summary, export | ⏳ Not started |
-| 8 | Today view polish | Screens: alerts, report | ⏳ Not started |
+| 6 | AI dependency inference (Pass 2) | Review screen — workflow grouping + reviewable deps | ✅ Done |
+| 7 | Submit + AI summary + PDF | Screens: summary (stub), export (stub) | ✅ BE Done / 🟡 FE stubs |
+| 8 | Today view polish (done) | Screens: alerts, report — real content needed | 🟡 Next |
 
 ---
 
@@ -755,20 +731,16 @@ The agent does not proceed to the next sprint until the user explicitly approves
 
 ---
 
-## Sprint 6 — AI Dependency Inference ⏳ NEXT
+## Sprint 6 — AI Dependency Inference ✅ DONE
 
-**Goal:** Extend the Sprint 4 task-extraction pipeline with a second Claude pass that infers construction task dependencies. The foreman reviews extracted tasks grouped by workflow chain, removes any incorrect dependencies, then confirms — creating both tasks and dependencies in a single onboarding flow.
-
-**Gate:** Sprint 4 deployed and live on Render (`POST /projects/{id}/upload-schedule` returns 200). ✅ Already satisfied.
-
-**Streams:** BE runs first. FE updates after BE deploys.
-
-```
-/sprint-execute 4B spawns:
-  Worktree A: sprint-4b-be   (extend ai_extraction + prompt files + update onboarding router + new tests)
-  → deploy to Render → user confirms Render is up
-  → then: Worktree B: sprint-4b-fe   (update Review screen — workflow grouping + reviewable deps)
-```
+**What was built:**
+- `backend/app/services/ai_extraction.py` — extended with `infer_workflows_and_dependencies()` (Pass 2), `Workflow`, `InferredDependency` dataclasses, `ExtractionResult` extended with `workflows` + `dependencies` fields
+- `backend/app/services/prompts/task_extraction.md` — extracted inline prompt to file
+- `backend/app/services/prompts/dependency_inference.md` — new Pass 2 prompt (senior PM persona, workflow-scoped logic)
+- `backend/app/routers/onboarding.py` — upload response includes `workflows` + `dependencies`; confirm-schedule accepts deps, inserts via `create_task_dependency()`
+- `backend/tests/test_onboarding.py` — 22 total tests (10 new Pass 2 tests added)
+- `frontend/src/pages/Review.tsx` — tasks grouped by workflow, deps shown with reasoning + confidence badge, removable before confirm
+- `frontend/src/api/tasks.ts` — extended `Workflow`, `InferredDependency`, `ExtractionResult` types; updated `confirmSchedule(tasks, dependencies)` signature
 
 ---
 
@@ -1092,92 +1064,75 @@ Add `test_user` fixture that creates a `User` row in the test DB. Update `seeded
 
 ---
 
-## Sprint 7 — Submission + AI Summary + PDF + Export UI
+## Sprint 7 — Submission + AI Summary + PDF + Export UI ✅ DONE (backend) / 🟡 FE stubs
 
-**New backend dependency:** `reportlab>=4.2.0`
+**What was built (backend — fully done):**
+- `backend/app/services/ai_summary.py` — 90L, `generate_and_store_summary()` loads all log data, calls Claude via BackgroundTasks, writes to `DailyLog.ai_summary`. Graceful degradation: no API key → stores fallback message, never raises.
+- `backend/app/services/pdf_generator.py` — 194L, `generate_daily_log_pdf()` returns PDF bytes via reportlab. Sections: project header, weather, crew, tasks, materials, safety, AI summary.
+- `backend/app/routers/daily_log.py` — added `POST /projects/{project_id}/daily-logs/{log_id}/submit` (sets submitted flag, triggers summary background task) and `GET /projects/{project_id}/daily-logs/{log_id}/export-pdf` (StreamingResponse, application/pdf).
+- `backend/tests/test_submission.py` — 12 tests: submit sets flag, idempotent re-submit, PDF content-type, PDF for missing log → 404, AI summary stored after mocked background task.
+- `backend/requirements.txt` — includes `reportlab>=4.2.0`
 
-**Streams:** BE runs first (3 sequential steps). FE starts after BE deploys.
+**FE screens remaining (stubs — need real content):**
+- `frontend/src/pages/Summary.tsx` — 12L placeholder ("coming in Sprint 5"), needs: AI summary text block + polling every 3s while null + Edit affordance
+- `frontend/src/pages/Export.tsx` — 12L placeholder ("coming in Sprint 5"), needs: KPI bar, progress bars, photo gallery stubs, PDF download button
+- `frontend/src/api/daily_log.ts` — needs: `submitLog(logId)`, `exportPdf(logId)`, `DailyLog` interface extended with `submitted`, `ai_summary`
 
-```
-/sprint-execute 5 spawns:
-  Worktree A: sprint-5-be   (submit + ai_summary + pdf — sequential steps within)
-  → deploy to Render
-  → then: Worktree B: sprint-5-fe   (screens: summary, export)
-```
-
-### Stream A: Backend Submission `[worktree: sprint-5-be]`
-
-**File ownership:** `backend/app/routers/daily_log.py`, `backend/app/services/ai_summary.py`, `backend/app/services/pdf_generator.py`, `backend/tests/test_submission.py`, `backend/requirements.txt`
-
-Step 1 — Submit endpoint:
-```
-POST /daily-logs/{log_id}/submit → DailyLogOut (submitted=True, ai_summary=null)
-```
-Sets `submitted=True`. Triggers `ai_summary.py` via FastAPI `BackgroundTasks`.
-
-Step 2 — `ai_summary.py`: loads all log data → structured Claude prompt → writes to `DailyLog.ai_summary`. On failure: writes `"[Summary generation failed]"`, never leaves null.
-
-Step 3 — PDF endpoint:
-```
-GET /daily-logs/{log_id}/export-pdf → StreamingResponse(application/pdf)
-```
-Sections: project header, weather, crew attendance, tasks done/not done, materials, safety, AI summary.
-
-Tests (10+): submit sets flag, idempotent re-submit, PDF returns `application/pdf` content-type, PDF for missing log returns 404, AI summary stored after mocked background task.
-
-### Stream B: Frontend AI+Export `[worktree: sprint-5-fe]` — starts after A deploys
-
-**Gate:** `POST /daily-logs/1/submit` returns `submitted: true` on Render.
-
-Build using `/fe-screen` (each call invokes `/frontend-design` internally before writing code):
-- `/fe-screen summary` — Screen 9: AI summary text block, polls every 3s while null (max 10 attempts), Edit affordance
-- `/fe-screen export` — Screen 10: KPI bar, progress bars, photo gallery stubs, PDF download button
-
-New API calls to add to `frontend/src/api/daily_log.ts`:
-- `submitLog(logId)`, `exportPdf(logId)`, extend `DailyLog` interface with `submitted`, `ai_summary`
-
-### Sprint 5 done when
-- Submit sets flag; AI summary stored and displayed after polling
-- PDF downloads with `application/pdf` content-type
-- Full submit → Screen 9 → Screen 10 → PDF download flow works in browser
+**FE work is part of Sprint 8 scope below.**
 
 ---
 
-## Sprint 8 — Today View Polish + Alerts/Report UI
+## Sprint 8 — Today View Polish + Alerts/Report UI 🟡 NEXT
 
-**Streams:** BE validation runs first (lightweight). FE starts after.
+**Backend status: ✅ DONE** (today endpoint fields verified, not_done validation with 422, 50 tests in test_tasks.py)
 
-```
-/sprint-execute 6 spawns:
-  Worktree A: sprint-6-be   (today endpoint polish + task marking validation)
-  → deploy to Render
-  → then: Worktree B: sprint-6-fe   (screens: alerts, report)
-```
+**Remaining work: Frontend only** — all three FE screens are stubs with zero API wiring.
 
-### Stream A: Backend Polish `[worktree: sprint-6-be]`
+### Stub current state
 
-**File ownership:** `backend/app/routers/tasks.py`, `backend/tests/test_tasks.py`
+| Screen | File | Current state |
+|--------|------|---------------|
+| Alerts | `frontend/src/pages/Alerts.tsx` | 35L — "No alerts" placeholder, no API |
+| Report | `frontend/src/pages/Report.tsx` | 57L — static placeholder, no API |
+| Summary | `frontend/src/pages/Summary.tsx` | 12L — "coming in Sprint 5" text only |
+| Export | `frontend/src/pages/Export.tsx` | 12L — "coming in Sprint 5" text only |
 
-- Verify `GET /projects/{id}/tasks/today` returns: `id`, `name`, `level_tag`, `trade_tag`, `start_date`, `end_date`, `status`, `duration_days`
-- Verify `POST .../task-entries` with `action=not_done` requires `new_date` (422 if missing)
-- Add 5 tests: past tasks excluded, future tasks excluded, completed tasks excluded, not_done without new_date returns 422, done entries mark task status
+### FE stream `[worktree: sprint-8-fe]`
 
-### Stream B: Frontend Alerts+Report `[worktree: sprint-6-fe]` — starts after A deploys
+Build using `/fe-screen` (invokes `/frontend-design` before writing each screen):
 
-Build using `/fe-screen` (each call invokes `/frontend-design` internally before writing code):
-- `/fe-screen alerts` — Screen 7: Upcoming/Past tabs, alert cards for tasks starting soon + delayed tasks
-- `/fe-screen report` — Screen 8: 6 stat cards wired to real data (weather, crew count, tasks done, tasks not done, materials count, photos stub)
+**`/fe-screen alerts` — Screen 7:**
+- Upcoming/Past tabs
+- Alert cards: tasks starting within 3 days (from `GET /projects/{id}/tasks/today` + lookahead), delayed tasks (not_done entries)
+- Wires to: tasks API + task-entries API
 
-Screen 8 wires to: `DailyLog` (weather), attendance endpoint (crew count), `TaskLogEntry` (done/not done counts), materials endpoint (count).
+**`/fe-screen report` — Screen 8:**
+- 6 stat cards wired to live data: weather (from DailyLog), crew on-site count (attendance endpoint), tasks done count, tasks not done count, materials count, photos (stub)
+- "Generate report" button → `POST /projects/{id}/daily-logs/{log_id}/submit` → navigate to `/summary`
+- Wires to: `DailyLog`, attendance endpoint, TaskLogEntry, materials endpoint
 
-"Generate report" button on Screen 8 → `POST /daily-logs/{id}/submit` → navigate to `/summary`.
+**`/fe-screen summary` — Screen 9:**
+- AI summary text block
+- Polls `GET /projects/{id}/daily-logs/{log_id}` every 3s while `ai_summary` is null (max 10 attempts)
+- Edit affordance (inline text edit, re-submit)
+- "Use in report" → navigate to `/export`
+- New API calls in `frontend/src/api/daily_log.ts`: `submitLog(projectId, logId)`, extend `DailyLog` with `submitted`, `ai_summary`
 
-### Sprint 6 done when
-- 115+ total tests pass
-- Today endpoint returns correct fields; not_done without new_date returns 422
-- Screens alerts + report render real data
-- "Generate report" → submit → AI summary → export flow is complete end-to-end
-- Render deploy successful — full app is feature-complete
+**`/fe-screen export` — Screen 10:**
+- KPI bar (days on track, tasks completed %, crew utilization)
+- Progress bars per task category
+- Photo gallery stubs
+- PDF download button → calls `GET /projects/{id}/daily-logs/{log_id}/export-pdf`
+- New API call in `frontend/src/api/daily_log.ts`: `exportPdf(projectId, logId)`
+
+### Sprint 8 done when
+- 111+ total backend tests still pass (no regressions)
+- Alerts screen shows real cascade-derived data
+- Report screen shows 6 live stat cards; "Generate report" → submit works
+- Summary screen polls and displays AI summary
+- Export screen downloads PDF with `application/pdf` content-type
+- Full flow: Report → Summary → Export → PDF download works in browser
+- Render deploy successful — full app feature-complete
 
 ---
 

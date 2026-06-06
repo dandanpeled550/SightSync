@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import ScreenShell, { IconBtn } from '../components/ScreenShell'
 import MaterialsBlock from '../components/MaterialsBlock'
 import SafetyBlock from '../components/SafetyBlock'
+import PhotoUploader from '../components/PhotoUploader'
 import { colors, radius, gradients, animations } from '../constants/theme'
 import { fetchTodayLog } from '../api/daily_log'
 import { fetchTodayTasks, markTaskDone, type Task } from '../api/tasks'
@@ -49,14 +50,16 @@ export default function Today() {
   const navigate = useNavigate()
   const { currentProject } = useProject()
   const PROJECT_ID = currentProject?.id ?? 1
-  const [logId, setLogId]             = useState<number | null>(null)
-  const [weather, setWeather]         = useState<string | null>(null)
-  const [tasks, setTasks]             = useState<Task[]>([])
-  const [loading, setLoading]         = useState(true)
-  const [error, setError]             = useState<string | null>(null)
-  const [markingId, setMarkingId]     = useState<number | null>(null)
-  const [crewPresent, setCrewPresent] = useState<number>(0)
-  const [crewTotal, setCrewTotal]     = useState<number>(0)
+  const [logId, setLogId]                   = useState<number | null>(null)
+  const [weather, setWeather]               = useState<string | null>(null)
+  const [tasks, setTasks]                   = useState<Task[]>([])
+  const [loading, setLoading]               = useState(true)
+  const [error, setError]                   = useState<string | null>(null)
+  const [markingId, setMarkingId]           = useState<number | null>(null)
+  const [crewPresent, setCrewPresent]       = useState<number>(0)
+  const [crewTotal, setCrewTotal]           = useState<number>(0)
+  const [pendingDoneTask, setPendingDoneTask] = useState<Task | null>(null)
+  const [donePhotoUrl, setDonePhotoUrl]     = useState<string | null>(null)
 
   useEffect(() => {
     let cancelled = false
@@ -88,16 +91,25 @@ export default function Today() {
     return () => { cancelled = true }
   }, [])
 
-  async function handleDone(task: Task) {
+  function handleDone(task: Task) {
     if (!logId || markingId) return
+    setDonePhotoUrl(null)
+    setPendingDoneTask(task)
+  }
+
+  async function confirmDone() {
+    if (!logId || !pendingDoneTask) return
+    const task = pendingDoneTask
+    setPendingDoneTask(null)
     setMarkingId(task.id)
     setTasks(prev => prev.filter(t => t.id !== task.id))
     try {
-      await markTaskDone(logId, task.id)
+      await markTaskDone(logId, task.id, { photo_url: donePhotoUrl ?? undefined })
     } catch {
       setTasks(prev => [task, ...prev])
     } finally {
       setMarkingId(null)
+      setDonePhotoUrl(null)
     }
   }
 
@@ -108,45 +120,19 @@ export default function Today() {
   const yearShort = String(today.getFullYear()).slice(2)
   const dateStr = today.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })
 
-  const fab = (
-    <button
-      onClick={() => navigate('/task/new')}
-      style={{
-        position: 'absolute',
-        bottom: '80px',
-        left: '50%',
-        transform: 'translateX(-50%)',
-        width: '58px',
-        height: '58px',
-        borderRadius: '50%',
-        display: 'grid',
-        placeItems: 'center',
-        background: gradients.primary,
-        color: '#fff',
-        fontSize: '30px',
-        boxShadow: '0 12px 28px rgba(37,99,235,.28)',
-        cursor: 'pointer',
-        border: 'none',
-        zIndex: 5,
-      }}
-    >
-      +
-    </button>
-  )
-
   return (
     <ScreenShell
       title="Tower B"
       subtitle={dateStr}
       desktopHideLeft
-      fab={fab}
       leftAction={
         <IconBtn onClick={() => navigate('/onboard')}>☰</IconBtn>
       }
       rightAction={
-        weather ? (
-          <span style={{ fontSize: '13px', color: colors.muted }}>☁️ {weather}</span>
-        ) : undefined
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          {weather && <span style={{ fontSize: '13px', color: colors.muted }}>☁️ {weather}</span>}
+          <IconBtn onClick={() => navigate('/task/new')}>+</IconBtn>
+        </div>
       }
     >
       {/* Date hero */}
@@ -408,6 +394,66 @@ export default function Today() {
         )}
       </div>
 
+      {/* Task-done photo sheet */}
+      {pendingDoneTask && (
+        <>
+          <div
+            onClick={() => setPendingDoneTask(null)}
+            style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.45)', zIndex: 20 }}
+          />
+          <div style={{
+            position: 'absolute',
+            bottom: 0,
+            left: 0,
+            right: 0,
+            background: colors.surface,
+            borderRadius: `${radius.card} ${radius.card} 0 0`,
+            padding: '24px 20px 36px',
+            zIndex: 21,
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '16px',
+          }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+              <div>
+                <div style={{ fontSize: '16px', fontWeight: 900, color: colors.text, letterSpacing: '-0.02em' }}>
+                  Mark as done
+                </div>
+                <div style={{ fontSize: '13px', color: colors.muted, marginTop: '2px' }}>
+                  {pendingDoneTask.name}
+                </div>
+              </div>
+              <button
+                onClick={() => setPendingDoneTask(null)}
+                style={{ background: 'none', border: 'none', fontSize: '22px', color: colors.muted, cursor: 'pointer', lineHeight: 1, padding: 0 }}
+              >×</button>
+            </div>
+
+            <div>
+              <div style={{ fontSize: '13px', fontWeight: 700, color: colors.text, marginBottom: '8px' }}>
+                Attach completion photo (optional)
+              </div>
+              <PhotoUploader value={donePhotoUrl} onChange={setDonePhotoUrl} />
+            </div>
+
+            <button
+              onClick={confirmDone}
+              style={{
+                padding: '14px',
+                background: colors.green,
+                color: '#fff',
+                border: 'none',
+                borderRadius: radius.btn,
+                fontWeight: 900,
+                fontSize: '15px',
+                cursor: 'pointer',
+              }}
+            >
+              ✓ Confirm done
+            </button>
+          </div>
+        </>
+      )}
     </ScreenShell>
   )
 }
