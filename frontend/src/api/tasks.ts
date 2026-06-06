@@ -98,11 +98,21 @@ export interface ExtractedTask {
 }
 
 // Upload a .xlsx file; returns ExtractionResult (always 200, check .error field)
+// Uses fetch instead of axios — axios's default Content-Type: application/json overrides
+// FormData's multipart boundary, breaking the upload. fetch lets the browser set it correctly.
 export async function uploadSchedule(file: File): Promise<ExtractionResult> {
   const form = new FormData()
   form.append('file', file)
-  const { data } = await api.post<ExtractionResult>(`/projects/1/upload-schedule`, form)
-  return data
+  const baseURL = (api.defaults.baseURL ?? 'http://localhost:8000').replace(/\/$/, '')
+  const response = await fetch(`${baseURL}/projects/1/upload-schedule`, {
+    method: 'POST',
+    body: form,
+  })
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({ detail: 'Upload failed' }))
+    throw new Error(err.detail ?? 'Upload failed')
+  }
+  return response.json()
 }
 
 // Confirm extracted tasks — clears existing tasks and inserts these
