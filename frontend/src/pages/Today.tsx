@@ -84,7 +84,6 @@ export default function Today() {
     setTasks(prev => prev.filter(t => t.id !== task.id))
     try {
       await markTaskDone(logId, task.id)
-      navigate('/report')
     } catch {
       setTasks(prev => [task, ...prev])
     } finally {
