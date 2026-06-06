@@ -3,6 +3,7 @@ import { colors, shadow } from '../constants/theme'
 
 const navItems = [
   { label: 'Home',    icon: '🏠', path: '/' },
+  { label: 'Plans',   icon: '📅', path: '/plans' },
   { label: 'Alerts',  icon: '🔔', path: '/alerts' },
   { label: 'Reports', icon: '▣',  path: '/report' },
   { label: 'Site',    icon: '☷',  path: '/site' },
@@ -13,8 +14,11 @@ export default function SidebarNav() {
   const { pathname } = useLocation()
 
   function isActive(path: string): boolean {
+    if (path === '/plans') {
+      return pathname.startsWith('/plans') || pathname.startsWith('/task')
+    }
     if (path === '/') {
-      return pathname === '/' || pathname.startsWith('/plans') || pathname.startsWith('/task')
+      return pathname === '/'
     }
     return pathname.startsWith(path)
   }

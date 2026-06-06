@@ -6,6 +6,7 @@ const HIDDEN_ON = ['/task', '/summary', '/export', '/onboard']
 
 const tabs = [
   { label: 'Home',    icon: '🏠', path: '/' },
+  { label: 'Plans',   icon: '📅', path: '/plans' },
   { label: 'Alerts',  icon: '🔔', path: '/alerts' },
   { label: 'Reports', icon: '▣',  path: '/report' },
   { label: 'Site',    icon: '☷',  path: '/site' },
@@ -33,7 +34,7 @@ export default function BottomNav() {
     }}>
       <div style={{
         display: 'grid',
-        gridTemplateColumns: 'repeat(4, 1fr)',
+        gridTemplateColumns: 'repeat(5, 1fr)',
         padding: '10px 14px 12px',
       }}>
       {tabs.map(tab => {
