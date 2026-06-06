@@ -28,6 +28,7 @@ export default function Review() {
   const state = location.state as LocationState | null
   const result = state?.result ?? null
 
+  const [tasks, setTasks]           = useState<ExtractedTask[]>(result?.tasks ?? [])
   const [confirming, setConfirming] = useState(false)
   const [confirmError, setConfirmError] = useState<string | null>(null)
   const [activeDeps, setActiveDeps] = useState<InferredDependency[]>([])
@@ -38,7 +39,6 @@ export default function Review() {
     }
   }, [result])
 
-  // No extraction result — guard screen
   if (!result) {
     return (
       <ScreenShell title="Review Schedule" hideBottomNav>
@@ -79,7 +79,7 @@ export default function Review() {
     setConfirming(true)
     setConfirmError(null)
     try {
-      await confirmSchedule(PROJECT_ID, result!.tasks, activeDeps)
+      await confirmSchedule(PROJECT_ID, tasks, activeDeps)
       navigate('/plans')
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Import failed. Please try again.'
@@ -95,10 +95,30 @@ export default function Review() {
     )
   }
 
-  const taskCount = result.tasks.length
+  function handleDelete(idx: number) {
+    setTasks(prev => prev.filter((_, i) => i !== idx))
+    // Drop deps that referenced this task index; remap indices above it
+    setActiveDeps(prev =>
+      prev
+        .filter(d => d.task_index !== idx && d.depends_on_index !== idx)
+        .map(d => ({
+          ...d,
+          task_index: d.task_index > idx ? d.task_index - 1 : d.task_index,
+          depends_on_index: d.depends_on_index > idx ? d.depends_on_index - 1 : d.depends_on_index,
+        }))
+    )
+  }
+
+  function handleSave(idx: number, updated: ExtractedTask) {
+    setTasks(prev => prev.map((t, i) => (i === idx ? updated : t)))
+  }
+
+  const taskCount = tasks.length
   const confidencePct = Math.round(result.confidence * 100)
 
-  const taskByIndex = (idx: number): ExtractedTask | undefined => result.tasks[idx]
+  const sorted = tasks
+    .map((task, idx) => ({ task, idx }))
+    .sort((a, b) => a.task.start_date.localeCompare(b.task.start_date))
 
   return (
     <ScreenShell
@@ -137,21 +157,37 @@ export default function Review() {
             {confidencePct}% confidence
           </div>
           <div style={{ fontSize: '12px', color: colors.muted }}>
-            AI extraction complete — review tasks below
+            AI extraction complete — review, edit, or remove tasks below
           </div>
         </div>
       </div>
 
-
-      {/* Task content */}
       <div style={{ padding: '8px 16px 100px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
 
-        {/* Flat task list — sorted by start date, deps shown inline beneath each task */}
-        {[...result.tasks.map((task, idx) => ({ task, idx }))].sort((a, b) => a.task.start_date.localeCompare(b.task.start_date)).map(({ task, idx }) => {
+        {taskCount === 0 && (
+          <div style={{
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            padding: '40px 20px',
+            gap: '10px',
+            textAlign: 'center',
+          }}>
+            <div style={{ fontSize: '36px' }}>🗑</div>
+            <div style={{ fontSize: '16px', fontWeight: 700, color: colors.text }}>All tasks removed</div>
+            <div style={{ fontSize: '13px', color: colors.muted }}>Re-upload to start over.</div>
+          </div>
+        )}
+
+        {sorted.map(({ task, idx }) => {
           const taskDeps = activeDeps.filter(d => d.task_index === idx)
           return (
             <div key={idx} style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-              <TaskCard task={task} />
+              <TaskCard
+                task={task}
+                onSave={updated => handleSave(idx, updated)}
+                onDelete={() => handleDelete(idx)}
+              />
               {taskDeps.length > 0 && (
                 <div style={{
                   marginLeft: '12px',
@@ -167,8 +203,8 @@ export default function Review() {
                     <DepRow
                       key={di}
                       dep={dep}
-                      fromTask={taskByIndex(dep.task_index)}
-                      toTask={taskByIndex(dep.depends_on_index)}
+                      fromTask={tasks[dep.task_index]}
+                      toTask={tasks[dep.depends_on_index]}
                       onRemove={() => removeDep(dep.task_index, dep.depends_on_index)}
                     />
                   ))}
@@ -178,7 +214,6 @@ export default function Review() {
           )
         })}
 
-        {/* Confirm error */}
         {confirmError && (
           <div style={{
             padding: '12px 16px',
@@ -223,7 +258,7 @@ export default function Review() {
         </button>
         <button
           onClick={handleConfirm}
-          disabled={confirming}
+          disabled={confirming || taskCount === 0}
           style={{
             flex: 1,
             padding: '14px 18px',
@@ -233,8 +268,8 @@ export default function Review() {
             borderRadius: radius.btn,
             fontSize: '15px',
             fontWeight: 700,
-            cursor: confirming ? 'not-allowed' : 'pointer',
-            opacity: confirming ? 0.8 : 1,
+            cursor: (confirming || taskCount === 0) ? 'not-allowed' : 'pointer',
+            opacity: (confirming || taskCount === 0) ? 0.5 : 1,
             transition: 'opacity 0.15s',
           }}
         >
@@ -245,7 +280,115 @@ export default function Review() {
   )
 }
 
-function TaskCard({ task }: { task: ExtractedTask }) {
+// ─── TaskCard ────────────────────────────────────────────────────────────────
+
+interface TaskCardProps {
+  task: ExtractedTask
+  onSave: (updated: ExtractedTask) => void
+  onDelete: () => void
+}
+
+function TaskCard({ task, onSave, onDelete }: TaskCardProps) {
+  const [editing, setEditing] = useState(false)
+  const [draft, setDraft]     = useState<ExtractedTask>(task)
+
+  function handleEdit() {
+    setDraft(task)
+    setEditing(true)
+  }
+
+  function handleSave() {
+    onSave(draft)
+    setEditing(false)
+  }
+
+  function handleCancel() {
+    setDraft(task)
+    setEditing(false)
+  }
+
+  if (editing) {
+    return (
+      <div className="fade-up" style={{
+        background: colors.surface,
+        border: `1.5px solid ${colors.blue}`,
+        borderLeft: `4px solid ${colors.blue}`,
+        borderRadius: radius.task,
+        padding: '14px 16px',
+        display: 'flex',
+        flexDirection: 'column',
+        gap: '10px',
+      }}>
+        <FieldRow label="Name">
+          <input
+            value={draft.name}
+            onChange={e => setDraft(p => ({ ...p, name: e.target.value }))}
+            style={inputStyle}
+          />
+        </FieldRow>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+          <FieldRow label="Start date">
+            <input
+              type="date"
+              value={draft.start_date}
+              onChange={e => setDraft(p => ({ ...p, start_date: e.target.value }))}
+              style={inputStyle}
+            />
+          </FieldRow>
+          <FieldRow label="Duration (days)">
+            <input
+              type="number"
+              min={1}
+              value={draft.duration_days}
+              onChange={e => setDraft(p => ({ ...p, duration_days: Number(e.target.value) }))}
+              style={inputStyle}
+            />
+          </FieldRow>
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+          <FieldRow label="Level">
+            <input
+              value={draft.level_tag}
+              onChange={e => setDraft(p => ({ ...p, level_tag: e.target.value }))}
+              style={inputStyle}
+            />
+          </FieldRow>
+          <FieldRow label="Trade">
+            <input
+              value={draft.trade_tag ?? ''}
+              onChange={e => setDraft(p => ({ ...p, trade_tag: e.target.value || null }))}
+              style={inputStyle}
+            />
+          </FieldRow>
+          <FieldRow label="Apartment">
+            <input
+              value={draft.apartment_tag ?? ''}
+              onChange={e => setDraft(p => ({ ...p, apartment_tag: e.target.value || null }))}
+              style={inputStyle}
+            />
+          </FieldRow>
+          <FieldRow label="Room">
+            <input
+              value={draft.room_tag ?? ''}
+              onChange={e => setDraft(p => ({ ...p, room_tag: e.target.value || null }))}
+              style={inputStyle}
+            />
+          </FieldRow>
+        </div>
+        <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end', marginTop: '2px' }}>
+          <button onClick={handleCancel} style={cancelBtnStyle}>Cancel</button>
+          <button
+            onClick={handleSave}
+            disabled={!draft.name.trim()}
+            style={{ ...saveBtnStyle, opacity: draft.name.trim() ? 1 : 0.4, cursor: draft.name.trim() ? 'pointer' : 'not-allowed' }}
+          >
+            Save
+          </button>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="fade-up" style={{
       background: colors.surface,
@@ -254,14 +397,30 @@ function TaskCard({ task }: { task: ExtractedTask }) {
       borderRadius: radius.task,
       padding: '14px 16px',
     }}>
-      {/* Task name */}
-      <div style={{
-        fontWeight: 700,
-        fontSize: '15px',
-        color: colors.text,
-        marginBottom: '8px',
-      }}>
-        {task.name}
+      {/* Top row: name + action buttons */}
+      <div style={{ display: 'flex', alignItems: 'flex-start', gap: '8px', marginBottom: '8px' }}>
+        <div style={{
+          flex: 1,
+          fontWeight: 700,
+          fontSize: '15px',
+          color: colors.text,
+        }}>
+          {task.name}
+        </div>
+        <button
+          onClick={handleEdit}
+          title="Edit task"
+          style={iconActionStyle}
+        >
+          ✏️
+        </button>
+        <button
+          onClick={onDelete}
+          title="Delete task"
+          style={{ ...iconActionStyle, color: colors.red, borderColor: colors.redBorder }}
+        >
+          🗑
+        </button>
       </div>
 
       {/* Tags row */}
@@ -325,6 +484,67 @@ function TaskCard({ task }: { task: ExtractedTask }) {
   )
 }
 
+function FieldRow({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
+      <label style={{ fontSize: '11px', fontWeight: 700, color: colors.muted, letterSpacing: '0.04em', textTransform: 'uppercase' }}>
+        {label}
+      </label>
+      {children}
+    </div>
+  )
+}
+
+const inputStyle: React.CSSProperties = {
+  width: '100%',
+  padding: '7px 10px',
+  border: `1.5px solid ${colors.line}`,
+  borderRadius: radius.card,
+  fontSize: '13px',
+  color: colors.text,
+  background: colors.surface2,
+  outline: 'none',
+  boxSizing: 'border-box',
+}
+
+const iconActionStyle: React.CSSProperties = {
+  flexShrink: 0,
+  width: '28px',
+  height: '28px',
+  borderRadius: '8px',
+  border: `1px solid ${colors.line}`,
+  background: colors.surface2,
+  fontSize: '13px',
+  cursor: 'pointer',
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  padding: 0,
+}
+
+const saveBtnStyle: React.CSSProperties = {
+  padding: '8px 20px',
+  background: colors.blue,
+  color: colors.surface,
+  border: 'none',
+  borderRadius: radius.btn,
+  fontSize: '13px',
+  fontWeight: 700,
+}
+
+const cancelBtnStyle: React.CSSProperties = {
+  padding: '8px 16px',
+  background: colors.surface2,
+  color: colors.text,
+  border: `1.5px solid ${colors.line}`,
+  borderRadius: radius.btn,
+  fontSize: '13px',
+  fontWeight: 600,
+  cursor: 'pointer',
+}
+
+// ─── DepRow ──────────────────────────────────────────────────────────────────
+
 function confidenceBadgeColors(confidence: number): { bg: string; color: string } {
   if (confidence >= 0.8) return { bg: colors.greenSoft, color: colors.green }
   if (confidence >= 0.6) return { bg: colors.orangeSoft, color: colors.orange }
@@ -346,15 +566,8 @@ function DepRow({
   const pct = Math.round(dep.confidence * 100)
 
   return (
-    <div style={{
-      display: 'flex',
-      alignItems: 'flex-start',
-      gap: '8px',
-    }}>
-      {/* Arrow icon */}
+    <div style={{ display: 'flex', alignItems: 'flex-start', gap: '8px' }}>
       <span style={{ fontSize: '14px', color: colors.muted, marginTop: '1px', flexShrink: 0 }}>→</span>
-
-      {/* Content */}
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ fontSize: '13px', color: colors.text, fontWeight: 600, lineHeight: 1.4 }}>
           <span style={{ color: colors.blue }}>{fromTask?.name ?? `Task ${dep.task_index}`}</span>
@@ -381,8 +594,6 @@ function DepRow({
           </div>
         )}
       </div>
-
-      {/* Confidence badge */}
       <span style={{
         background: badge.bg,
         color: badge.color,
@@ -395,8 +606,6 @@ function DepRow({
       }}>
         {pct}%
       </span>
-
-      {/* Remove button */}
       <button
         onClick={onRemove}
         title="Remove dependency"
