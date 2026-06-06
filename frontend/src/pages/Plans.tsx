@@ -129,7 +129,24 @@ export default function Plans() {
             <div style={{ fontSize: '22px', fontWeight: 900, letterSpacing: '-0.04em', color: colors.text }}>
               No schedule yet
             </div>
-            <div style={{ fontSize: '14px', color: colors.muted }}>Upload a schedule to get started.</div>
+            <div style={{ fontSize: '14px', color: colors.muted }}>Upload an Excel schedule to get started.</div>
+            <button
+              onClick={() => navigate('/onboard')}
+              style={{
+                marginTop: '8px',
+                padding: '12px 28px',
+                background: colors.blue,
+                color: colors.surface,
+                border: 'none',
+                borderRadius: radius.btn,
+                fontSize: '14px',
+                fontWeight: 700,
+                cursor: 'pointer',
+                boxShadow: '0 4px 14px rgba(37,99,235,0.25)',
+              }}
+            >
+              Upload schedule
+            </button>
           </div>
         )}
 
