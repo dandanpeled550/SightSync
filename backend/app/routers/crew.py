@@ -5,7 +5,8 @@ from pydantic import BaseModel, ConfigDict
 from sqlalchemy.orm import Session
 
 from app.database import get_db
-from app.models import CrewAttendance, CrewMember, DailyLog
+from app.models import CrewAttendance, CrewMember, DailyLog, User
+from app.services.auth_service import get_current_user, require_project_member
 
 router = APIRouter(tags=["crew"])
 
@@ -47,12 +48,23 @@ class AttendanceOut(BaseModel):
 # ── Crew registry endpoints ───────────────────────────────────────────────────
 
 @router.get("/projects/{project_id}/crew", response_model=list[CrewMemberOut])
-def list_crew(project_id: int, db: Session = Depends(get_db)):
+def list_crew(
+    project_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    require_project_member(project_id, current_user, db)
     return db.query(CrewMember).filter(CrewMember.project_id == project_id).all()
 
 
 @router.post("/projects/{project_id}/crew", response_model=CrewMemberOut, status_code=201)
-def add_crew_member(project_id: int, body: CrewMemberCreate, db: Session = Depends(get_db)):
+def add_crew_member(
+    project_id: int,
+    body: CrewMemberCreate,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    require_project_member(project_id, current_user, db)
     member = CrewMember(project_id=project_id, **body.model_dump())
     db.add(member)
     db.commit()
@@ -61,10 +73,16 @@ def add_crew_member(project_id: int, body: CrewMemberCreate, db: Session = Depen
 
 
 @router.put("/crew/{member_id}", response_model=CrewMemberOut)
-def update_crew_member(member_id: int, body: CrewMemberCreate, db: Session = Depends(get_db)):
+def update_crew_member(
+    member_id: int,
+    body: CrewMemberCreate,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
     member = db.query(CrewMember).filter(CrewMember.id == member_id).first()
     if not member:
         raise HTTPException(status_code=404, detail="Crew member not found")
+    require_project_member(member.project_id, current_user, db)
     for field, value in body.model_dump(exclude_unset=True).items():
         setattr(member, field, value)
     db.commit()
@@ -73,10 +91,15 @@ def update_crew_member(member_id: int, body: CrewMemberCreate, db: Session = Dep
 
 
 @router.delete("/crew/{member_id}", status_code=204)
-def delete_crew_member(member_id: int, db: Session = Depends(get_db)):
+def delete_crew_member(
+    member_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
     member = db.query(CrewMember).filter(CrewMember.id == member_id).first()
     if not member:
         raise HTTPException(status_code=404, detail="Crew member not found")
+    require_project_member(member.project_id, current_user, db)
     db.delete(member)
     db.commit()
 
@@ -84,10 +107,15 @@ def delete_crew_member(member_id: int, db: Session = Depends(get_db)):
 # ── Daily attendance endpoints ────────────────────────────────────────────────
 
 @router.get("/daily-logs/{log_id}/attendance", response_model=list[AttendanceOut])
-def get_attendance(log_id: int, db: Session = Depends(get_db)):
+def get_attendance(
+    log_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
     log = db.query(DailyLog).filter(DailyLog.id == log_id).first()
     if not log:
         raise HTTPException(status_code=404, detail="Daily log not found")
+    require_project_member(log.project_id, current_user, db)
 
     all_crew = db.query(CrewMember).filter(CrewMember.project_id == log.project_id).all()
     attendance_map = {
@@ -110,7 +138,11 @@ def get_attendance(log_id: int, db: Session = Depends(get_db)):
 
 @router.put("/daily-logs/{log_id}/attendance/{member_id}", response_model=AttendanceOut)
 def upsert_attendance(
-    log_id: int, member_id: int, body: AttendanceUpsert, db: Session = Depends(get_db)
+    log_id: int,
+    member_id: int,
+    body: AttendanceUpsert,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
 ):
     if body.status not in ("present", "absent", "partial"):
         raise HTTPException(status_code=422, detail="status must be present, absent, or partial")
@@ -118,6 +150,7 @@ def upsert_attendance(
     log = db.query(DailyLog).filter(DailyLog.id == log_id).first()
     if not log:
         raise HTTPException(status_code=404, detail="Daily log not found")
+    require_project_member(log.project_id, current_user, db)
 
     member = db.query(CrewMember).filter(CrewMember.id == member_id).first()
     if not member:

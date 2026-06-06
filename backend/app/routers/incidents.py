@@ -5,7 +5,8 @@ from pydantic import BaseModel, ConfigDict
 from sqlalchemy.orm import Session
 
 from app.database import get_db
-from app.models import DailyLog, SafetyIncident
+from app.models import DailyLog, SafetyIncident, User
+from app.services.auth_service import get_current_user, require_project_member
 
 router = APIRouter(tags=["incidents"])
 
@@ -33,16 +34,29 @@ class IncidentOut(BaseModel):
 # ── Endpoints ─────────────────────────────────────────────────────────────────
 
 @router.get("/daily-logs/{log_id}/incidents", response_model=list[IncidentOut])
-def list_incidents(log_id: int, db: Session = Depends(get_db)):
-    if not db.query(DailyLog).filter(DailyLog.id == log_id).first():
+def list_incidents(
+    log_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    log = db.query(DailyLog).filter(DailyLog.id == log_id).first()
+    if not log:
         raise HTTPException(status_code=404, detail="Daily log not found")
+    require_project_member(log.project_id, current_user, db)
     return db.query(SafetyIncident).filter(SafetyIncident.daily_log_id == log_id).all()
 
 
 @router.post("/daily-logs/{log_id}/incidents", response_model=IncidentOut, status_code=201)
-def create_incident(log_id: int, body: IncidentCreate, db: Session = Depends(get_db)):
-    if not db.query(DailyLog).filter(DailyLog.id == log_id).first():
+def create_incident(
+    log_id: int,
+    body: IncidentCreate,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    log = db.query(DailyLog).filter(DailyLog.id == log_id).first()
+    if not log:
         raise HTTPException(status_code=404, detail="Daily log not found")
+    require_project_member(log.project_id, current_user, db)
     incident = SafetyIncident(daily_log_id=log_id, **body.model_dump())
     db.add(incident)
     db.commit()
@@ -51,7 +65,16 @@ def create_incident(log_id: int, body: IncidentCreate, db: Session = Depends(get
 
 
 @router.delete("/daily-logs/{log_id}/incidents/{incident_id}", status_code=204)
-def delete_incident(log_id: int, incident_id: int, db: Session = Depends(get_db)):
+def delete_incident(
+    log_id: int,
+    incident_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    log = db.query(DailyLog).filter(DailyLog.id == log_id).first()
+    if not log:
+        raise HTTPException(status_code=404, detail="Daily log not found")
+    require_project_member(log.project_id, current_user, db)
     incident = (
         db.query(SafetyIncident)
         .filter(SafetyIncident.id == incident_id, SafetyIncident.daily_log_id == log_id)

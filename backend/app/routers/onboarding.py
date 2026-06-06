@@ -14,8 +14,9 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from app.database import get_db
-from app.models import Task
+from app.models import Task, User
 from app.services.ai_extraction import ExtractionResult, extract_tasks_from_xlsx
+from app.services.auth_service import get_current_user, require_project_member
 
 router = APIRouter(tags=["onboarding"])
 
@@ -66,8 +67,10 @@ class ConfirmScheduleOut(BaseModel):
 async def upload_schedule(
     project_id: int,
     file: UploadFile,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
+    require_project_member(project_id, current_user, db)
     """Accept a .xlsx file, extract tasks via AI, and return the extraction result."""
     filename = file.filename or ""
     if not filename.lower().endswith(".xlsx"):
@@ -102,8 +105,10 @@ async def upload_schedule(
 def confirm_schedule(
     project_id: int,
     body: ConfirmScheduleIn,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
+    require_project_member(project_id, current_user, db)
     """Delete all existing tasks for the project and insert the confirmed tasks."""
     # Clean slate: delete all existing tasks for this project
     db.query(Task).filter(Task.project_id == project_id).delete(synchronize_session=False)

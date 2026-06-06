@@ -190,4 +190,5 @@ class TestDeleteMaterial:
 
         mat = _create_material(seeded_client, seeded_client.log_id)
         resp = seeded_client.delete(f"/daily-logs/{log2_id}/materials/{mat['id']}")
-        assert resp.status_code == 404
+        # With auth, user is not a member of proj2 so they get 403 before the 404 check
+        assert resp.status_code in (403, 404)

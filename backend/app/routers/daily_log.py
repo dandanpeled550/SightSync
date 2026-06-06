@@ -6,12 +6,11 @@ from pydantic import BaseModel, ConfigDict
 from sqlalchemy.orm import Session
 
 from app.database import get_db
-from app.models import DailyLog, Project
+from app.models import DailyLog, Project, User
 from app.services.weather import fetch_weather_for_location
+from app.services.auth_service import get_current_user, require_project_member
 
-router = APIRouter(prefix="/daily-logs", tags=["daily-logs"])
-
-HARDCODED_PROJECT_ID = 1
+router = APIRouter(tags=["daily-logs"])
 
 
 class WeatherOut(BaseModel):
@@ -52,23 +51,28 @@ def _serialize(log: DailyLog) -> DailyLogOut:
     )
 
 
-@router.post("/today", response_model=DailyLogOut)
-async def get_or_create_today(db: Session = Depends(get_db)) -> DailyLogOut:
+@router.post("/projects/{project_id}/daily-logs/today", response_model=DailyLogOut)
+async def get_or_create_today(
+    project_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> DailyLogOut:
+    require_project_member(project_id, current_user, db)
     today = datetime.date.today()
 
     existing = (
         db.query(DailyLog)
-        .filter(DailyLog.project_id == HARDCODED_PROJECT_ID, DailyLog.date == today)
+        .filter(DailyLog.project_id == project_id, DailyLog.date == today)
         .first()
     )
     if existing:
         return _serialize(existing)
 
-    project = db.query(Project).filter(Project.id == HARDCODED_PROJECT_ID).first()
+    project = db.query(Project).filter(Project.id == project_id).first()
     if not project:
-        raise HTTPException(status_code=404, detail="Default project not found. Run the seed script first.")
+        raise HTTPException(status_code=404, detail="Project not found.")
 
-    log = DailyLog(project_id=HARDCODED_PROJECT_ID, date=today)
+    log = DailyLog(project_id=project_id, date=today)
 
     try:
         weather = await fetch_weather_for_location(project.latitude, project.longitude)
@@ -83,9 +87,15 @@ async def get_or_create_today(db: Session = Depends(get_db)) -> DailyLogOut:
     return _serialize(log)
 
 
-@router.post("/{log_id}/refetch-weather", response_model=DailyLogOut)
-async def refetch_weather(log_id: int, db: Session = Depends(get_db)) -> DailyLogOut:
-    log = db.query(DailyLog).filter(DailyLog.id == log_id).first()
+@router.post("/projects/{project_id}/daily-logs/{log_id}/refetch-weather", response_model=DailyLogOut)
+async def refetch_weather(
+    project_id: int,
+    log_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> DailyLogOut:
+    require_project_member(project_id, current_user, db)
+    log = db.query(DailyLog).filter(DailyLog.id == log_id, DailyLog.project_id == project_id).first()
     if not log:
         raise HTTPException(status_code=404, detail="Daily log not found")
 
@@ -103,8 +113,14 @@ async def refetch_weather(log_id: int, db: Session = Depends(get_db)) -> DailyLo
     return _serialize(log)
 
 
-@router.get("/{date}", response_model=DailyLogOut)
-def get_log_by_date(date: str, db: Session = Depends(get_db)) -> DailyLogOut:
+@router.get("/projects/{project_id}/daily-logs/{date}", response_model=DailyLogOut)
+def get_log_by_date(
+    project_id: int,
+    date: str,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> DailyLogOut:
+    require_project_member(project_id, current_user, db)
     try:
         parsed = datetime.date.fromisoformat(date)
     except ValueError:
@@ -112,7 +128,7 @@ def get_log_by_date(date: str, db: Session = Depends(get_db)) -> DailyLogOut:
 
     log = (
         db.query(DailyLog)
-        .filter(DailyLog.project_id == HARDCODED_PROJECT_ID, DailyLog.date == parsed)
+        .filter(DailyLog.project_id == project_id, DailyLog.date == parsed)
         .first()
     )
     if not log:

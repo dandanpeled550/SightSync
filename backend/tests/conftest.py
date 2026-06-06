@@ -21,6 +21,8 @@ os.environ.setdefault("CORS_ORIGINS", '["http://localhost:5173","http://localhos
 
 from app.database import Base, get_db  # noqa: E402 — must follow env setup
 from app.main import app  # noqa: E402
+from app.models import User, ProjectMember  # noqa: E402
+from app.services.auth_service import get_current_user  # noqa: E402
 
 
 # ---------------------------------------------------------------------------
@@ -57,6 +59,21 @@ def SessionFactory(db_engine):
 # Seed helpers
 # ---------------------------------------------------------------------------
 
+def _seed_test_user(session, project_id=None):
+    user = User(email="test@example.com", name="Test User", password_hash="x")
+    session.add(user)
+    session.flush()
+    if project_id is not None:
+        session.add(ProjectMember(user_id=user.id, project_id=project_id, role="owner"))
+        session.flush()
+    session.commit()
+    # Access all attributes while still in session so they're loaded into the instance dict.
+    # Then expunge so the object becomes transient and safe to use after session close.
+    _ = user.id, user.email, user.name, user.password_hash
+    session.expunge(user)
+    return user
+
+
 def _seed_project_and_log(session):
     """Insert a minimal Project and a DailyLog for today.
 
@@ -87,6 +104,12 @@ def _seed_project_and_log(session):
 @pytest.fixture()
 def client(SessionFactory):
     """FastAPI TestClient with get_db overridden to use the test session factory."""
+    # Seed a test user so auth override has a real User object
+    seed_session = SessionFactory()
+    try:
+        test_user = _seed_test_user(seed_session)
+    finally:
+        seed_session.close()
 
     def override_get_db():
         db = SessionFactory()
@@ -96,6 +119,7 @@ def client(SessionFactory):
             db.close()
 
     app.dependency_overrides[get_db] = override_get_db
+    app.dependency_overrides[get_current_user] = lambda: test_user
     with TestClient(app) as c:
         yield c
     app.dependency_overrides.clear()
@@ -114,6 +138,7 @@ def seeded_client(SessionFactory):
         project, log = _seed_project_and_log(seed_session)
         project_id = project.id
         log_id = log.id
+        test_user = _seed_test_user(seed_session, project_id=project_id)
     finally:
         seed_session.close()
 
@@ -125,6 +150,7 @@ def seeded_client(SessionFactory):
             db.close()
 
     app.dependency_overrides[get_db] = override_get_db
+    app.dependency_overrides[get_current_user] = lambda: test_user
     with TestClient(app) as c:
         c.project_id = project_id  # type: ignore[attr-defined]
         c.log_id = log_id  # type: ignore[attr-defined]
@@ -192,6 +218,7 @@ def seeded_client_with_tasks(SessionFactory):
         task_ids = [task1.id, task2.id, task3.id]
         dep_ids = [dep1.id, dep2.id]
         seed_session.commit()
+        test_user = _seed_test_user(seed_session, project_id=project_id)
     finally:
         seed_session.close()
 
@@ -203,6 +230,7 @@ def seeded_client_with_tasks(SessionFactory):
             db.close()
 
     app.dependency_overrides[get_db] = override_get_db
+    app.dependency_overrides[get_current_user] = lambda: test_user
     with TestClient(app) as c:
         c.project_id = project_id  # type: ignore[attr-defined]
         c.log_id = log_id  # type: ignore[attr-defined]

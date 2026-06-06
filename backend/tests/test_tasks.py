@@ -299,14 +299,15 @@ def test_create_dependency_nonexistent_depends_on_returns_404(seeded_client_with
 
 
 def test_create_dependency_wrong_project_returns_404(seeded_client_with_tasks):
-    """Tasks that exist but belong to a different project must return 404."""
+    """Tasks that exist but belong to a different project must return 403 or 404."""
     c = seeded_client_with_tasks
     wrong_project_id = 99999
     r = c.post(f"/projects/{wrong_project_id}/task-dependencies", json={
         "task_id": c.task_ids[0],
         "depends_on_task_id": c.task_ids[1],
     })
-    assert r.status_code == 404
+    # With auth, user is not a member of project 99999 so they get 403
+    assert r.status_code in (403, 404)
 
 
 def test_delete_dependency_204(seeded_client_with_tasks):
@@ -507,10 +508,10 @@ def test_list_task_entries_log_not_found_404(seeded_client):
 def test_daily_log_has_submitted_field(seeded_client):
     """DailyLogOut should now include submitted and ai_summary."""
     c = seeded_client
-    # Use the GET /{date} endpoint against the seeded log's date
+    # Use the GET /projects/{project_id}/daily-logs/{date} endpoint
     import datetime as _dt
     today_str = _dt.date.today().isoformat()
-    r = c.get(f"/daily-logs/{today_str}")
+    r = c.get(f"/projects/{c.project_id}/daily-logs/{today_str}")
     assert r.status_code == 200
     data = r.json()
     assert "submitted" in data

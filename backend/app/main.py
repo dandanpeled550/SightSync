@@ -6,7 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import settings
 from app.logging_config import setup_logging
-from app.routers import health, weather, daily_log, crew, incidents, materials, tasks, onboarding
+from app.routers import health, weather, daily_log, crew, incidents, materials, tasks, onboarding, auth, projects
 
 setup_logging()
 logger = logging.getLogger(__name__)
@@ -21,8 +21,8 @@ app = FastAPI(title="SightSync API", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=False,
+    allow_origins=settings.cors_origins,
+    allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -35,3 +35,5 @@ app.include_router(incidents.router)
 app.include_router(materials.router)
 app.include_router(tasks.router)
 app.include_router(onboarding.router)
+app.include_router(auth.router)
+app.include_router(projects.router)
