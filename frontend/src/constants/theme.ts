@@ -24,7 +24,7 @@ export const colors = {
   surface:     '#ffffff',
   surface2:    '#f7f8fa',
   bg:          '#f2f4f7',
-  line:        '#dde2e8',
+  line:        '#b8c4cf',
 }
 
 export const radius = {

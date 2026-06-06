@@ -7,9 +7,18 @@ import PhotoUploader from '../components/PhotoUploader'
 import { colors, radius, animations, desktop } from '../constants/theme'
 import { useWindowSize } from '../hooks/useWindowSize'
 import { fetchTodayLog } from '../api/daily_log'
-import { fetchTodayTasks, markTaskDone, type Task } from '../api/tasks'
+import { fetchTodayTasks, fetchAllTasks, markTaskDone, type Task } from '../api/tasks'
 import { fetchAttendance } from '../api/crew'
+import { fetchWeather, type DailyForecast } from '../api/weather'
 import { useProject } from '../contexts/ProjectContext'
+
+const WMO_LABEL: Record<number, string> = {
+  0: 'Sun', 1: 'Clr', 2: 'PC', 3: 'Cld',
+  51: 'Driz', 61: 'Rain', 71: 'Snow', 95: 'Tstm',
+}
+function weatherLabel(code: number): string {
+  return WMO_LABEL[code] ?? '—'
+}
 
 function getTradeIcon(trade: string | null): string {
   if (!trade) return '?'
@@ -55,6 +64,9 @@ export default function Today() {
   const [crewTotal, setCrewTotal]           = useState<number>(0)
   const [pendingDoneTask, setPendingDoneTask] = useState<Task | null>(null)
   const [donePhotoUrl, setDonePhotoUrl]     = useState<string | null>(null)
+  const [forecast, setForecast]             = useState<DailyForecast[]>([])
+  const [doneCount, setDoneCount]           = useState<number>(0)
+  const [totalCount, setTotalCount]         = useState<number>(0)
 
   useEffect(() => {
     let cancelled = false
@@ -65,19 +77,33 @@ export default function Today() {
         const log = await fetchTodayLog(PROJECT_ID)
         if (cancelled) return
         setLogId(log.id)
-        const [todayTasks, attendance] = await Promise.all([
+        const todayStr = new Date().toISOString().split('T')[0]
+        const [todayTasks, allTasks, attendance] = await Promise.all([
           fetchTodayTasks(PROJECT_ID),
+          fetchAllTasks(PROJECT_ID),
           fetchAttendance(log.id),
         ])
         if (cancelled) return
         setTasks(Array.isArray(todayTasks) ? todayTasks : [])
         setCrewTotal(attendance.length)
         setCrewPresent(attendance.filter(a => a.status === 'present').length)
+        const activeTodayTasks = Array.isArray(allTasks)
+          ? allTasks.filter(t => t.start_date <= todayStr && t.end_date >= todayStr)
+          : []
+        setTotalCount(activeTodayTasks.length)
+        setDoneCount(activeTodayTasks.filter(t => t.status === 'done').length)
       } catch (err: unknown) {
         if (cancelled) return
         setError(err instanceof Error ? err.message : "Failed to load today's tasks")
       } finally {
         if (!cancelled) setLoading(false)
+      }
+      // Weather is non-blocking — failure never stops task/crew render
+      try {
+        const wx = await fetchWeather(currentProject?.location_city ?? 'Tel Aviv')
+        if (!cancelled) setForecast(wx.forecast.slice(0, 4))
+      } catch {
+        // weather unavailable — page still renders
       }
     }
     load()
@@ -151,6 +177,78 @@ export default function Today() {
       </div>
 
       <div style={{ padding: '0 24px 0' }}>
+        {/* Weather + Progress row */}
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '16px' }}>
+          {/* Weather card */}
+          <div style={{
+            background: colors.surface,
+            border: `1.5px solid ${colors.line}`,
+            borderRadius: radius.card,
+            padding: '12px',
+          }}>
+            <div style={{ fontSize: '10px', fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: colors.mutedLight, marginBottom: '8px' }}>
+              Weather
+            </div>
+            {forecast.length > 0 ? (
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px' }}>
+                {forecast.map(day => {
+                  const d = new Date(day.date + 'T00:00:00')
+                  const dow = d.toLocaleDateString('en-US', { weekday: 'short' })
+                  return (
+                    <div key={day.date} style={{
+                      background: colors.surface2,
+                      borderRadius: '10px',
+                      padding: '6px 8px',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '1px',
+                    }}>
+                      <span style={{ fontSize: '10px', fontWeight: 600, color: colors.muted }}>{dow}</span>
+                      <span style={{ fontSize: '10px', fontWeight: 700, color: colors.muted }}>{weatherLabel(day.weather_code)}</span>
+                      <span style={{ fontSize: '12px', fontWeight: 800, color: colors.text, letterSpacing: '-0.02em' }}>{Math.round(day.max_temp)}°</span>
+                    </div>
+                  )
+                })}
+              </div>
+            ) : (
+              <div style={{ fontSize: '12px', color: colors.muted }}>—</div>
+            )}
+          </div>
+
+          {/* Progress card */}
+          <div style={{
+            background: colors.surface,
+            border: `1.5px solid ${colors.line}`,
+            borderRadius: radius.card,
+            padding: '12px',
+            display: 'flex',
+            flexDirection: 'column',
+            justifyContent: 'space-between',
+          }}>
+            <div style={{ fontSize: '10px', fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: colors.mutedLight, marginBottom: '8px' }}>
+              Today's Progress
+            </div>
+            {totalCount > 0 ? (
+              <>
+                <div style={{ fontSize: '13px', fontWeight: 800, color: colors.text, letterSpacing: '-0.02em', marginBottom: '10px' }}>
+                  {doneCount} / {totalCount} · {Math.round((doneCount / totalCount) * 100)}%
+                </div>
+                <div style={{ height: '6px', background: colors.line, borderRadius: '999px', overflow: 'hidden' }}>
+                  <div style={{
+                    height: '100%',
+                    width: `${Math.round((doneCount / totalCount) * 100)}%`,
+                    background: doneCount === totalCount ? colors.green : colors.primary,
+                    borderRadius: '999px',
+                    transition: 'width 0.4s ease',
+                  }} />
+                </div>
+              </>
+            ) : (
+              <div style={{ fontSize: '13px', fontWeight: 800, color: colors.muted }}>No tasks today</div>
+            )}
+          </div>
+        </div>
+
         {/* Section header */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '14px' }}>
           <span style={{ fontSize: '13px', fontWeight: 900, color: colors.text, letterSpacing: '-0.01em', flexShrink: 0 }}>
@@ -225,7 +323,7 @@ export default function Today() {
               gridTemplateColumns: isMobile ? '42px 1fr 44px' : '42px 1fr 44px 44px',
               gap: '9px',
               alignItems: 'center',
-              border: `1px solid ${colors.line}`,
+              border: `1.5px solid ${colors.line}`,
               borderLeft: `4px solid ${colors.primary}`,
               borderRadius: '20px',
               padding: '10px',
@@ -317,7 +415,7 @@ export default function Today() {
               alignItems: 'center',
               justifyContent: 'space-between',
               background: crewPresent > 0 ? colors.greenSoft : colors.surface2,
-              border: `1px solid ${crewPresent > 0 ? colors.greenBorder : colors.line}`,
+              border: `1.5px solid ${crewPresent > 0 ? colors.greenBorder : colors.line}`,
               borderRadius: radius.task,
               padding: '14px 16px',
               marginTop: '8px',
