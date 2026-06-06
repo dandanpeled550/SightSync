@@ -20,6 +20,8 @@ services:
         value: https://sightsync-web.onrender.com
       - key: SECRET_KEY
         generateValue: true
+      - key: CORS_ORIGINS
+        value: '["https://sightsync-web.onrender.com","http://localhost:5173","http://localhost:5174"]'
       - key: PYTHON_VERSION
         value: 3.11.0
       - key: PYTHONUNBUFFERED
