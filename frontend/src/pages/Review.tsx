@@ -146,44 +146,37 @@ export default function Review() {
       {/* Task content */}
       <div style={{ padding: '8px 16px 100px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
 
-        {/* Flat task list */}
-        {result.tasks.map((task: ExtractedTask, idx: number) => (
-          <TaskCard key={idx} task={task} />
-        ))}
-
-        {/* Dependencies section */}
-        {activeDeps.length > 0 && (
-          <div style={{
-            marginTop: '4px',
-            padding: '12px 14px',
-            background: colors.surface2,
-            borderRadius: radius.card,
-            border: `1px solid ${colors.line}`,
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '8px',
-          }}>
-            <div style={{
-              fontSize: '11px',
-              fontWeight: 700,
-              color: colors.muted,
-              textTransform: 'uppercase',
-              letterSpacing: '0.06em',
-              marginBottom: '2px',
-            }}>
-              Dependencies ({activeDeps.length})
+        {/* Flat task list — deps shown inline beneath each task */}
+        {result.tasks.map((task: ExtractedTask, idx: number) => {
+          const taskDeps = activeDeps.filter(d => d.task_index === idx)
+          return (
+            <div key={idx} style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+              <TaskCard task={task} />
+              {taskDeps.length > 0 && (
+                <div style={{
+                  marginLeft: '12px',
+                  padding: '8px 12px',
+                  background: colors.surface2,
+                  borderRadius: radius.card,
+                  border: `1px solid ${colors.line}`,
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '6px',
+                }}>
+                  {taskDeps.map((dep, di) => (
+                    <DepRow
+                      key={di}
+                      dep={dep}
+                      fromTask={taskByIndex(dep.task_index)}
+                      toTask={taskByIndex(dep.depends_on_index)}
+                      onRemove={() => removeDep(dep.task_index, dep.depends_on_index)}
+                    />
+                  ))}
+                </div>
+              )}
             </div>
-            {activeDeps.map((dep, di) => (
-              <DepRow
-                key={di}
-                dep={dep}
-                fromTask={taskByIndex(dep.task_index)}
-                toTask={taskByIndex(dep.depends_on_index)}
-                onRemove={() => removeDep(dep.task_index, dep.depends_on_index)}
-              />
-            ))}
-          </div>
-        )}
+          )
+        })}
 
         {/* Confirm error */}
         {confirmError && (
