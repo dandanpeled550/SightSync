@@ -172,8 +172,9 @@ export default function Today() {
 
   return (
     <ScreenShell
-      title={isMobile ? (currentProject?.name ?? 'Today') : undefined}
+      title={currentProject?.name ?? 'Today'}
       desktopHideLeft
+      desktopHideTopBar
       leftAction={<IconBtn onClick={() => navigate('/onboard')}>☰</IconBtn>}
       rightAction={<IconBtn onClick={() => navigate('/task/new')}>+</IconBtn>}
     >

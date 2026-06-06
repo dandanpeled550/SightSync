@@ -12,6 +12,7 @@ interface ScreenShellProps {
   rightAction?: ReactNode
   hideBottomNav?: boolean
   desktopHideLeft?: boolean
+  desktopHideTopBar?: boolean
   fab?: ReactNode
   children: ReactNode
 }
@@ -23,6 +24,7 @@ export default function ScreenShell({
   rightAction,
   hideBottomNav = false,
   desktopHideLeft = false,
+  desktopHideTopBar = false,
   fab,
   children,
 }: ScreenShellProps) {
@@ -65,7 +67,7 @@ export default function ScreenShell({
       position: 'relative',
     }}>
       {/* Top bar — 52px, icon | title block | right */}
-      <div style={{
+      {!(desktopHideTopBar && isDesktop) && <div style={{
         height: '52px',
         display: 'flex',
         alignItems: 'center',
@@ -112,7 +114,7 @@ export default function ScreenShell({
         <div style={{ flexShrink: 0, minWidth: '40px', display: 'flex', justifyContent: 'flex-end' }}>
           {rightAction ?? mobileLogoutBtn ?? <div />}
         </div>
-      </div>
+      </div>}
 
       {/* Scrollable content */}
       <div style={{
