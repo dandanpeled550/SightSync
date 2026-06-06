@@ -81,3 +81,34 @@ export async function fetchCascadePreview(
   })
   return res.data
 }
+
+export interface ExtractionResult {
+  tasks: ExtractedTask[]
+  confidence: number
+  error: string | null
+  raw_text_length: number
+}
+
+export interface ExtractedTask {
+  name: string
+  level_tag: string
+  trade_tag: string | null
+  start_date: string   // "YYYY-MM-DD"
+  duration_days: number
+}
+
+// Upload a .xlsx file; returns ExtractionResult (always 200, check .error field)
+export async function uploadSchedule(file: File): Promise<ExtractionResult> {
+  const form = new FormData()
+  form.append('file', file)
+  const { data } = await api.post<ExtractionResult>(`/projects/1/upload-schedule`, form, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  })
+  return data
+}
+
+// Confirm extracted tasks — clears existing tasks and inserts these
+export async function confirmSchedule(tasks: ExtractedTask[]): Promise<{ tasks_created: number }> {
+  const { data } = await api.post<{ tasks_created: number }>(`/projects/1/confirm-schedule`, { tasks })
+  return data
+}
