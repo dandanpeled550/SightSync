@@ -36,15 +36,6 @@ function getTradeColorSoft(trade: string | null): string {
   return colors.orangeSoft
 }
 
-function getTradeColorSolid(trade: string | null): string {
-  if (!trade) return colors.orange
-  const l = trade.toLowerCase()
-  if (l.includes('electrical'))                          return colors.orange
-  if (l.includes('plumbing'))                            return colors.blue
-  if (l.includes('safety'))                              return colors.red
-  if (l.includes('concrete') || l.includes('framing'))  return colors.green
-  return colors.orange
-}
 
 function formatDate(iso: string): string {
   const d = new Date(iso + 'T00:00:00')
@@ -139,7 +130,7 @@ export default function Today() {
           {dayNum}
         </div>
         <div style={{ paddingBottom: '6px' }}>
-          <div style={{ fontSize: '13px', fontWeight: 800, color: colors.blue, letterSpacing: '0.04em' }}>
+          <div style={{ fontSize: '13px', fontWeight: 800, color: colors.primary, letterSpacing: '0.04em' }}>
             {dayName}
           </div>
           <div style={{ fontSize: '13px', fontWeight: 600, color: colors.muted, letterSpacing: '0.02em' }}>
@@ -224,7 +215,7 @@ export default function Today() {
               gap: '9px',
               alignItems: 'center',
               border: `1px solid ${colors.line}`,
-              borderLeft: `4px solid ${getTradeColorSolid(task.trade_tag)}`,
+              borderLeft: `4px solid ${colors.primary}`,
               borderRadius: '20px',
               padding: '10px',
               marginBottom: '10px',
@@ -314,7 +305,7 @@ export default function Today() {
           borderRadius: '50%',
           display: 'grid',
           placeItems: 'center',
-          background: gradients.bluePrimary,
+          background: gradients.primary,
           color: '#fff',
           fontSize: '30px',
           boxShadow: '0 12px 28px rgba(37,99,235,.28)',

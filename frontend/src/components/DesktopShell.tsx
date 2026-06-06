@@ -1,5 +1,5 @@
 import { Outlet } from 'react-router-dom'
-import { desktop } from '../constants/theme'
+import { colors, desktop } from '../constants/theme'
 import { useWindowSize } from '../hooks/useWindowSize'
 import SidebarNav from './SidebarNav'
 import AsidePanel from './AsidePanel'
@@ -14,6 +14,7 @@ export default function DesktopShell() {
       display: 'grid',
       gridTemplateColumns: `${desktop.sidebarWidth} 1fr ${desktop.asideWidth}`,
       minHeight: '100vh',
+      background: colors.bg,
     }}>
       <SidebarNav />
       <main style={{

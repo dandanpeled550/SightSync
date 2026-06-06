@@ -1,6 +1,6 @@
 import { useNavigate } from 'react-router-dom'
 import ScreenShell from '../components/ScreenShell'
-import { colors, radius, gradients } from '../constants/theme'
+import { colors, gradients, radius } from '../constants/theme'
 
 export default function Report() {
   const navigate = useNavigate()
@@ -40,7 +40,7 @@ export default function Report() {
             padding: '0 32px',
             border: 'none',
             borderRadius: radius.btn,
-            background: gradients.bluePrimary,
+            background: gradients.primary,
             color: colors.surface,
             fontWeight: 800,
             fontSize: '14px',

@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import ScreenShell, { IconBtn } from '../components/ScreenShell'
-import { colors, radius, shadow } from '../constants/theme'
+import { colors, gradients, radius, shadow } from '../constants/theme'
 import { fetchAllTasks, type Task } from '../api/tasks'
 import { useProject } from '../contexts/ProjectContext'
 
@@ -75,7 +75,7 @@ export default function Plans() {
                 key={tab}
                 onClick={() => setActiveTab(i)}
                 style={{
-                  background: active ? colors.blue : 'transparent',
+                  background: active ? gradients.primary : 'transparent',
                   color: active ? colors.surface : colors.muted,
                   border: 'none',
                   borderRadius: '999px',
@@ -124,7 +124,7 @@ export default function Plans() {
           }}>
             <div style={{
               width: '80px', height: '80px', borderRadius: '50%',
-              background: colors.blueSoft, display: 'grid', placeItems: 'center', fontSize: '36px',
+              background: colors.primarySoft, display: 'grid', placeItems: 'center', fontSize: '36px',
             }}>📅</div>
             <div style={{ fontSize: '22px', fontWeight: 900, letterSpacing: '-0.04em', color: colors.text }}>
               No schedule yet
@@ -135,14 +135,14 @@ export default function Plans() {
               style={{
                 marginTop: '8px',
                 padding: '12px 28px',
-                background: colors.blue,
+                background: gradients.primary,
                 color: colors.surface,
                 border: 'none',
                 borderRadius: radius.btn,
                 fontSize: '14px',
                 fontWeight: 700,
                 cursor: 'pointer',
-                boxShadow: '0 4px 14px rgba(37,99,235,0.25)',
+                boxShadow: '0 4px 14px rgba(255,75,11,0.25)',
               }}
             >
               Upload schedule
@@ -170,7 +170,7 @@ export default function Plans() {
                 alignItems: 'center',
                 padding: '12px',
                 border: `1px solid ${colors.line}`,
-                borderLeft: `4px solid ${pill.solid}`,
+                borderLeft: `4px solid ${colors.primary}`,
                 borderRadius: '20px',
                 marginBottom: '10px',
                 cursor: 'pointer',
@@ -184,19 +184,19 @@ export default function Plans() {
               <div style={{
                 height: '52px',
                 borderRadius: '16px',
-                background: isToday ? colors.blueSoft : colors.surface2,
+                background: isToday ? colors.primarySoft : colors.surface2,
                 display: 'flex',
                 flexDirection: 'column',
                 alignItems: 'center',
                 justifyContent: 'center',
                 gap: '1px',
               }}>
-                <span style={{ fontSize: '9px', color: isToday ? colors.blue : colors.muted, fontWeight: 700, letterSpacing: '0.04em' }}>
+                <span style={{ fontSize: '9px', color: isToday ? colors.primary : colors.muted, fontWeight: 700, letterSpacing: '0.04em' }}>
                   {dow}
                 </span>
                 <span style={{
                   fontSize: '20px', fontWeight: 900, letterSpacing: '-0.04em',
-                  color: isToday ? colors.blue : colors.text, lineHeight: 1,
+                  color: isToday ? colors.primary : colors.text, lineHeight: 1,
                 }}>
                   {day}
                 </span>

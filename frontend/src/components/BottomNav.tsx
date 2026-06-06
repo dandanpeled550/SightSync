@@ -52,7 +52,7 @@ export default function BottomNav() {
               alignItems: 'center',
               gap: '3px',
               padding: '4px 0',
-              color: active ? colors.blue : colors.muted,
+              color: active ? colors.primary : colors.muted,
               transition: 'color 0.15s',
             }}
           >

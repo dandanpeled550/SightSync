@@ -146,7 +146,7 @@ export default function AsidePanel() {
           <div style={{
             height: '100%',
             width: `${pct}%`,
-            background: colors.blue,
+            background: colors.primary,
             borderRadius: '999px',
             transition: 'width 0.4s ease',
           }} />
@@ -244,7 +244,7 @@ export default function AsidePanel() {
             onClick={() => navigate('/')}
             style={{
               padding: '10px 14px',
-              background: gradients.bluePrimary,
+              background: gradients.primary,
               border: 'none',
               borderRadius: radius.btn,
               color: colors.surface,

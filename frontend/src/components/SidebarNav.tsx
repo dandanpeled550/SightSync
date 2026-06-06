@@ -1,5 +1,5 @@
 import { useNavigate, useLocation } from 'react-router-dom'
-import { colors, shadow } from '../constants/theme'
+import { colors, gradients } from '../constants/theme'
 
 const navItems = [
   { label: 'Home',    icon: '🏠', path: '/' },
@@ -7,7 +7,6 @@ const navItems = [
   { label: 'Alerts',  icon: '🔔', path: '/alerts' },
   { label: 'Reports', icon: '▣',  path: '/report' },
   { label: 'Site',    icon: '☷',  path: '/site' },
-  { label: 'Upload',  icon: '📤', path: '/onboard' },
 ]
 
 export default function SidebarNav() {
@@ -29,106 +28,93 @@ export default function SidebarNav() {
       display: 'flex',
       flexDirection: 'column',
       height: '100vh',
-      background: colors.surface2,
+      background: colors.surface,
       borderRight: `1px solid ${colors.line}`,
-      padding: '24px 16px',
-      gap: '4px',
+      padding: '24px 18px',
       overflowY: 'auto',
     }}>
       {/* Brand */}
       <div style={{
-        padding: '0 8px 24px',
-        fontSize: '22px',
-        fontWeight: 900,
-        letterSpacing: '-0.05em',
-        color: colors.text,
+        display: 'flex',
+        alignItems: 'center',
+        gap: '12px',
+        marginBottom: '28px',
+        padding: '0 8px',
       }}>
-        simple<span style={{ color: colors.blue }}>.</span>
-      </div>
-
-      {/* Nav label */}
-      <div style={{
-        padding: '0 8px 8px',
-        fontSize: '10px',
-        fontWeight: 700,
-        letterSpacing: '0.06em',
-        textTransform: 'uppercase',
-        color: colors.mutedLight,
-      }}>
-        Navigation
+        <div style={{
+          width: '42px',
+          height: '42px',
+          borderRadius: '12px',
+          background: gradients.primary,
+          color: colors.surface,
+          display: 'grid',
+          placeItems: 'center',
+          fontSize: '22px',
+          fontWeight: 900,
+          flexShrink: 0,
+          boxShadow: '0 10px 22px rgba(255,75,11,.25)',
+        }}>
+          S
+        </div>
+        <div>
+          <div style={{ fontSize: '20px', fontWeight: 900, letterSpacing: '-0.03em', color: colors.text, lineHeight: 1.1 }}>
+            simple<span style={{ color: colors.primary }}>.</span>
+          </div>
+          <div style={{ fontSize: '13px', color: colors.muted, marginTop: '2px' }}>Construction diary</div>
+        </div>
       </div>
 
       {/* Nav items */}
-      {navItems.map(item => {
-        const active = isActive(item.path)
-        return (
-          <button
-            key={item.path}
-            onClick={() => navigate(item.path)}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '10px',
-              padding: '10px 12px',
-              borderRadius: '14px',
-              background: active ? colors.blueSoft : 'transparent',
-              color: active ? '#1557c0' : colors.muted,
-              fontWeight: active ? 800 : 500,
-              fontSize: '14px',
-              border: 'none',
-              cursor: 'pointer',
-              textAlign: 'left',
-              transition: 'background 0.12s, color 0.12s',
-              boxShadow: active ? shadow.card : 'none',
-              letterSpacing: '-0.01em',
-            }}
-            onMouseEnter={e => {
-              if (!active) e.currentTarget.style.background = colors.surface
-            }}
-            onMouseLeave={e => {
-              if (!active) e.currentTarget.style.background = 'transparent'
-            }}
-          >
-            <span style={{ fontSize: '18px', lineHeight: 1, flexShrink: 0 }}>{item.icon}</span>
-            <span>{item.label}</span>
-          </button>
-        )
-      })}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+        {navItems.map(item => {
+          const active = isActive(item.path)
+          return (
+            <button
+              key={item.path}
+              onClick={() => navigate(item.path)}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '13px',
+                height: '48px',
+                padding: '0 14px',
+                borderRadius: '12px',
+                background: active ? colors.primarySoft : 'transparent',
+                color: active ? colors.primary : '#252b35',
+                fontWeight: 800,
+                fontSize: '15px',
+                border: 'none',
+                cursor: 'pointer',
+                textAlign: 'left',
+                transition: 'background 0.12s, color 0.12s',
+              }}
+              onMouseEnter={e => {
+                if (!active) e.currentTarget.style.background = colors.surface2
+              }}
+              onMouseLeave={e => {
+                if (!active) e.currentTarget.style.background = 'transparent'
+              }}
+            >
+              <span style={{ fontSize: '20px', lineHeight: 1, flexShrink: 0 }}>{item.icon}</span>
+              <span>{item.label}</span>
+            </button>
+          )
+        })}
+      </div>
 
       {/* Spacer */}
       <div style={{ flex: 1 }} />
 
-      {/* User row */}
+      {/* Project footer */}
       <div style={{
-        display: 'flex',
-        alignItems: 'center',
-        gap: '10px',
-        padding: '10px 8px',
-        borderRadius: '14px',
-        background: colors.surface,
         border: `1px solid ${colors.line}`,
+        borderRadius: '16px',
+        padding: '16px',
+        background: colors.surface2,
       }}>
-        <div style={{
-          width: '34px',
-          height: '34px',
-          borderRadius: '10px',
-          background: colors.blue,
-          color: colors.surface,
-          display: 'grid',
-          placeItems: 'center',
-          fontSize: '13px',
-          fontWeight: 800,
-          flexShrink: 0,
-        }}>
-          DP
-        </div>
-        <div style={{ minWidth: 0 }}>
-          <div style={{ fontSize: '13px', fontWeight: 700, color: colors.text, letterSpacing: '-0.01em' }}>
-            Dan P.
-          </div>
-          <div style={{ fontSize: '11px', color: colors.muted }}>
-            Foreman
-          </div>
+        <div style={{ fontWeight: 700, fontSize: '14px', color: colors.text }}>Tower B</div>
+        <div style={{ fontSize: '13px', color: colors.muted, marginTop: '4px', lineHeight: 1.4 }}>
+          The Village at Downtown
         </div>
       </div>
     </div>

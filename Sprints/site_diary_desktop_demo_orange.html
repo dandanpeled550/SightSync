@@ -1,0 +1,679 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Site Diary — Desktop Demo</title>
+<style>
+:root{
+  --orange:#ff4b0b;
+  --orange2:#ff6a00;
+  --black:#111820;
+  --muted:#667085;
+  --line:#dde2e8;
+  --soft:#f7f8fa;
+  --bg:#f2f4f7;
+  --white:#fff;
+  --shadow:0 10px 30px rgba(17,24,32,.08);
+  --radius:18px;
+}
+*{box-sizing:border-box}
+body{
+  margin:0;
+  font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;
+  background:var(--bg);
+  color:var(--black);
+}
+.app{
+  min-height:100vh;
+  display:grid;
+  grid-template-columns:280px 1fr;
+}
+.sidebar{
+  background:#fff;
+  border-right:1px solid var(--line);
+  padding:24px 18px;
+  position:sticky;
+  top:0;
+  height:100vh;
+}
+.brand{
+  display:flex;
+  align-items:center;
+  gap:12px;
+  margin-bottom:28px;
+  padding:0 8px;
+}
+.logo{
+  width:42px;height:42px;
+  border-radius:12px;
+  background:linear-gradient(135deg,var(--orange),#ff3500);
+  color:#fff;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  font-weight:900;
+  font-size:22px;
+  box-shadow:0 10px 22px rgba(255,75,11,.25);
+}
+.brand h1{font-size:20px;margin:0;font-weight:900;letter-spacing:-.3px}
+.brand span{display:block;font-size:13px;color:var(--muted);margin-top:2px}
+.nav{display:flex;flex-direction:column;gap:8px}
+.nav button{
+  border:0;
+  background:transparent;
+  height:48px;
+  border-radius:12px;
+  display:flex;
+  align-items:center;
+  gap:13px;
+  padding:0 14px;
+  cursor:pointer;
+  color:#252b35;
+  font-weight:800;
+  font-size:15px;
+  text-align:left;
+}
+.nav button svg{
+  width:24px;height:24px;
+  stroke:currentColor;
+  fill:none;
+  stroke-width:2.3;
+  stroke-linecap:round;
+  stroke-linejoin:round;
+}
+.nav button.active{
+  background:#fff2ec;
+  color:var(--orange);
+}
+.nav button:hover{background:#f7f8fa}
+.sidebarFooter{
+  position:absolute;
+  bottom:24px;
+  left:18px;
+  right:18px;
+  border:1px solid var(--line);
+  border-radius:16px;
+  padding:16px;
+  background:#fbfcfd;
+}
+.sidebarFooter b{font-size:14px}
+.sidebarFooter p{font-size:13px;color:var(--muted);line-height:1.4;margin:6px 0 0}
+
+.main{
+  min-width:0;
+}
+.topbar{
+  height:76px;
+  background:#fff;
+  border-bottom:1px solid var(--line);
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  padding:0 34px;
+}
+.projectTitle{
+  display:flex;
+  align-items:center;
+  gap:14px;
+}
+.projectTitle h2{margin:0;font-size:24px;font-weight:900;letter-spacing:-.6px}
+.projectTitle span{display:block;font-size:14px;color:var(--muted);margin-top:3px}
+.weather{
+  display:flex;
+  align-items:center;
+  gap:18px;
+}
+.weatherPill{
+  border:1px solid var(--line);
+  border-radius:999px;
+  padding:10px 14px;
+  background:#fff;
+  display:flex;
+  align-items:center;
+  gap:10px;
+  font-weight:800;
+}
+.primaryPlus{
+  width:46px;height:46px;
+  border:0;border-radius:50%;
+  background:linear-gradient(135deg,var(--orange),#ff3500);
+  color:#fff;
+  font-size:30px;
+  line-height:0;
+  cursor:pointer;
+  box-shadow:0 12px 24px rgba(255,75,11,.25);
+}
+.page{
+  display:none;
+  padding:32px 36px;
+}
+.page.active{display:block}
+.grid2{
+  display:grid;
+  grid-template-columns:minmax(0,1.2fr) minmax(360px,.8fr);
+  gap:26px;
+}
+.card{
+  background:#fff;
+  border:1px solid var(--line);
+  border-radius:var(--radius);
+  box-shadow:var(--shadow);
+}
+.heroCard{
+  padding:28px;
+}
+.dateRow{
+  display:flex;
+  align-items:center;
+  gap:24px;
+  margin-bottom:26px;
+}
+.bigDate{
+  font-size:112px;
+  font-weight:900;
+  letter-spacing:-7px;
+  line-height:1;
+}
+.vline{width:1px;height:86px;background:var(--line)}
+.dateText b{
+  display:block;
+  color:var(--orange);
+  font-size:30px;
+  margin-bottom:8px;
+}
+.dateText strong{
+  font-size:36px;
+  letter-spacing:-.4px;
+}
+.stats{
+  display:grid;
+  grid-template-columns:repeat(3,1fr);
+  border:1px solid var(--line);
+  border-radius:18px;
+  overflow:hidden;
+}
+.stat{
+  height:128px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  flex-direction:column;
+  gap:8px;
+  border-right:1px solid var(--line);
+}
+.stat:last-child{border-right:0}
+.stat svg{width:34px;height:34px;stroke:var(--orange);fill:none;stroke-width:2.4}
+.stat strong{font-size:34px}
+.stat span{font-size:13px;text-transform:uppercase;color:#4f5661;font-weight:900}
+.sectionHeader{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  margin-bottom:16px;
+}
+.sectionHeader h3{font-size:22px;text-transform:uppercase;margin:0;font-weight:900}
+.sectionHeader small{color:var(--muted);font-weight:700}
+.taskCard{
+  display:grid;
+  grid-template-columns:8px 84px 1fr auto;
+  align-items:center;
+  gap:18px;
+  min-height:112px;
+  overflow:hidden;
+  background:#fff;
+  border:1px solid var(--line);
+  border-radius:18px;
+  box-shadow:0 6px 18px rgba(17,24,32,.05);
+  margin-bottom:14px;
+}
+.accent{height:100%;background:var(--orange)}
+.tradeIcon{
+  width:66px;height:66px;border:1px solid var(--line);border-radius:16px;
+  display:flex;align-items:center;justify-content:center;
+}
+.title{font-size:20px;font-weight:900;margin-bottom:6px}
+.meta{font-size:15px;color:var(--muted);line-height:1.45}
+.actions{display:flex;gap:10px;margin-right:18px}
+.squareBtn{
+  width:50px;height:50px;border:1.6px solid var(--orange);border-radius:12px;background:#fff;
+  font-size:30px;font-weight:800;color:#111;cursor:pointer;
+}
+.tabs{
+  height:52px;border:1px solid var(--line);border-radius:16px;background:#fff;
+  display:grid;grid-template-columns:repeat(3,1fr);overflow:hidden;margin-bottom:20px;
+}
+.tab{
+  border:0;background:#fff;font-weight:900;font-size:15px;cursor:pointer;border-right:1px solid var(--line);
+}
+.tab:last-child{border-right:0}
+.tab.active{background:linear-gradient(135deg,var(--orange),#ff3500);color:#fff;border-radius:14px}
+.planCard{
+  min-height:98px;
+  background:#fff;
+  border:1px solid var(--line);
+  border-radius:18px;
+  display:grid;
+  grid-template-columns:7px 74px 1fr auto;
+  gap:18px;
+  align-items:center;
+  overflow:hidden;
+  margin-bottom:14px;
+}
+.dateBox{
+  width:58px;height:68px;border:1px solid var(--line);border-radius:12px;overflow:hidden;text-align:center;background:#fff;
+}
+.dateBox .dow{
+  height:25px;background:linear-gradient(135deg,var(--orange),#ff3500);
+  color:#fff;font-weight:900;font-size:13px;display:flex;align-items:center;justify-content:center;
+}
+.dateBox .day{font-size:32px;font-weight:900;line-height:41px}
+.badge{
+  border:1.5px solid var(--orange);
+  color:var(--orange);
+  border-radius:7px;
+  padding:8px 10px;
+  margin-right:16px;
+  font-size:12px;
+  font-weight:900;
+  text-transform:uppercase;
+}
+.toolsGrid{
+  display:grid;
+  grid-template-columns:repeat(4,minmax(130px,1fr));
+  gap:18px;
+}
+.tool{
+  background:#fff;
+  border:1px solid var(--line);
+  border-radius:18px;
+  min-height:135px;
+  padding:20px;
+  display:flex;
+  flex-direction:column;
+  gap:14px;
+  justify-content:center;
+  align-items:center;
+  font-weight:900;
+  position:relative;
+  box-shadow:var(--shadow);
+}
+.tool svg{width:44px;height:44px;stroke:#111;fill:none;stroke-width:2.4}
+.tool .num{
+  position:absolute;
+  top:16px;
+  right:18px;
+  width:25px;height:25px;
+  border-radius:50%;
+  background:#e94d36;
+  color:#fff;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  font-size:13px;
+}
+.empty{
+  min-height:560px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  text-align:center;
+  flex-direction:column;
+}
+.emptyIcon{
+  width:140px;height:140px;border-radius:50%;
+  background:#f3f5f7;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  margin-bottom:22px;
+}
+.emptyIcon svg{width:76px;height:76px;stroke:var(--orange);fill:none;stroke-width:2.4}
+.empty h2{font-size:34px;margin:0 0 12px}
+.empty p{font-size:18px;color:var(--muted);line-height:1.5;margin:0 0 26px}
+.cta{
+  height:52px;border:0;border-radius:12px;background:linear-gradient(135deg,var(--orange),#ff3500);
+  color:#fff;font-weight:900;font-size:16px;padding:0 28px;cursor:pointer;
+}
+.outline{background:#fff;color:var(--orange);border:1.5px solid var(--orange)}
+.siteLayout{
+  display:grid;
+  grid-template-columns:330px 1fr;
+  gap:34px;
+  align-items:start;
+}
+.towerDemo{
+  background:#fff;
+  border:1px solid var(--line);
+  border-radius:20px;
+  padding:26px;
+  min-height:500px;
+  display:flex;
+  justify-content:center;
+  box-shadow:var(--shadow);
+}
+.towerDemo svg{width:220px;height:420px}
+.levelPanel{
+  background:#fff;
+  border:1px solid var(--line);
+  border-radius:20px;
+  padding:24px;
+  box-shadow:var(--shadow);
+}
+.levelPanel h3{margin:0 0 18px;font-size:22px}
+.levelItem{
+  display:flex;align-items:center;gap:14px;
+  padding:14px 16px;border-radius:14px;
+  font-size:18px;font-weight:800;cursor:pointer;
+}
+.levelItem.active{background:#edf3ff;color:#2f62d9}
+.levelDot{width:13px;height:13px;border-radius:50%;flex:none}
+.form{
+  max-width:920px;
+}
+.formGrid{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:16px;
+  margin-bottom:24px;
+}
+.choice{
+  height:82px;border:1.5px solid var(--line);border-radius:16px;background:#fff;
+  display:flex;align-items:center;justify-content:center;gap:14px;font-size:20px;font-weight:900;
+}
+.choice.done{border-color:#9fd7b2;color:#129647;background:#f2fbf5}
+.choice.no{border-color:#ffb6b3;color:#e53935;background:#fff5f4}
+.label{font-size:18px;font-weight:900;text-transform:uppercase;margin:22px 0 12px}
+.chips{display:flex;flex-wrap:wrap;gap:12px}
+.chip{border:1px solid var(--line);border-radius:999px;background:#fff;padding:13px 18px;font-weight:800}
+.input,.textarea{
+  width:100%;border:1px solid var(--line);border-radius:14px;background:#fff;padding:16px;
+  font-size:16px;color:#667085;
+}
+.textarea{height:130px;resize:none}
+.detailGrid{
+  display:grid;
+  grid-template-columns:1fr 380px;
+  gap:26px;
+}
+.field{
+  border-top:1px solid var(--line);
+  padding:16px 0;
+}
+.field b{display:block;font-size:13px;margin-bottom:7px}
+.field span{font-size:15px;color:#252b35}
+.progress{height:8px;background:#e8ebef;border-radius:20px;overflow:hidden;margin-top:8px}
+.progress i{display:block;width:60%;height:100%;background:var(--orange)}
+.menuBox{
+  max-width:720px;
+  background:#fff;border:1px solid var(--line);border-radius:18px;overflow:hidden;box-shadow:var(--shadow);
+}
+.menuItem{
+  height:68px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:16px;padding:0 22px;font-weight:900;
+}
+.menuItem:last-child{border-bottom:0}
+.menuItem svg{width:26px;height:26px;stroke:#111;fill:none;stroke-width:2.3}
+.chev{margin-left:auto;color:#667085;font-size:28px}
+@media(max-width:980px){
+  .app{grid-template-columns:1fr}
+  .sidebar{position:static;height:auto}
+  .grid2,.detailGrid,.siteLayout{grid-template-columns:1fr}
+  .toolsGrid{grid-template-columns:repeat(2,1fr)}
+}
+</style>
+</head>
+<body>
+<div class="app">
+  <aside class="sidebar">
+    <div class="brand">
+      <div class="logo">B</div>
+      <div><h1>Buildwell</h1><span>Construction diary</span></div>
+    </div>
+    <nav class="nav">
+      <button class="active" onclick="go('dashboard',this)"><svg viewBox="0 0 24 24"><path d="M3 11l9-8 9 8"/><path d="M5 10v11h14V10"/><path d="M9 21v-7h6v7"/></svg>Dashboard</button>
+      <button onclick="go('tools',this)"><svg viewBox="0 0 24 24"><path d="M4 4h16v16H4z"/><path d="M8 8h8M8 12h8M8 16h5"/></svg>Project tools</button>
+      <button onclick="go('plans',this)"><svg viewBox="0 0 24 24"><path d="M5 4h14v16H5z"/><path d="M8 8h8M8 12h8M8 16h5"/></svg>Plans</button>
+      <button onclick="go('tasks',this)"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M8 12l3 3 5-6"/></svg>Tasks</button>
+      <button onclick="go('alerts',this)"><svg viewBox="0 0 24 24"><path d="M6 9a6 6 0 0 1 12 0c0 7 3 6 3 8H3c0-2 3-1 3-8"/><path d="M10 19a2 2 0 0 0 4 0"/></svg>Alerts</button>
+      <button onclick="go('report',this)"><svg viewBox="0 0 24 24"><path d="M5 20V10h3v10M11 20V4h3v16M17 20v-7h3v7"/></svg>Reports</button>
+      <button onclick="go('site',this)"><svg viewBox="0 0 24 24"><path d="M4 21h16V5H4z"/><path d="M8 21v-4h3v4M8 9h2M14 9h2M8 13h2M14 13h2"/></svg>Site</button>
+      <button onclick="go('more',this)"><svg viewBox="0 0 24 24"><circle cx="5" cy="12" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="19" cy="12" r="1.5"/></svg>More</button>
+    </nav>
+    <div class="sidebarFooter">
+      <b>Tower B</b>
+      <p>Orange, bold, contractor-style desktop demo matching the mobile app direction.</p>
+    </div>
+  </aside>
+
+  <main class="main">
+    <header class="topbar">
+      <div class="projectTitle">
+        <div><h2>Tower B</h2><span>Sat, Jun 6 · The Village at Downtown</span></div>
+      </div>
+      <div class="weather">
+        <div class="weatherPill">☁️☀️ <b>31°</b></div>
+        <button class="primaryPlus" onclick="goByName('newTask')">+</button>
+      </div>
+    </header>
+
+    <section class="page active" id="dashboard">
+      <div class="grid2">
+        <div>
+          <div class="card heroCard">
+            <div class="dateRow">
+              <div class="bigDate">6</div>
+              <div class="vline"></div>
+              <div class="dateText"><b>SAT</b><strong>JUN ’26</strong></div>
+            </div>
+            <div class="stats">
+              <div class="stat"><svg viewBox="0 0 24 24"><rect x="6" y="4" width="12" height="17" rx="2"/><path d="M9 9h6M9 13h6M9 17h4"/></svg><strong>1</strong><span>Tasks Today</span></div>
+              <div class="stat"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M8 12l3 3 6-7"/></svg><strong>0</strong><span>Completed</span></div>
+              <div class="stat"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v6l4 2"/></svg><strong>0</strong><span>Delayed</span></div>
+            </div>
+          </div>
+
+          <div style="height:26px"></div>
+          <div class="sectionHeader"><h3>Today’s progress</h3><small>View all ›</small></div>
+          <div class="taskCard" onclick="goByName('taskDetail')">
+            <div class="accent"></div>
+            <div class="tradeIcon">
+              <svg viewBox="0 0 64 64" width="48" height="48"><path d="M17 16h18v12H24v20h-7z" fill="#111820"/><path d="M35 28c11 0 13 8 13 17v3h-9v-5c0-4-1-6-4-6z" fill="#111820"/><path d="M17 16h18v6H17zM39 43h9v6h-9z" fill="#ff4b0b"/></svg>
+            </div>
+            <div><div class="title">Plumbing Rough-In</div><div class="meta">Ground Floor · plumbing<br/>Jun 6 – Jun 8</div></div>
+            <div class="actions"><button class="squareBtn">✓</button><button class="squareBtn">×</button></div>
+          </div>
+        </div>
+        <div>
+          <div class="sectionHeader"><h3>Upcoming</h3><small>This week</small></div>
+          <div id="dashPlans"></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="page" id="tools">
+      <div class="sectionHeader"><h3>Project tools</h3><small>The Village at Downtown</small></div>
+      <div class="toolsGrid">
+        <div class="tool"><svg viewBox="0 0 24 24"><path d="M6 4h12v16H6z"/><path d="M9 8h6M9 12h6M9 16h4"/></svg>Daily logs</div>
+        <div class="tool"><span class="num">5</span><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M8 12l3 3 6-7"/></svg>Tasks</div>
+        <div class="tool"><svg viewBox="0 0 24 24"><path d="M8 3h8l1 6-2 10H9L7 9z"/><circle cx="12" cy="13" r="3"/></svg>Time cards</div>
+        <div class="tool"><svg viewBox="0 0 24 24"><path d="M4 20h16M6 20V9h4v11M14 20V6h4v14"/></svg>Materials</div>
+        <div class="tool"><svg viewBox="0 0 24 24"><path d="M4 16h10V8H4zM14 12h4l2 4v4h-6z"/></svg>Equipment</div>
+        <div class="tool"><svg viewBox="0 0 24 24"><path d="M6 5h12v16H6z"/><path d="M9 9h6M9 13h6M9 17h4"/></svg>Checklists</div>
+        <div class="tool"><svg viewBox="0 0 24 24"><path d="M4 14h16v6H4zM8 14V9h8v5M10 9V6h4v3"/></svg>Toolbox talks</div>
+        <div class="tool"><svg viewBox="0 0 24 24"><path d="M7 4h10v16H7z"/><path d="M10 8h4M10 12h4"/></svg>Directory</div>
+      </div>
+    </section>
+
+    <section class="page" id="plans">
+      <div class="sectionHeader"><h3>Plans & deliveries</h3><small id="planLabel">This week</small></div>
+      <div class="tabs">
+        <button class="tab active" onclick="setTab(this,'This week')">Weekly</button>
+        <button class="tab" onclick="setTab(this,'This month')">Monthly</button>
+        <button class="tab" onclick="setTab(this,'Full schedule')">Schedule</button>
+      </div>
+      <div id="planList"></div>
+    </section>
+
+    <section class="page" id="tasks">
+      <div class="sectionHeader"><h3>Tasks</h3><small>All open items</small></div>
+      <div class="tabs">
+        <button class="tab active">All</button><button class="tab">Open</button><button class="tab">Completed</button>
+      </div>
+      <div id="taskList"></div>
+    </section>
+
+    <section class="page" id="alerts">
+      <div class="empty card">
+        <div class="emptyIcon"><svg viewBox="0 0 24 24"><path d="M6 9a6 6 0 0 1 12 0c0 7 3 6 3 8H3c0-2 3-1 3-8"/><path d="M10 19a2 2 0 0 0 4 0"/></svg></div>
+        <h2>No alerts</h2>
+        <p>Schedule warnings and delay impacts will appear here.</p>
+      </div>
+    </section>
+
+    <section class="page" id="report">
+      <div class="empty card">
+        <div class="emptyIcon"><svg viewBox="0 0 24 24"><path d="M7 3h8l3 3v15H7z"/><path d="M15 3v4h4"/><path d="M9 17V12M12 17V9M15 17v-7"/></svg></div>
+        <h2>Daily Report</h2>
+        <p>Complete today’s log to generate a summary.</p>
+        <button class="cta" onclick="goByName('tasks')">Log today’s progress</button>
+      </div>
+    </section>
+
+    <section class="page" id="site">
+      <div class="sectionHeader"><h3>Site / Choose level</h3><small>Tower B</small></div>
+      <div class="siteLayout">
+        <div class="towerDemo">
+          <svg viewBox="0 0 140 310" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+              <linearGradient id="glassGradDesktop" x1="0" x2="1">
+                <stop offset="0%" stop-color="#f7f9fc"/>
+                <stop offset="100%" stop-color="#eef2f7"/>
+              </linearGradient>
+            </defs>
+            <polygon points="32,26 90,14 118,26 58,38" fill="url(#glassGradDesktop)" stroke="#445166" stroke-width="2.2"/>
+            <polygon points="32,26 32,258 58,274 58,38" fill="#f5f7fa" stroke="#c6cdd8" stroke-width="1.5"/>
+            <polygon points="58,38 118,26 118,258 58,274" fill="#fbfcfe" stroke="#c6cdd8" stroke-width="1.5"/>
+            <line x1="48" y1="22" x2="48" y2="266" stroke="#c6cdd8" stroke-width="1.6"/>
+            <line x1="74" y1="18" x2="74" y2="270" stroke="#c6cdd8" stroke-width="1.6"/>
+            <line x1="98" y1="22" x2="98" y2="262" stroke="#c6cdd8" stroke-width="1.6"/>
+            <g stroke="#445166" stroke-width="3">
+              <line x1="28" y1="62" x2="108" y2="55"/>
+              <line x1="28" y1="102" x2="108" y2="95"/>
+              <line x1="28" y1="142" x2="108" y2="135"/>
+              <line x1="28" y1="182" x2="108" y2="175"/>
+              <line x1="28" y1="222" x2="108" y2="215"/>
+            </g>
+            <g stroke="#f2c55b" stroke-width="2" opacity=".85">
+              <line x1="59" y1="62" x2="59" y2="95"/><line x1="84" y1="58" x2="84" y2="93"/>
+              <line x1="59" y1="102" x2="59" y2="135"/><line x1="84" y1="98" x2="84" y2="133"/>
+              <line x1="59" y1="142" x2="59" y2="175"/><line x1="84" y1="138" x2="84" y2="173"/>
+              <line x1="59" y1="182" x2="59" y2="215"/><line x1="84" y1="178" x2="84" y2="213"/>
+            </g>
+            <polygon points="44,246 76,246 92,262 56,270" fill="#dadfe7" stroke="#bcc5d1" stroke-width="1.2"/>
+          </svg>
+        </div>
+        <div class="levelPanel">
+          <h3>Select level</h3>
+          <div class="levelItem"><span class="levelDot" style="background:#35a56a"></span>Level 5</div>
+          <div class="levelItem active" onclick="goByName('tasks')"><span class="levelDot" style="background:#3f7dff"></span>Level 4</div>
+          <div class="levelItem"><span class="levelDot" style="background:#f2c84d"></span>Level 3</div>
+          <div class="levelItem"><span class="levelDot" style="background:#eea63a"></span>Level 2</div>
+          <div class="levelItem"><span class="levelDot" style="background:#e35a39"></span>Level 1</div>
+          <div class="levelItem"><span class="levelDot" style="background:#c7cdd8"></span>Roof</div>
+          <div style="height:24px"></div>
+          <button class="cta outline" onclick="goByName('tasks')" style="width:100%">Apply filters</button>
+        </div>
+      </div>
+    </section>
+
+    <section class="page" id="newTask">
+      <div class="sectionHeader"><h3>New Task Entry</h3><small>Log status</small></div>
+      <div class="form card" style="padding:26px">
+        <div class="formGrid"><div class="choice done">✓ Done</div><div class="choice no">× Not done</div></div>
+        <div class="label">Why not completed?</div>
+        <div class="chips"><div class="chip">Weather delay</div><div class="chip">Material shortage</div><div class="chip">Equipment failure</div><div class="chip">Labor shortage</div><div class="chip">Other</div></div>
+        <div class="label">New date</div><div class="input">dd/mm/yyyy</div>
+        <div class="label">Notes</div><textarea class="textarea" placeholder="Add a note..."></textarea>
+        <div style="height:20px"></div><button class="cta" onclick="goByName('dashboard')" style="width:220px">Save</button>
+      </div>
+    </section>
+
+    <section class="page" id="taskDetail">
+      <div class="sectionHeader"><h3>Task details</h3><small>Plumbing Rough-In</small></div>
+      <div class="detailGrid">
+        <div class="card" style="padding:24px">
+          <div class="taskCard" style="box-shadow:none">
+            <div class="accent"></div><div class="dateBox"><div class="dow">SAT</div><div class="day">6</div></div>
+            <div><div class="title">Plumbing Rough-In</div><div class="meta">Ground Floor · Jun 6 – Jun 8</div></div><div class="badge">Plumbing</div>
+          </div>
+          <div class="field"><b>Description</b><span>Rough-in all plumbing lines in accordance with drawings.</span></div>
+          <div class="field"><b>Status</b><span style="color:var(--orange);font-weight:900">In Progress</span></div>
+          <div class="field"><b>Location</b><span>Ground Floor</span></div>
+          <div class="field"><b>Crew</b><span>Plumbing Crew A</span></div>
+          <div class="field"><b>Progress <span style="float:right">60%</span></b><div class="progress"><i></i></div></div>
+        </div>
+        <div class="card" style="padding:24px">
+          <div class="label" style="margin-top:0">Notes</div>
+          <textarea class="textarea" placeholder="Add a note..."></textarea>
+          <button class="cta" style="width:100%;margin-top:18px">Save update</button>
+        </div>
+      </div>
+    </section>
+
+    <section class="page" id="more">
+      <div class="sectionHeader"><h3>More / Menu</h3><small>Project settings</small></div>
+      <div class="menuBox">
+        <div class="menuItem"><svg viewBox="0 0 24 24"><path d="M4 4h16v16H4z"/><path d="M8 8h8M8 12h8M8 16h5"/></svg>Projects <span class="chev">›</span></div>
+        <div class="menuItem"><svg viewBox="0 0 24 24"><path d="M8 11a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM16 11a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM3 20c0-4 2-6 5-6s5 2 5 6M11 20c0-4 2-6 5-6s5 2 5 6"/></svg>Teams <span class="chev">›</span></div>
+        <div class="menuItem"><svg viewBox="0 0 24 24"><path d="M7 3h8l3 3v15H7z"/><path d="M15 3v4h4"/></svg>Submittals <span class="chev">›</span></div>
+        <div class="menuItem"><svg viewBox="0 0 24 24"><path d="M12 19l7-7-7-7M5 12h14"/></svg>RFIs <span class="chev">›</span></div>
+        <div class="menuItem"><svg viewBox="0 0 24 24"><path d="M12 3v18M5 10h14"/></svg>Change orders <span class="chev">›</span></div>
+      </div>
+    </section>
+  </main>
+</div>
+
+<script>
+const items = [
+  ['SAT','6','Plumbing Rough-In','Ground Floor · Jun 6 – Jun 8','PLUMBING'],
+  ['TUE','23','AC Unit Installation','Ground Floor · Jun 23 – Jun 29','HVAC'],
+  ['WED','24','Drywall Closing','Ground Floor · Jun 24 – Jul 4','DRYWALL']
+];
+const moreItems = [...items, ['FRI','27','Painting','Ground Floor · Jul 27 – Aug 2','PAINTING'], ['MON','30','Final Cleaning','Ground Floor · Jul 30 – Aug 1','CLEANING']];
+
+function card(i){
+  return `<div class="planCard" onclick="goByName('taskDetail')">
+    <div class="accent"></div>
+    <div class="dateBox"><div class="dow">${i[0]}</div><div class="day">${i[1]}</div></div>
+    <div><div class="title">${i[2]}</div><div class="meta">${i[3]}</div></div>
+    <div class="badge">${i[4]}</div>
+  </div>`;
+}
+document.getElementById('dashPlans').innerHTML = items.map(card).join('');
+document.getElementById('planList').innerHTML = items.map(card).join('');
+document.getElementById('taskList').innerHTML = moreItems.map(card).join('');
+
+function go(id, btn){
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  document.querySelectorAll('.nav button').forEach(b=>b.classList.remove('active'));
+  if(btn) btn.classList.add('active');
+}
+function goByName(id){
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  document.querySelectorAll('.nav button').forEach(b=>b.classList.remove('active'));
+  const labels = {dashboard:'Dashboard',tools:'Project tools',plans:'Plans',tasks:'Tasks',alerts:'Alerts',report:'Reports',site:'Site',more:'More'};
+  const label = labels[id];
+  if(label){
+    [...document.querySelectorAll('.nav button')].find(b=>b.textContent.trim()===label)?.classList.add('active');
+  }
+}
+function setTab(btn,label){
+  document.querySelectorAll('#plans .tab').forEach(t=>t.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('planLabel').textContent = label;
+}
+</script>
+</body>
+</html>

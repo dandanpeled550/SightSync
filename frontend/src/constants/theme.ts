@@ -1,6 +1,9 @@
 import type { CSSProperties } from 'react'
 
 export const colors = {
+  primary:     '#ff4b0b',
+  primaryDark: '#ff3500',
+  primarySoft: '#fff2ec',
   blue:        '#2563eb',
   blueDark:    '#1d4ed8',
   blueSoft:    '#edf5ff',
@@ -13,12 +16,13 @@ export const colors = {
   redBorder:   '#ffd0d0',
   orange:      '#f59e0b',
   orangeSoft:  '#fff7e6',
-  text:        '#111827',
+  text:        '#111820',
   muted:       '#667085',
   mutedLight:  '#98a2b3',
   surface:     '#ffffff',
-  surface2:    '#f7faff',
-  line:        '#e8edf5',
+  surface2:    '#f7f8fa',
+  bg:          '#f2f4f7',
+  line:        '#dde2e8',
 }
 
 export const radius = {
@@ -59,6 +63,7 @@ export const bottomNavStyle: CSSProperties = {
 }
 
 export const gradients = {
+  primary:     'linear-gradient(135deg,#ff4b0b,#ff3500)',
   bluePrimary: 'linear-gradient(180deg,#3b82f6,#2563eb)',
   phoneShell:  'linear-gradient(180deg,#fff,#fbfdff)',
 }
