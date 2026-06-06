@@ -6,6 +6,8 @@ import { fetchTodayLog, submitLog, type DailyLog } from '../api/daily_log'
 import { fetchAttendance, type AttendanceRecord } from '../api/crew'
 import { fetchTaskEntries, fetchAllTasks, type TaskLogEntry, type Task } from '../api/tasks'
 import { fetchMaterials, type Material } from '../api/materials'
+import { fetchIncidents, type Incident } from '../api/incidents'
+import SafetyBlock from '../components/SafetyBlock'
 import { useProject } from '../contexts/ProjectContext'
 
 function formatTodayLong(): string {
@@ -86,6 +88,7 @@ export default function Report() {
   const [attendance, setAttendance] = useState<AttendanceRecord[]>([])
   const [taskEntries, setTaskEntries] = useState<TaskLogEntry[]>([])
   const [materials, setMaterials] = useState<Material[]>([])
+  const [incidents, setIncidents] = useState<Incident[]>([])
   const [allTasks, setAllTasks] = useState<Task[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -102,17 +105,19 @@ export default function Report() {
         if (cancelled) return
         setLog(todayLog)
 
-        const [att, entries, mats, tasks] = await Promise.all([
+        const [att, entries, mats, tasks, incs] = await Promise.all([
           fetchAttendance(todayLog.id),
           fetchTaskEntries(todayLog.id),
           fetchMaterials(todayLog.id),
           fetchAllTasks(PROJECT_ID),
+          fetchIncidents(todayLog.id),
         ])
         if (cancelled) return
         setAttendance(att)
         setTaskEntries(entries)
         setMaterials(mats)
         setAllTasks(tasks)
+        setIncidents(incs)
       } catch (err: unknown) {
         if (!cancelled) setError(err instanceof Error ? err.message : 'Failed to load report data')
       } finally {
@@ -141,6 +146,7 @@ export default function Report() {
   const tasksDone = taskEntries.filter(e => e.action === 'done').length
   const tasksDelayed = taskEntries.filter(e => e.action === 'not_done').length
   const materialCount = materials.length
+  const incidentCount = incidents.length
 
   const weatherVal = (() => {
     if (!log?.weather) return '—'
@@ -252,11 +258,12 @@ export default function Report() {
             bg={materialCount > 0 ? colors.blueSoft : undefined}
           />
           <StatCard
-            icon="📷"
-            value="0"
-            label="Photos"
-            loading={false}
-            accent={colors.muted}
+            icon="🛡"
+            value={String(incidentCount)}
+            label="Safety"
+            loading={loading}
+            accent={incidentCount > 0 ? colors.red : colors.muted}
+            bg={incidentCount > 0 ? colors.redSoft : undefined}
           />
         </div>
 
@@ -399,6 +406,27 @@ export default function Report() {
                 )}
               </div>
             ))}
+          </div>
+        )}
+
+        {/* Safety incidents section */}
+        {log && (
+          <div style={{ marginBottom: '20px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '10px' }}>
+              <span style={{ fontSize: '13px', fontWeight: 900, color: colors.text, letterSpacing: '-0.01em' }}>
+                Safety incidents
+              </span>
+              <div style={{ flex: 1, height: '1px', background: colors.line }} />
+              {incidentCount > 0 && (
+                <span style={{
+                  fontSize: '11px', fontWeight: 800, color: colors.red,
+                  background: colors.redSoft, borderRadius: radius.pill, padding: '3px 8px',
+                }}>
+                  {incidentCount}
+                </span>
+              )}
+            </div>
+            <SafetyBlock logId={log.id} readOnly />
           </div>
         )}
 

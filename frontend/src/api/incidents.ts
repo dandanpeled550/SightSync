@@ -9,6 +9,10 @@ export interface Incident {
   corrective_action: string | null
 }
 
+export interface IncidentWithDate extends Incident {
+  date: string
+}
+
 export interface IncidentCreate {
   incident_type: string
   description: string
@@ -28,4 +32,9 @@ export async function createIncident(logId: number, data: IncidentCreate): Promi
 
 export async function deleteIncident(logId: number, incidentId: number): Promise<void> {
   await api.delete(`/daily-logs/${logId}/incidents/${incidentId}`)
+}
+
+export async function fetchAllProjectIncidents(projectId: number): Promise<IncidentWithDate[]> {
+  const res = await api.get<IncidentWithDate[]>(`/projects/${projectId}/incidents`)
+  return res.data
 }

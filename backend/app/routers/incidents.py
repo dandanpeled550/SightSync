@@ -31,6 +31,10 @@ class IncidentOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
 
+class IncidentWithDate(IncidentOut):
+    date: str
+
+
 # ── Endpoints ─────────────────────────────────────────────────────────────────
 
 @router.get("/daily-logs/{log_id}/incidents", response_model=list[IncidentOut])
@@ -62,6 +66,34 @@ def create_incident(
     db.commit()
     db.refresh(incident)
     return incident
+
+
+@router.get("/projects/{project_id}/incidents", response_model=list[IncidentWithDate])
+def list_project_incidents(
+    project_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    require_project_member(project_id, current_user, db)
+    rows = (
+        db.query(SafetyIncident, DailyLog.date)
+        .join(DailyLog, SafetyIncident.daily_log_id == DailyLog.id)
+        .filter(DailyLog.project_id == project_id)
+        .order_by(DailyLog.date.desc())
+        .all()
+    )
+    return [
+        IncidentWithDate(
+            id=inc.id,
+            daily_log_id=inc.daily_log_id,
+            incident_type=inc.incident_type,
+            description=inc.description,
+            people_involved=inc.people_involved,
+            corrective_action=inc.corrective_action,
+            date=str(date),
+        )
+        for inc, date in rows
+    ]
 
 
 @router.delete("/daily-logs/{log_id}/incidents/{incident_id}", status_code=204)

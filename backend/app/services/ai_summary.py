@@ -62,7 +62,12 @@ def generate_and_store_summary(log_id: int, db: Session) -> None:
         if incidents:
             lines.append(f"Safety incidents: {len(incidents)}")
             for i in incidents:
-                lines.append(f"  - {i.incident_type}: {i.description}")
+                detail = f"  - {i.incident_type}: {i.description}"
+                if i.people_involved:
+                    detail += f"; people involved: {i.people_involved}"
+                if i.corrective_action:
+                    detail += f"; corrective action: {i.corrective_action}"
+                lines.append(detail)
 
         context = "\n".join(lines)
 
