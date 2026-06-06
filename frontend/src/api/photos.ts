@@ -7,7 +7,8 @@ export async function uploadPhoto(file: File): Promise<string> {
   const res = await api.post<{ url: string }>('/uploads/photo', form, {
     headers: { 'Content-Type': undefined },
   })
-  return res.data.url
+  const base = (import.meta.env.VITE_API_URL ?? 'http://localhost:8000').replace(/\/$/, '')
+  return `${base}${res.data.url}`
 }
 
 export interface SitePhoto {
