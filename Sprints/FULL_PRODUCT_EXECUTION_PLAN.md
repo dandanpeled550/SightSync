@@ -8,13 +8,12 @@
 | 1 | Daily Log MVP (weather, crew, safety, materials, UI) | ✅ Done |
 | 2 | Task Foundation + App Shell | ✅ Done |
 | 3 | Cascade Engine + Daily Workflow UI | ✅ Done |
-| 4 | Excel/AI Extraction + Onboarding UI | 🔄 BE + FE built locally — mid-checkpoint pending |
-| **UI** | **Visual Overhaul + Desktop Option B** | ✅ **Complete — 0 backend changes, 18 FE files** |
-| 4B | AI Dependency Inference (optional) | ⏳ Gated on S4 deploy |
-| 5 | Submission + AI Summary + PDF | ⏳ Not started |
-| 6 | Today View Polish + Alerts/Report UI | ⏳ Not started |
+| 4 | Excel/AI Extraction + Onboarding UI | ✅ Done — deployed, ANTHROPIC_API_KEY set on Render |
+| 5 | User Module + Multi-Project | ✅ Done — JWT auth, User/ProjectMember, all routes protected |
+| 6 | Submission + AI Summary + PDF | ⏳ Not started |
+| 7 | Today View Polish + Alerts/Report UI | ⏳ Not started |
 
-**Next action:** User must dry-test the Sprint 4 xlsx upload locally, then approve to deploy. Sprint UI is complete and merged — all 106 modules build clean.
+**Next action:** Sprint 6 — Submission + AI Summary + PDF export.
 
 ---
 
@@ -646,9 +645,10 @@ The agent does not proceed to the next sprint until the user explicitly approves
 |--------|---------------|-----------------|--------|
 | 2 | Task models + CRUD | Shell + design system + 10 stub routes | ✅ Done |
 | 3 | Cascade engine | Screens: today, task, plans, site | ✅ Done |
-| 4 | Excel + AI task extraction (no deps) | Screens: upload, review (onboarding) | 🔄 Built — dry-test pending |
-| 5 | Submit + AI summary + PDF | Screens: summary, export | ⏳ Not started |
-| 6 | Today view polish | Screens: alerts, report | ⏳ Not started |
+| 4 | Excel + AI task extraction (no deps) | Screens: upload, review (onboarding) | ✅ Done |
+| 5 | User model + JWT auth + multi-project | Login, register, project selector screens | ✅ Done |
+| 6 | Submit + AI summary + PDF | Screens: summary, export | ⏳ Not started |
+| 7 | Today view polish | Screens: alerts, report | ⏳ Not started |
 
 ---
 
@@ -685,205 +685,263 @@ The agent does not proceed to the next sprint until the user explicitly approves
 
 ---
 
-## Sprint 4 — Excel/AI Extraction + Onboarding UI ✅ DONE
+## Sprint 4 — Excel/AI Extraction + Onboarding UI 🔄 BUILT — DRY-TEST PENDING
 
-**Scope:** AI extracts tasks from the uploaded xlsx schedule. Tasks only — no dependency inference in this sprint.
+**Scope note:** AI extracts **tasks only** from the uploaded schedule. Dependency extraction is out of scope — dependencies remain seeded manually or via API. `confirm-schedule` does a **clean slate replace** (deletes all existing tasks before inserting).
 
-### What was built
+### What is already built (on main)
 
 **Backend ✅**
 - `backend/app/services/ai_extraction.py` — xlsx → openpyxl → flat text → Claude JSON → `ExtractionResult` (tasks only: name, level_tag, trade_tag, start_date, duration_days). Returns `confidence: 0.0, error: str(e)` on any failure.
-- `backend/app/routers/onboarding.py` — two endpoints:
+- `backend/app/routers/onboarding.py` — 128L, two endpoints:
   - `POST /projects/{project_id}/upload-schedule` → multipart `.xlsx` → `ExtractionResult`
-  - `POST /projects/{project_id}/confirm-schedule` → `{tasks}` → `{tasks_created: int}` (clean slate replace)
+  - `POST /projects/{project_id}/confirm-schedule` → `{tasks}` → `{tasks_created: int}` (clean slate)
 - `backend/app/config.py` — `anthropic_api_key`, `anthropic_model: "claude-sonnet-4-6"`
 - `backend/tests/test_onboarding.py` — ~12 tests, all mocking Claude client
-- `backend/requirements.txt` — `anthropic`, `openpyxl`, `python-multipart`
+- `backend/requirements.txt` — includes `anthropic`, `openpyxl`, `python-multipart`
 
 **Frontend ✅**
-- `frontend/src/pages/Upload.tsx` — file picker for `.xlsx` (Photos/Scan stubs)
-- `frontend/src/pages/Review.tsx` — flat list of extracted tasks + confirm button
-- `frontend/src/api/tasks.ts` — `uploadSchedule(file)`, `confirmSchedule(tasks)`
+- `frontend/src/pages/Upload.tsx` — 169L, file picker for `.xlsx` (Photos/Scan stubs)
+- `frontend/src/pages/Review.tsx` — 250L, flat list of extracted tasks + confirm button
+- `frontend/src/api/tasks.ts` — includes `uploadSchedule(file)` (uses `fetch`, not axios — FormData boundary), `confirmSchedule(tasks)`
+
+### What remains
+
+**MID-CHECKPOINT — User must dry-test locally before deploy**
+
+> 1. Set `ANTHROPIC_API_KEY` in `backend/.env`
+> 2. Start local backend: `cd backend && .venv/bin/uvicorn app.main:app --reload --port 8000`
+> 3. Open Swagger at http://localhost:8000/docs → `POST /projects/1/upload-schedule`
+> 4. Upload a real `.xlsx` schedule file and verify the extracted tasks look correct
+>
+> Tell the agent **'extraction looks good'** to proceed, or describe issues to fix first.
+
+**After user approves:**
+- Push to GitHub → Render auto-deploys
+- Set `ANTHROPIC_API_KEY` in Render dashboard environment variables
+- Run `/render-verify` to confirm production is healthy
 
 ### Sprint 4 done when
-- Code deployed to Render
+- User dry-tests extraction locally and approves
+- Code pushed and deployed to Render
 - `ANTHROPIC_API_KEY` set in Render environment
 - Full flow verified: upload `.xlsx` → extracted tasks shown → confirm → tasks appear in `/plans`
 
 ---
 
-## Sprint 4B — AI Dependency Inference
+## Sprint 5 — User Module + Multi-Project ✅ DONE
 
-**Goal:** Extend the Sprint 4 extraction pipeline with a second Claude pass that infers construction task dependencies. The foreman reviews extracted tasks grouped by workflow chain, removes any incorrect dependencies, then confirms — creating both tasks and dependencies in one flow.
+**What was built:**
 
-**Gate:** Sprint 4 must be deployed and live on Render before this sprint runs.
+**Backend**
+- `backend/app/models.py` — `User` (id, email, password_hash, name, created_at) + `ProjectMember` (user_id, project_id, role); `members` relationship on `Project`
+- `backend/app/services/auth_service.py` — bcrypt hashing, JWT creation/decode (`python-jose`), `get_current_user` dependency, `require_project_member` / `require_project_owner` guards
+- `backend/app/routers/auth.py` — `POST /auth/register` (201), `POST /auth/login` (OAuth2 form → JWT), `GET /auth/me`
+- `backend/app/routers/projects.py` — full CRUD + `POST/DELETE /projects/{id}/members`
+- `backend/app/routers/daily_log.py` — removed `HARDCODED_PROJECT_ID`; routes moved to `/projects/{id}/daily-logs/today` and `/projects/{id}/daily-logs/{date}`
+- All other routers (tasks, crew, incidents, materials, onboarding) — `get_current_user` + membership check on every endpoint
+- `backend/app/main.py` — CORS updated to `settings.cors_origins` + `allow_credentials=True`
+- `backend/alembic/versions/9496245d758b_add_user_projectmember_models.py` — migration
+- `backend/tests/conftest.py` — all fixtures override `get_current_user` via `dependency_overrides`
+- `backend/tests/test_auth.py` — 12 auth tests (register, login, /me, project access, membership, owner-only)
+- `backend/requirements.txt` — `python-jose[cryptography]`, `passlib[bcrypt]`, `bcrypt==4.0.1`
 
-**Streams:** BE runs first. FE updates after BE deploys.
+**Frontend**
+- `frontend/src/contexts/AuthContext.tsx` — token + user in localStorage, `login()` / `logout()`
+- `frontend/src/contexts/ProjectContext.tsx` — current project in localStorage, `setCurrentProject()`
+- `frontend/src/api/auth.ts` — `registerUser`, `loginUser`, `getMe`
+- `frontend/src/api/projects.ts` — `fetchProjects`, `createProject`, `addMember`, `removeMember`
+- `frontend/src/components/ProtectedRoute.tsx` — redirects to `/login` if unauthenticated
+- `frontend/src/pages/Login.tsx` — email/password form, sets token before `getMe()`
+- `frontend/src/pages/Register.tsx` — auto-logs in after registration
+- `frontend/src/pages/ProjectSelect.tsx` — project list + inline create form + empty-state CTA
+- `frontend/src/api/client.ts` — request interceptor (Bearer), response interceptor (401 → `/login`)
+- `frontend/src/router.tsx` — `/login`, `/register`, `/projects` routes; `DesktopShell` wrapped in `ProtectedRoute`
+- All pages — `const PROJECT_ID = 1` replaced with `useProject()` context
 
-```
-/sprint-execute 4B spawns:
-  Worktree A: sprint-4b-be   (extend ai_extraction + prompt files + update onboarding router + tests)
-  → deploy to Render
-  → then: Worktree B: sprint-4b-fe   (update Review screen — workflow grouping + deps)
-```
+**Post-sprint fixes**
+- `render.yaml` — `CORS_ORIGINS` env var set to allow `sightsync-web.onrender.com` (fixes OPTIONS 400 on auth endpoints)
+- `frontend/src/pages/Plans.tsx` — empty-state "Upload schedule" button linking to `/onboard`
+- `frontend/src/components/SidebarNav.tsx` — sidebar nav updated
 
-### Stream A: Backend Dependency Inference `[worktree: sprint-4b-be]`
-
-**File ownership:**
-- `backend/app/services/ai_extraction.py` — EXTEND (add Pass 2)
-- `backend/app/services/prompts/task_extraction.md` — NEW
-- `backend/app/services/prompts/dependency_inference.md` — NEW
-- `backend/app/routers/onboarding.py` — UPDATE (new response shape, deps in confirm)
-- `backend/tests/test_onboarding.py` — EXTEND (10 new tests)
-
-**Extended pipeline in `ai_extraction.py`:**
-
-```
-xlsx bytes
-    │
-    ▼
-[Pass 1] task_extraction.md prompt  ← already exists; now moved to prompt file
-    Input:  flat xlsx text (≤6000 chars, via openpyxl)
-    Output: List[ExtractedTask] — name, level_tag, trade_tag,
-            start_date, duration_days, excel_row_index
-    │
-    ▼
-[Pass 2] dependency_inference.md prompt  ← NEW, single Claude call
-    Input:  full task list as JSON
-    Step A: Claude identifies parallel workflow chains
-            (same trade_tag = one workflow, ordered by level_tag floor-by-floor)
-    Step B: Claude infers dependencies from real construction knowledge:
-            — intra-workflow: sequential edges within each chain (floor-by-floor)
-            — cross-workflow: real physical handoff points only
-              (e.g. concrete cure before framing, MEP rough-in before drywall)
-            Claude acts as a senior PM — no artificial shape constraints
-    Output: { workflows: [...], dependencies: [...] }
-    │
-    ▼
-ExtractionResult (extended — adds workflows + dependencies)
-```
-
-**New / updated types:**
-```python
-@dataclass
-class ExtractedTask:          # add workflow_id field
-    name: str
-    level_tag: str
-    trade_tag: str | None
-    start_date: str
-    duration_days: int
-    excel_row_index: int
-    workflow_id: str          # NEW — assigned by Pass 2; NOT persisted to DB
-
-@dataclass
-class Workflow:               # NEW
-    id: str                   # "wf_0", "wf_1", ...
-    name: str                 # e.g. "Electrical", "Structural"
-    task_indices: list[int]   # ordered task indices within this workflow
-
-@dataclass
-class InferredDependency:     # NEW
-    task_index: int
-    depends_on_index: int
-    lag_days: int
-    confidence: float
-    reasoning: str
-    type: str                 # "intra_workflow" | "cross_workflow_handoff"
-
-@dataclass
-class ExtractionResult:       # add workflows + dependencies
-    tasks: list[ExtractedTask]
-    workflows: list[Workflow]          # NEW
-    dependencies: list[InferredDependency]  # NEW
-    confidence: float
-    error: str | None
-```
-
-**New public functions in `ai_extraction.py`:**
-```python
-def _load_prompt(name: str) -> str:
-    # Load from backend/app/services/prompts/{name}.md
-
-async def infer_workflows_and_dependencies(
-    tasks: list[ExtractedTask],
-) -> tuple[list[Workflow], list[InferredDependency]]:
-    # Pass 2: dependency_inference.md → Claude → parse JSON
-    # Filters deps where confidence < 0.4
-
-# update run_extraction_pipeline() to call Pass 2 after Pass 1
-# If Pass 2 fails → return tasks with empty workflows/deps + error field
-```
-
-**Prompt files:**
-
-`backend/app/services/prompts/task_extraction.md`:
-- Context: construction PM app for Israeli foremen, project_id=1; tolerant of Hebrew/English/inconsistent columns
-- Input placeholder: `{{XLSX_TEXT}}` (pipe-separated rows, 0-based row index)
-- Output: JSON array — name, level_tag, trade_tag, start_date (ISO), duration_days, excel_row_index
-- Rules: skip headers/empty rows; do NOT hallucinate names; estimate missing fields from construction context
-
-`backend/app/services/prompts/dependency_inference.md`:
-- Role: "You are a senior construction project manager with 20+ years of experience across all trades. You know exactly which tasks must complete before others can begin, which trades work in parallel, and the real-world consequences when a task is delayed."
-- Context: parallel workflow model — same trade_tag across floors = one sequential workflow (Electrical L1→L2→L3 runs in parallel with Plumbing L1→L2→L3). A delay cascades only within its own workflow unless a cross-workflow handoff exists.
-- Input placeholder: `{{TASKS_JSON}}`
-- Step A: group tasks into workflows by trade_tag, ordered by level_tag (Basement→L1→L2→Roof)
-- Step B: infer dependencies from real construction knowledge. Ask: "Could this task realistically begin if that other task is not yet complete?" No artificial shape constraints — cross-workflow deps may span floors, areas, or be global prerequisites.
-- Transitive reduction: if A→B and B→C, do NOT emit A→C
-- Confidence: 1.0=hard physical, 0.8=strong convention, 0.6=common practice, 0.4=uncertain; omit <0.4
-- Output: `{ "workflows": [...], "dependencies": [{task_index, depends_on_index, lag_days, confidence, reasoning, type}] }`
-
-**Updated endpoints:**
-```
-POST /projects/{project_id}/upload-schedule
-  — unchanged URL; response now includes workflows + dependencies
-
-POST /projects/{project_id}/confirm-schedule
-  — now accepts { tasks: [...], dependencies: [...] }
-  — inserts deps via existing create_task_dependency (tasks.py)
-  — returns { tasks_created: int, deps_created: int }
-```
-
-**New tests (`backend/tests/test_onboarding.py`) — 10 additional tests:**
-
-| # | Test |
-|---|------|
-| 1 | upload returns workflows field in response |
-| 2 | upload returns dependencies field in response |
-| 3 | Pass 2 failure → tasks returned, empty workflows/deps, error field set |
-| 4 | confidence filter — deps below 0.4 not returned |
-| 5 | confirm-schedule with deps → deps inserted in DB |
-| 6 | confirm idempotency — re-confirming doesn't duplicate deps |
-| 7 | parallel workflows — no false cross-workflow deps between unrelated trades |
-| 8 | intra-workflow transitive reduction — 3-task chain yields 2 edges not 3 |
-| 9 | intra-workflow ordering — tasks ordered by level_tag within a workflow |
-| 10 | no API key — Pass 2 skipped gracefully, tasks still returned |
-
-**Stream A gate:** upload returns `workflows` + `dependencies` in response. All 10 new tests pass.
+**Test count:** 150 backend tests passing (138 carried + 12 new auth tests). 88% coverage.
 
 ---
 
-### Stream B: Frontend Review Update `[worktree: sprint-4b-fe]` — starts after A deploys
+## Sprint 5 — User Module + Multi-Project (spec)
 
-**Gate:** `POST /projects/1/upload-schedule` returns `workflows` + `dependencies` on Render.
+**Goal:** Add JWT authentication (email + password), a `User` model, a `ProjectMember` join table (many-to-many), and replace all hardcoded `project_id=1` references with dynamic project context. After this sprint every API call is authenticated and project-scoped.
 
-Update `frontend/src/pages/Review.tsx`:
-- Group tasks by `workflow_id` — one collapsible section per workflow chain
-- Show inferred dependencies per task (with `reasoning` and `confidence`)
-- Allow foreman to remove individual dependencies before confirming
-- Pass both `tasks` and `dependencies` to `confirmSchedule()`
+**New pip dependencies:**
+```
+python-jose[cryptography]>=3.3.0
+passlib[bcrypt]>=1.7.4
+```
 
-Update `frontend/src/api/tasks.ts`:
-- Extend `ExtractionResult` type with `workflows` and `dependencies`
-- Update `confirmSchedule(tasks, dependencies)` signature
+**Streams:** BE runs first. FE starts after BE deploys.
 
-### Sprint 4B done when
-- Upload returns workflows + dependencies on Render
-- Review screen shows tasks grouped by workflow with reviewable deps
-- Foreman can confirm → tasks + deps appear in `/plans`
+```
+/sprint-execute 5 spawns:
+  Worktree A: sprint-5-be   (User model, ProjectMember, auth service, auth router, projects router, update daily_log.py, conftest updates, migration, tests)
+  → deploy to Render → user confirms Render is up
+  → then: Worktree B: sprint-5-fe   (login, register, project-select screens, AuthContext, route guards, dynamic project_id)
+```
 
 ---
 
-## Sprint 5 — Submission + AI Summary + PDF + Export UI
+### Stream A: Backend Auth + Multi-Project `[worktree: sprint-5-be]`
+
+**File ownership:** `backend/app/models.py`, `backend/app/config.py`, `backend/app/main.py`, `backend/app/services/auth_service.py` (NEW), `backend/app/routers/auth.py` (NEW), `backend/app/routers/projects.py` (NEW), `backend/app/routers/daily_log.py`, `backend/alembic/`, `backend/tests/conftest.py`, `backend/tests/test_auth.py` (NEW), `backend/requirements.txt`
+
+#### New models (`backend/app/models.py`)
+
+```python
+class User(Base):
+    __tablename__ = "users"
+    id            = Column(Integer, primary_key=True)
+    email         = Column(String(255), unique=True, nullable=False, index=True)
+    password_hash = Column(String(255), nullable=False)
+    name          = Column(String(255), nullable=False)
+    created_at    = Column(DateTime, default=datetime.utcnow)
+    projects      = relationship("ProjectMember", back_populates="user")
+
+class ProjectMember(Base):
+    __tablename__ = "project_members"
+    __table_args__ = (UniqueConstraint("user_id", "project_id", name="uq_user_project"),)
+    id         = Column(Integer, primary_key=True)
+    user_id    = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    project_id = Column(Integer, ForeignKey("projects.id", ondelete="CASCADE"), nullable=False)
+    role       = Column(String(20), nullable=False, default="member")  # "owner" | "member"
+    user       = relationship("User", back_populates="projects")
+    project    = relationship("Project", back_populates="members")
+```
+
+Also add to `Project`: `members = relationship("ProjectMember", back_populates="project", cascade="all, delete-orphan")`
+
+#### New service (`backend/app/services/auth_service.py`)
+
+```python
+def hash_password(plain: str) -> str          # passlib bcrypt
+def verify_password(plain: str, hashed: str) -> bool
+def create_access_token(user_id: int) -> str  # python-jose, HS256, settings.secret_key
+def get_current_user(token: str = Depends(oauth2_scheme), db=Depends(get_db)) -> User
+    # decodes JWT, looks up user, raises 401 if invalid/expired
+```
+
+#### New config fields (`backend/app/config.py`)
+
+```python
+jwt_algorithm: str = "HS256"
+jwt_expiration_minutes: int = 60 * 24 * 7   # 7 days
+```
+
+#### New router: `backend/app/routers/auth.py`
+
+```
+POST /auth/register  → {email, password, name} → {id, email, name}  (201)
+POST /auth/login     → {email, password} → {access_token, token_type: "bearer"}
+GET  /auth/me        → current user info  (requires auth)
+```
+
+#### New router: `backend/app/routers/projects.py`
+
+```
+GET    /projects                          → list projects the current user is a member of
+POST   /projects                          → create project → auto-assign current user as "owner"
+GET    /projects/{project_id}             → get project (membership required)
+PUT    /projects/{project_id}             → update project name/location (owner only)
+DELETE /projects/{project_id}             → delete project + all data (owner only)
+POST   /projects/{project_id}/members     → {email, role} → add user to project (owner only)
+DELETE /projects/{project_id}/members/{user_id} → remove member (owner only)
+```
+
+#### Update `backend/app/routers/daily_log.py`
+
+- Remove `HARDCODED_PROJECT_ID = 1` (line 14)
+- Change `POST /daily-logs/today` → `POST /projects/{project_id}/daily-logs/today`
+- Change `GET /daily-logs/{date}` → `GET /projects/{project_id}/daily-logs/{date}`
+- Add `current_user: User = Depends(get_current_user)` to both endpoints
+- Validate user is a member of `project_id` before proceeding
+- All other routers (`tasks`, `crew`, `incidents`, `materials`, `onboarding`) already use `{project_id}` — just add `Depends(get_current_user)` + membership check to each
+
+#### Update `backend/app/main.py`
+
+- Register `auth.router`, `projects.router`
+- Change CORS `allow_credentials=False` → `True`
+- Restrict `allow_origins` from `["*"]` to `settings.cors_origins`
+
+#### Update `backend/tests/conftest.py`
+
+Use FastAPI `dependency_overrides` to bypass JWT in tests — never generate real tokens in tests:
+```python
+# In each fixture, after creating the TestClient:
+from app.services.auth_service import get_current_user
+client.app.dependency_overrides[get_current_user] = lambda: test_user_object
+```
+Add `test_user` fixture that creates a `User` row in the test DB. Update `seeded_client` to also create a `ProjectMember` linking the test user to project_id=1.
+
+#### New test file: `backend/tests/test_auth.py` (10+ tests)
+
+- Register new user → 201
+- Register duplicate email → 409
+- Login with correct credentials → returns token
+- Login with wrong password → 401
+- `GET /auth/me` with valid token → 200
+- `GET /auth/me` with no token → 401
+- Create project → current user is owner
+- Add member to project → member can access project
+- Non-owner cannot delete project → 403
+- Non-member cannot access project endpoints → 403
+
+**Stream A gate:** migration runs clean, all existing tests still pass (via dependency_override), 10+ new auth tests pass.
+
+---
+
+### Stream B: Frontend Auth + Dynamic Project `[worktree: sprint-5-fe]` — starts after A deploys
+
+**Gate:** `POST /auth/login` returns 200 on Render production.
+
+**New files:**
+- `frontend/src/contexts/AuthContext.tsx` — stores `{token, user}` in localStorage; provides `login()`, `logout()`, `isAuthenticated`
+- `frontend/src/contexts/ProjectContext.tsx` — stores `{currentProject}` (id + name); provides `setCurrentProject()`
+- `frontend/src/api/auth.ts` — `register()`, `login()`, `getMe()`
+- `frontend/src/api/projects.ts` — `fetchProjects()`, `createProject()`, `addMember()`, `removeMember()`
+- `frontend/src/components/ProtectedRoute.tsx` — redirects to `/login` if not authenticated
+- `frontend/src/pages/Login.tsx` — email + password form, calls `login()`, stores token, redirects to `/projects`
+- `frontend/src/pages/Register.tsx` — name + email + password form, calls `register()`, auto-logs in, redirects to `/projects`
+- `frontend/src/pages/ProjectSelect.tsx` — lists user's projects, "Create new project" button, sets current project in context, redirects to `/`
+
+**Update `frontend/src/api/client.ts`:**
+- Add request interceptor: reads token from localStorage, adds `Authorization: Bearer <token>` header
+- Add response interceptor: on 401, clear token + redirect to `/login`
+
+**Update `frontend/src/router.tsx`:**
+- Add routes outside `DesktopShell`: `/login` → Login, `/register` → Register, `/projects` → ProjectSelect
+- Wrap `DesktopShell` in `<ProtectedRoute>` so all existing routes require auth
+
+**Update all page files** (Today, Task, Plans, Site, CrewManagement, Upload, Review):
+- Remove `const PROJECT_ID = 1`
+- Replace with `const { currentProject } = useProject()` + `const PROJECT_ID = currentProject.id`
+
+**Update `frontend/src/api/tasks.ts`:**
+- Remove hardcoded `/projects/1/` in `uploadSchedule` and `confirmSchedule`
+- Accept `projectId` as parameter instead
+
+**Update `frontend/src/components/AsidePanel.tsx`:**
+- Replace hardcoded Tel Aviv string with project location from `currentProject`
+
+### Sprint 5 done when
+- Register → login → project select → app works end-to-end
+- Multi-project: create second project, switch to it, data is isolated
+- Add a member to a project → that user can access the project
+- Non-member gets 403 on all project endpoints
+- All existing tests pass with `dependency_override` auth bypass
+- 10+ new auth tests pass
+- Render deploy successful
+
+---
+
+## Sprint 6 — Submission + AI Summary + PDF + Export UI
 
 **New backend dependency:** `reportlab>=4.2.0`
 
@@ -891,7 +949,7 @@ Update `frontend/src/api/tasks.ts`:
 
 ```
 /sprint-execute 5 spawns:
-  Worktree A: sprint-5-be   (logging, submit + ai_summary + pdf — sequential steps within)
+  Worktree A: sprint-5-be   (submit + ai_summary + pdf — sequential steps within)
   → deploy to Render
   → then: Worktree B: sprint-5-fe   (screens: summary, export)
 ```
@@ -934,7 +992,7 @@ New API calls to add to `frontend/src/api/daily_log.ts`:
 
 ---
 
-## Sprint 6 — Today View Polish + Alerts/Report UI
+## Sprint 7 — Today View Polish + Alerts/Report UI
 
 **Streams:** BE validation runs first (lightweight). FE starts after.
 
