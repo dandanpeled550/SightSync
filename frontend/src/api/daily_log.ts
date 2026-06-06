@@ -37,3 +37,10 @@ export async function submitLog(projectId: number, logId: number): Promise<Daily
   const res = await api.post<DailyLog>(`/projects/${projectId}/daily-logs/${logId}/submit`)
   return res.data
 }
+
+export async function downloadPdf(projectId: number, logId: number): Promise<Blob> {
+  const res = await api.get(`/projects/${projectId}/daily-logs/${logId}/export-pdf`, {
+    responseType: 'blob',
+  })
+  return res.data
+}
