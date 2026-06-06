@@ -54,3 +54,19 @@ def login(form: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get
 @router.get("/me", response_model=UserOut)
 def me(current_user: User = Depends(get_current_user)):
     return current_user
+
+
+class ChangePasswordIn(BaseModel):
+    new_password: str
+
+
+@router.put("/me/password", response_model=UserOut)
+def change_password(
+    payload: ChangePasswordIn,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    current_user.password_hash = hash_password(payload.new_password)
+    db.commit()
+    db.refresh(current_user)
+    return current_user
