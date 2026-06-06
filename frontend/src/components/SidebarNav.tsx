@@ -7,6 +7,7 @@ const navItems = [
   { label: 'Plans',   icon: '📅', path: '/plans' },
   { label: 'Upload',  icon: '⬆️', path: '/onboard' },
   { label: 'Alerts',  icon: '🔔', path: '/alerts' },
+  { label: 'Safety',  icon: '🛡',  path: '/safety' },
   { label: 'Reports', icon: '▣',  path: '/report' },
   { label: 'Site',    icon: '☷',  path: '/site' },
   { label: 'Crew',      icon: '👷', path: '/crew' },
