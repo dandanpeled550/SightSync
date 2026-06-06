@@ -1,18 +1,20 @@
 from __future__ import annotations
 
 import io
+import re
+from PIL import Image as PILImage
 from sqlalchemy.orm import Session
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.styles import ParagraphStyle
 from reportlab.lib.units import mm
 from reportlab.lib import colors
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, Image as RLImage
 from reportlab.lib.enums import TA_CENTER
 from reportlab.pdfgen import canvas as rl_canvas
 
 from app.models import (
     DailyLog, Project, CrewAttendance, CrewMember,
-    SafetyIncident, MaterialEntry, TaskLogEntry, Task,
+    SafetyIncident, MaterialEntry, TaskLogEntry, Task, StoredPhoto,
 )
 
 # Design tokens
@@ -118,6 +120,59 @@ def _make_numbered_canvas(project_name: str, log_date: str, location: str, owner
     return _NumberedCanvas
 
 
+def _load_photo(photo_url: str | None, db: Session) -> bytes | None:
+    """Return raw image bytes from StoredPhoto given a /uploads/photo/{id} URL."""
+    if not photo_url:
+        return None
+    match = re.search(r"/uploads/photo/(\d+)", photo_url)
+    if not match:
+        return None
+    stored = db.get(StoredPhoto, int(match.group(1)))
+    return stored.data if stored else None
+
+
+def _make_rl_image(data: bytes, max_w: float, max_h: float) -> RLImage | None:
+    """Scale image to fit within max_w × max_h while preserving aspect ratio."""
+    try:
+        buf = io.BytesIO(data)
+        pil = PILImage.open(buf)
+        orig_w, orig_h = pil.size
+        scale = min(max_w / orig_w, max_h / orig_h, 1.0)
+        return RLImage(io.BytesIO(data), width=orig_w * scale, height=orig_h * scale)
+    except Exception:
+        return None
+
+
+def _photo_grid(items: list[tuple[str, RLImage]], col_w: float, caption_ps: ParagraphStyle) -> Table:
+    """Lay out (caption, image) pairs in a 2-column grid."""
+    rows = []
+    for i in range(0, len(items), 2):
+        row = []
+        for j in range(2):
+            if i + j < len(items):
+                cap, img = items[i + j]
+                cell = Table([[Paragraph(cap, caption_ps)], [img]], colWidths=[col_w])
+                cell.setStyle(TableStyle([
+                    ("ALIGN",         (0, 0), (-1, -1), "CENTER"),
+                    ("TOPPADDING",    (0, 0), (-1, -1), 2),
+                    ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
+                    ("LEFTPADDING",   (0, 0), (-1, -1), 0),
+                    ("RIGHTPADDING",  (0, 0), (-1, -1), 0),
+                ]))
+                row.append(cell)
+            else:
+                row.append(Spacer(1, 1))
+        rows.append(row)
+    t = Table(rows, colWidths=[col_w + 4, col_w + 4])
+    t.setStyle(TableStyle([
+        ("TOPPADDING",    (0, 0), (-1, -1), 4),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
+        ("LEFTPADDING",   (0, 0), (-1, -1), 0),
+        ("RIGHTPADDING",  (0, 0), (-1, -1), 0),
+    ]))
+    return t
+
+
 def generate_daily_log_pdf(log_id: int, db: Session, owner_name: str = "—") -> bytes:
     log = db.query(DailyLog).filter(DailyLog.id == log_id).first()
     if not log:
@@ -144,6 +199,8 @@ def generate_daily_log_pdf(log_id: int, db: Session, owner_name: str = "—") ->
                       alignment=TA_CENTER, leading=28)
     time_ps     = _ps("ti",  fontSize=8, textColor=MUTED_CLR, alignment=TA_CENTER, leading=11)
     body_ps     = _ps("bo",  leading=15)
+    caption_ps  = _ps("cap", fontSize=8, textColor=MUTED_CLR, fontName="Helvetica-Oblique",
+                      alignment=TA_CENTER, leading=11)
 
     BADGE_PS   = {
         "present": _ps("bp",  fontName="Helvetica-Bold", fontSize=8, textColor=GREEN_CLR),
@@ -259,6 +316,20 @@ def generate_daily_log_pdf(log_id: int, db: Session, owner_name: str = "—") ->
         t = Table(rows, colWidths=[55 * mm, None, 42 * mm])
         t.setStyle(dts())
         story.append(t)
+
+        # Photos for completed tasks
+        img_col_w = (CW - 8) / 2
+        task_photos: list[tuple[str, RLImage]] = []
+        for e, task in entries:
+            if e.action == "done" and e.photo_url:
+                data = _load_photo(e.photo_url, db)
+                if data:
+                    img = _make_rl_image(data, img_col_w, 60 * mm)
+                    if img:
+                        task_photos.append((task.name, img))
+        if task_photos:
+            story += [sp(3), Paragraph("Task Photos", muted_ps),
+                      sp(2), _photo_grid(task_photos, img_col_w, caption_ps)]
     else:
         story.append(Paragraph("No task entries recorded today.", muted_ps))
     story.append(sp(6))
@@ -306,6 +377,8 @@ def generate_daily_log_pdf(log_id: int, db: Session, owner_name: str = "—") ->
     incidents = db.query(SafetyIncident).filter(SafetyIncident.daily_log_id == log_id).all()
 
     safety_rows: list[list] = [[Paragraph("INCIDENT LOG SUMMARY", gold_hdr_ps)]]
+    safety_inner_w = CW - 32  # inner table width after box padding
+    safety_img_col_w = (safety_inner_w - 8) / 2
     if incidents:
         for inc in incidents:
             desc = f"<b>Status:</b> {inc.incident_type}"
@@ -314,6 +387,15 @@ def generate_daily_log_pdf(log_id: int, db: Session, owner_name: str = "—") ->
             safety_rows.append([Paragraph(desc, body_ps)])
             if inc.corrective_action:
                 safety_rows.append([Paragraph(f"Corrective Action: {inc.corrective_action}", muted_ps)])
+            # Photo attached to this incident
+            if inc.photo_url:
+                data = _load_photo(inc.photo_url, db)
+                if data:
+                    img = _make_rl_image(data, safety_img_col_w, 60 * mm)
+                    if img:
+                        safety_rows.append([_photo_grid(
+                            [(inc.incident_type or "Photo", img)], safety_img_col_w, caption_ps
+                        )])
     else:
         safety_rows.append([Paragraph(
             "<b>Status:</b> No injuries or safety compliance violations reported today.", body_ps
