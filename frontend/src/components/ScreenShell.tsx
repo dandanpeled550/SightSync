@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react'
-import { colors } from '../constants/theme'
+import { colors, gradients, desktop } from '../constants/theme'
+import { useWindowSize } from '../hooks/useWindowSize'
 import BottomNav from './BottomNav'
 
 interface ScreenShellProps {
@@ -8,6 +9,7 @@ interface ScreenShellProps {
   leftAction?: ReactNode
   rightAction?: ReactNode
   hideBottomNav?: boolean
+  desktopHideLeft?: boolean
   children: ReactNode
 }
 
@@ -17,13 +19,17 @@ export default function ScreenShell({
   leftAction,
   rightAction,
   hideBottomNav = false,
+  desktopHideLeft = false,
   children,
 }: ScreenShellProps) {
+  const width = useWindowSize()
+  const isDesktop = width >= desktop.breakpoint
+
   return (
     <div style={{
       width: '100%',
-      minHeight: '100vh',
-      background: 'linear-gradient(180deg,#fff,#fbfdff)',
+      minHeight: isDesktop ? '100%' : '100vh',
+      background: gradients.phoneShell,
       position: 'relative',
     }}>
       {/* Top bar — 52px, icon | title block | right */}
@@ -34,12 +40,12 @@ export default function ScreenShell({
         justifyContent: 'space-between',
         gap: '10px',
         padding: '0 24px',
-        borderBottom: `1px solid #e8edf5`,
+        borderBottom: `1px solid ${colors.line}`,
         flexShrink: 0,
       }}>
         {/* Left slot */}
         <div style={{ width: '40px', flexShrink: 0 }}>
-          {leftAction ?? <div />}
+          {(desktopHideLeft && isDesktop) ? <div /> : (leftAction ?? <div />)}
         </div>
 
         {/* Title block */}
@@ -104,7 +110,7 @@ export function IconBtn({
         width: '40px',
         height: '40px',
         border: 0,
-        background: '#fff',
+        background: colors.surface,
         borderRadius: '14px',
         display: 'grid',
         placeItems: 'center',

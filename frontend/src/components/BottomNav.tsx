@@ -1,5 +1,6 @@
 import { useNavigate, useLocation } from 'react-router-dom'
-import { colors } from '../constants/theme'
+import { colors, desktop } from '../constants/theme'
+import { useWindowSize } from '../hooks/useWindowSize'
 
 const HIDDEN_ON = ['/task', '/summary', '/export', '/onboard']
 
@@ -13,13 +14,15 @@ const tabs = [
 export default function BottomNav() {
   const navigate = useNavigate()
   const { pathname } = useLocation()
+  const width = useWindowSize()
 
   const hide = HIDDEN_ON.some(p => pathname === p || pathname.startsWith(p + '/'))
-  if (hide) return null
+  const shouldHide = hide || width >= desktop.breakpoint
+  if (shouldHide) return null
 
   return (
     <div style={{
-      position: 'fixed',
+      position: 'absolute',
       bottom: 0,
       left: 0,
       right: 0,
@@ -31,7 +34,6 @@ export default function BottomNav() {
       <div style={{
         display: 'grid',
         gridTemplateColumns: 'repeat(4, 1fr)',
-        maxWidth: '720px',
         padding: '10px 14px 12px',
       }}>
       {tabs.map(tab => {

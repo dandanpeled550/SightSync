@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import ScreenShell, { IconBtn } from '../components/ScreenShell'
-import { colors, radius } from '../constants/theme'
+import { colors, radius, gradients } from '../constants/theme'
 import { fetchTodayLog } from '../api/daily_log'
 import {
   fetchAllTasks,
@@ -46,17 +46,14 @@ export default function Task() {
   const [saving, setSaving] = useState(false)
   const [saveError, setSaveError] = useState<string | null>(null)
 
-  // Get today's date in YYYY-MM-DD for date picker min
   const todayStr = new Date().toISOString().split('T')[0]
 
-  // Fetch logId
   useEffect(() => {
     fetchTodayLog()
       .then(log => setLogId(log.id))
       .catch(() => {/* non-blocking */})
   }, [])
 
-  // Fetch task if not new
   useEffect(() => {
     if (isNew) return
     const numId = Number(taskId)
@@ -81,7 +78,6 @@ export default function Task() {
     })()
   }, [taskId, isNew])
 
-  // Fetch cascade preview when newDate changes
   useEffect(() => {
     if (isNew || !task || !newDate) {
       setCascade([])
@@ -143,7 +139,7 @@ export default function Task() {
         {taskError && !loadingTask && (
           <div style={{
             background: colors.redSoft,
-            border: `1px solid #ffd0d0`,
+            border: `1px solid ${colors.redBorder}`,
             borderRadius: radius.card,
             padding: '16px',
             color: colors.red,
@@ -165,7 +161,7 @@ export default function Task() {
                   border: 'none',
                   borderRadius: '17px',
                   background: colors.greenSoft,
-                  color: '#087d35',
+                  color: colors.green,
                   fontWeight: 800,
                   fontSize: '14px',
                   cursor: 'pointer',
@@ -180,7 +176,7 @@ export default function Task() {
                   border: 'none',
                   borderRadius: '17px',
                   background: colors.redSoft,
-                  color: '#dc2626',
+                  color: colors.red,
                   fontWeight: 800,
                   fontSize: '14px',
                   cursor: 'pointer',
@@ -192,47 +188,35 @@ export default function Task() {
             </div>
 
             {/* Why not completed */}
-            <p style={{ margin: '0 0 8px', fontWeight: 900, fontSize: '13px', letterSpacing: '-0.01em', color: colors.text }}>
+            <p style={{ margin: '0 0 10px', fontWeight: 900, fontSize: '13px', letterSpacing: '-0.01em', color: colors.text }}>
               Why not completed?
             </p>
 
-            <div style={{
-              border: `1px solid ${colors.line}`,
-              borderRadius: radius.card,
-              padding: '4px 12px',
-              marginBottom: '18px',
-              background: colors.surface,
-            }}>
-              {REASON_CODES.map((reason, idx) => (
-                <div
-                  key={reason}
-                  onClick={() => setSelectedReason(reason)}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    borderBottom: idx < REASON_CODES.length - 1 ? `1px solid ${colors.line}` : 'none',
-                    padding: '13px 4px',
-                    fontSize: '13px',
-                    cursor: 'pointer',
-                    color: colors.text,
-                  }}
-                >
-                  <span style={{
-                    display: 'inline-block',
-                    width: '17px',
-                    height: '17px',
-                    borderRadius: '50%',
-                    border: selectedReason === reason
-                      ? `5px solid ${colors.blue}`
-                      : `1.5px solid ${colors.mutedLight}`,
-                    verticalAlign: '-3px',
-                    marginRight: '10px',
-                    flexShrink: 0,
-                    transition: 'border 0.1s',
-                  }} />
-                  {reason}
-                </div>
-              ))}
+            {/* Reason pill buttons */}
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginBottom: '18px' }}>
+              {REASON_CODES.map(reason => {
+                const active = selectedReason === reason
+                return (
+                  <button
+                    key={reason}
+                    onClick={() => setSelectedReason(reason)}
+                    style={{
+                      padding: '9px 16px',
+                      borderRadius: '999px',
+                      border: `1.5px solid ${active ? colors.blue : colors.line}`,
+                      background: active ? colors.blueSoft : 'transparent',
+                      color: active ? '#1557c0' : colors.muted,
+                      fontWeight: active ? 800 : 500,
+                      fontSize: '13px',
+                      cursor: 'pointer',
+                      transition: 'all 0.12s',
+                      letterSpacing: '-0.01em',
+                    }}
+                  >
+                    {reason}
+                  </button>
+                )
+              })}
             </div>
 
             {/* New Date picker */}
@@ -338,7 +322,7 @@ export default function Task() {
             {saveError && (
               <div style={{
                 background: colors.redSoft,
-                border: `1px solid #ffd0d0`,
+                border: `1px solid ${colors.redBorder}`,
                 borderRadius: radius.card,
                 padding: '12px',
                 color: colors.red,
@@ -358,9 +342,7 @@ export default function Task() {
                 height: '52px',
                 border: 'none',
                 borderRadius: radius.btn,
-                background: canSave
-                  ? 'linear-gradient(180deg,#3b82f6,#2563eb)'
-                  : colors.line,
+                background: canSave ? gradients.bluePrimary : colors.line,
                 color: canSave ? colors.surface : colors.muted,
                 fontWeight: 800,
                 fontSize: '14px',

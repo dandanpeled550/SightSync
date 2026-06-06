@@ -1,0 +1,1135 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>simple. — Design Preview</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;
+  background: radial-gradient(circle at top, #f8fbff, #fff 42%);
+  color: #111827;
+  -webkit-font-smoothing: antialiased;
+  padding: 48px 24px 80px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 52px;
+}
+button { font-family: inherit; cursor: pointer; }
+::-webkit-scrollbar { display: none; }
+* { scrollbar-width: none; }
+
+/* ── Demo tokens (exact match) ── */
+:root {
+  --bg:         #ffffff;
+  --surface:    #ffffff;
+  --surface2:   #f7faff;
+  --text:       #111827;
+  --muted:      #667085;
+  --line:       #e8edf5;
+  --blue:       #2563eb;
+  --blue2:      #1d4ed8;
+  --blueSoft:   #edf5ff;
+  --green:      #139a4b;
+  --greenSoft:  #eaf8ef;
+  --red:        #ef4444;
+  --redSoft:    #fff1f1;
+  --orange:     #f59e0b;
+  --orangeSoft: #fff7e6;
+  --shadow:     0 24px 70px rgba(15,23,42,.10);
+  --r:          28px;
+}
+
+/* ── Animations ── */
+@keyframes shimmer {
+  0%   { background-position: -600px 0; }
+  100% { background-position:  600px 0; }
+}
+.skeleton {
+  background: linear-gradient(90deg, #eef2f7 25%, #f7faff 50%, #eef2f7 75%);
+  background-size: 1200px 100%;
+  animation: shimmer 1.4s ease-in-out infinite;
+  border-radius: 8px;
+}
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0);   }
+}
+.fade-up { animation: fadeUp 0.22s ease forwards; }
+
+/* ── Preview layout ── */
+.page-title {
+  font-size: 13px; font-weight: 700;
+  letter-spacing: .08em; text-transform: uppercase;
+  color: #98a2b3; text-align: center;
+}
+.section-title {
+  font-size: 22px; font-weight: 900;
+  letter-spacing: -.04em; color: #111827;
+  text-align: center; margin-bottom: 4px;
+}
+.section-sub {
+  font-size: 14px; color: var(--muted);
+  text-align: center; margin-bottom: 28px;
+}
+.phone-row { display: flex; gap: 24px; flex-wrap: wrap; justify-content: center; }
+.phone-label {
+  font-size: 11px; font-weight: 700;
+  letter-spacing: .06em; text-transform: uppercase;
+  color: #98a2b3; text-align: center; margin-top: 10px;
+}
+.divider { width: 100%; height: 1px; background: var(--line); max-width: 900px; }
+
+/* ── Phone shell ── */
+.phone {
+  width: 390px;
+  min-height: 844px;
+  background: linear-gradient(180deg,#fff,#fbfdff);
+  border: 1px solid var(--line);
+  border-radius: 38px;
+  box-shadow: var(--shadow);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  position: relative;
+}
+
+/* ── Top bar ── */
+.topbar {
+  height: 52px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 18px;
+  background: #fff;
+  border-bottom: 1px solid var(--line);
+  flex-shrink: 0;
+}
+.topbar-title {
+  font-size: 19px; font-weight: 900;
+  letter-spacing: -.04em; color: #111827;
+}
+.topbar-sub {
+  font-size: 12px; color: var(--muted);
+  margin-top: 3px;
+}
+.icon-btn {
+  width: 40px; height: 40px;
+  border: 0; background: #fff;
+  border-radius: 14px;
+  display: grid; place-items: center;
+  font-size: 20px; cursor: pointer;
+}
+.icon-btn:hover { background: #f5f8ff; }
+
+/* ── Screen content ── */
+.screen-content {
+  flex: 1;
+  overflow-y: auto;
+  padding-bottom: 72px;
+}
+
+/* ── Bottom nav ── */
+.bottom-nav {
+  position: absolute;
+  bottom: 0; left: 0; right: 0;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  padding: 10px 14px 12px;
+  border-top: 1px solid var(--line);
+  background: rgba(255,255,255,.95);
+  backdrop-filter: blur(8px);
+  z-index: 10;
+}
+.nav-tab {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  padding: 4px 0;
+  border: none;
+  background: none;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.nav-tab.active { color: var(--blue); }
+
+/* ── Date hero ── */
+.date-hero {
+  background: #fff;
+  padding: 14px 18px 12px;
+  border-bottom: 1px solid var(--line);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.date-num {
+  font-size: 40px; font-weight: 900;
+  letter-spacing: -.06em; color: #111827;
+  line-height: 1;
+}
+.date-dow {
+  font-size: 11px; font-weight: 700;
+  letter-spacing: .06em; color: var(--muted);
+  text-transform: uppercase;
+}
+.date-mon {
+  font-size: 13px; font-weight: 700;
+  letter-spacing: .02em; color: #111827;
+}
+.date-yr { font-size: 11px; color: var(--muted); font-weight: 600; }
+
+/* ── Section header ── */
+.sec-hdr {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 18px 8px;
+}
+.sec-label {
+  font-size: 13px; font-weight: 900;
+  color: #111827; white-space: nowrap;
+}
+.sec-rule { flex: 1; height: 1px; background: var(--line); }
+
+/* ── Task card ── */
+.task-card {
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 20px;
+  margin: 0 10px 10px;
+  border-left: 4px solid #e8edf5;
+  display: grid;
+  grid-template-columns: 42px 1fr 44px 44px;
+  gap: 9px;
+  align-items: center;
+  padding: 10px;
+}
+.trade-icon {
+  width: 42px; height: 42px;
+  border-radius: 16px;
+  display: grid; place-items: center;
+  font-size: 20px;
+  flex-shrink: 0;
+}
+.task-name { font-size: 14px; font-weight: 800; letter-spacing: -.02em; color: #111827; }
+.task-meta { font-size: 12px; color: var(--muted); margin-top: 1px; }
+.task-dates { font-size: 11px; color: #98a2b3; margin-top: 1px; }
+.mark {
+  height: 44px; border-radius: 14px;
+  display: grid; place-items: center;
+  font-weight: 900; font-size: 18px;
+  cursor: pointer;
+}
+.mark.yes { background: var(--greenSoft); color: var(--green); border: 1px solid #c7ead3; }
+.mark.no  { background: var(--redSoft);   color: var(--red);   border: 1px solid #ffd0d0; }
+
+/* ── Skeleton card ── */
+.skeleton-card {
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 20px;
+  margin: 0 10px 10px;
+  border-left: 4px solid var(--line);
+  padding: 10px;
+  display: grid;
+  grid-template-columns: 42px 1fr 44px 44px;
+  gap: 9px;
+  align-items: center;
+}
+
+/* ── Empty state ── */
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 48px 24px 32px;
+  text-align: center;
+}
+.empty-icon {
+  width: 80px; height: 80px;
+  border-radius: 28px;
+  display: grid; place-items: center;
+  font-size: 36px;
+  margin-bottom: 16px;
+}
+.empty-title {
+  font-size: 22px; font-weight: 900;
+  letter-spacing: -.04em; color: #111827;
+  margin-bottom: 6px;
+}
+.empty-sub {
+  font-size: 14px; color: var(--muted);
+  line-height: 1.5; max-width: 240px;
+}
+
+/* ── Segmented tabs ── */
+.seg-wrap {
+  padding: 10px 18px 10px;
+  background: #fff;
+  border-bottom: 1px solid var(--line);
+}
+.seg-control {
+  display: flex;
+  background: var(--surface2);
+  border-radius: 999px;
+  padding: 3px;
+  gap: 2px;
+}
+.seg-tab {
+  flex: 1;
+  padding: 8px 0;
+  border-radius: 999px;
+  border: none;
+  background: transparent;
+  font-size: 13px; font-weight: 700;
+  color: var(--muted);
+  cursor: pointer;
+  text-align: center;
+}
+.seg-tab.active {
+  background: var(--blue);
+  color: #fff;
+  box-shadow: 0 2px 8px rgba(37,99,235,.22);
+}
+
+/* ── Timeline event (Plans) ── */
+.event {
+  display: grid;
+  grid-template-columns: 54px 1fr auto;
+  gap: 12px;
+  align-items: center;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 20px;
+  margin: 0 10px 10px;
+  border-left: 4px solid var(--line);
+  background: #fff;
+  cursor: pointer;
+}
+.event:hover { background: var(--surface2); }
+.date-box {
+  height: 52px;
+  border-radius: 16px;
+  background: #f8fafc;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1px;
+}
+.date-box.today { background: var(--blueSoft); }
+.date-box .dow { font-size: 9px; font-weight: 700; letter-spacing: .04em; color: var(--muted); }
+.date-box .day { font-size: 20px; font-weight: 900; letter-spacing: -.04em; color: #111827; line-height: 1; }
+.date-box.today .dow, .date-box.today .day { color: var(--blue); }
+.pill {
+  font-size: 11px; font-weight: 800;
+  border-radius: 999px; padding: 7px 9px;
+  background: var(--blueSoft); color: #1557c0;
+  white-space: nowrap;
+}
+.pill.orange { background: var(--orangeSoft); color: #b45309; }
+.pill.green  { background: var(--greenSoft);  color: #087d35; }
+.pill.red    { background: var(--redSoft);    color: #dc2626; }
+.pill.slate  { background: #f8fafc;           color: #475569; border: 1px solid var(--line); }
+
+/* ── Reason pills ── */
+.reason-row {
+  display: flex; flex-wrap: wrap; gap: 8px;
+  padding: 0 18px 16px;
+}
+.reason-pill {
+  padding: 9px 16px;
+  border-radius: 999px;
+  border: 1.5px solid var(--line);
+  background: #fff;
+  font-size: 13px; font-weight: 600;
+  color: var(--muted); cursor: pointer;
+}
+.reason-pill.active {
+  background: var(--blueSoft);
+  border-color: var(--blue);
+  color: #1557c0;
+  font-weight: 700;
+}
+
+/* ── Cascade ── */
+.cascade-item {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--line);
+}
+.cascade-item:last-child { border-bottom: none; }
+
+/* ── Primary button ── */
+.btn {
+  height: 52px; border: 0;
+  border-radius: 17px;
+  background: linear-gradient(180deg, #3b82f6, #2563eb);
+  color: #fff; font-weight: 800; font-size: 14px;
+  cursor: pointer;
+  box-shadow: 0 10px 20px rgba(37,99,235,.2);
+  width: 100%;
+}
+.btn.soft { background: #eef5ff; color: #1557c0; box-shadow: none; }
+.btn.green { background: var(--greenSoft); color: #087d35; box-shadow: none; }
+.btn.red   { background: var(--redSoft);   color: #dc2626; box-shadow: none; }
+
+/* ── FAB ── */
+.fab {
+  position: absolute;
+  bottom: 74px; left: 50%;
+  transform: translateX(-50%);
+  width: 58px; height: 58px;
+  border-radius: 50%;
+  display: grid; place-items: center;
+  background: linear-gradient(180deg, #3b82f6, #2563eb);
+  color: #fff; font-size: 30px;
+  box-shadow: 0 12px 28px rgba(37,99,235,.28);
+  cursor: pointer; border: none;
+  z-index: 5;
+}
+
+/* ── Tower / Site ── */
+.tower {
+  border: 2px solid #cbd5e1;
+  border-radius: 16px;
+  background: repeating-linear-gradient(
+    to bottom, #fff 0, #fff 47px, #e2e8f0 48px, #e2e8f0 50px
+  );
+  position: relative; overflow: hidden;
+}
+.tower::before, .tower::after {
+  content: ''; position: absolute; top: 0; bottom: 0;
+  width: 2px; background: #cbd5e1;
+}
+.tower::before { left: 33%; }
+.tower::after  { right: 33%; }
+.level-item {
+  display: flex; align-items: center; gap: 9px;
+  padding: 12px 10px; border-radius: 16px;
+  font-size: 13px; cursor: pointer;
+}
+.level-item.active { background: var(--blueSoft); font-weight: 900; color: #1557c0; }
+.level-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+
+/* ── Upload ── */
+.upload-row {
+  display: flex; align-items: center; gap: 12px;
+  padding: 14px 18px;
+  border: 1px solid var(--line); border-radius: 18px;
+  background: #fff; cursor: pointer;
+  margin: 0 10px 10px;
+}
+.upload-row:hover { background: #f8fbff; }
+.upload-row.disabled { opacity: .45; cursor: not-allowed; }
+
+/* ── Review card ── */
+.review-card {
+  background: #fff;
+  border: 1px solid var(--line);
+  border-left: 4px solid var(--line);
+  border-radius: 20px;
+  padding: 14px;
+  margin: 0 10px 10px;
+}
+
+/* ── Alert card ── */
+.alert-card {
+  display: grid;
+  grid-template-columns: 42px 1fr auto;
+  gap: 12px; align-items: center;
+  border: 1px solid var(--line);
+  border-radius: 20px; padding: 14px;
+  margin: 0 10px 10px; background: #fff;
+}
+
+/* ── Report stat grid ── */
+.stat-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px; padding: 0 10px; margin-top: 2px;
+}
+.stat-card {
+  border: 1px solid var(--line);
+  border-radius: 20px; padding: 16px;
+}
+.stat-card b { display: block; font-size: 27px; letter-spacing: -.04em; margin-top: 6px; }
+
+/* ── Swatch ── */
+.swatch-row { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; margin-bottom: 8px; }
+.swatch { display: flex; flex-direction: column; align-items: center; gap: 5px; }
+.swatch-color { width: 48px; height: 48px; border-radius: 12px; box-shadow: 0 2px 8px rgba(15,23,42,.08); }
+.swatch-label { font-size: 10px; color: var(--muted); font-family: monospace; }
+</style>
+</head>
+<body>
+
+<!-- ── Header ── -->
+<div style="text-align:center;">
+  <div class="page-title" style="margin-bottom:10px;">Design Preview · Mobile</div>
+  <div style="font-size:32px; font-weight:900; letter-spacing:-.06em; color:#111827; line-height:1.05; margin-bottom:6px;">simple.</div>
+  <div style="font-size:14px; color:var(--muted);">Demo colors + fonts · My layout innovations · Inter · exact token match</div>
+</div>
+
+<!-- ── Color tokens ── -->
+<div style="max-width:800px; width:100%;">
+  <div class="section-title" style="font-size:17px; margin-bottom:18px;">Color tokens — exact match from demo</div>
+  <div class="swatch-row">
+    <div class="swatch"><div class="swatch-color" style="background:#2563eb;"></div><div class="swatch-label">--blue</div></div>
+    <div class="swatch"><div class="swatch-color" style="background:#edf5ff; border:1px solid #e8edf5;"></div><div class="swatch-label">--blueSoft</div></div>
+    <div class="swatch"><div class="swatch-color" style="background:#139a4b;"></div><div class="swatch-label">--green</div></div>
+    <div class="swatch"><div class="swatch-color" style="background:#eaf8ef; border:1px solid #e8edf5;"></div><div class="swatch-label">--greenSoft</div></div>
+    <div class="swatch"><div class="swatch-color" style="background:#f59e0b;"></div><div class="swatch-label">--orange</div></div>
+    <div class="swatch"><div class="swatch-color" style="background:#fff7e6; border:1px solid #e8edf5;"></div><div class="swatch-label">--orangeSoft</div></div>
+    <div class="swatch"><div class="swatch-color" style="background:#ef4444;"></div><div class="swatch-label">--red</div></div>
+    <div class="swatch"><div class="swatch-color" style="background:#fff1f1; border:1px solid #e8edf5;"></div><div class="swatch-label">--redSoft</div></div>
+    <div class="swatch"><div class="swatch-color" style="background:#111827;"></div><div class="swatch-label">--text</div></div>
+    <div class="swatch"><div class="swatch-color" style="background:#667085;"></div><div class="swatch-label">--muted</div></div>
+    <div class="swatch"><div class="swatch-color" style="background:#f7faff; border:1px solid #e8edf5;"></div><div class="swatch-label">--surface2</div></div>
+    <div class="swatch"><div class="swatch-color" style="background:#e8edf5;"></div><div class="swatch-label">--line</div></div>
+  </div>
+  <div style="font-size:12px; color:#98a2b3; text-align:center; margin-top:8px;">Font: Inter · Radius: 20–22px cards, 38px phone, 17px buttons · Shadow: 0 24px 70px rgba(15,23,42,.10)</div>
+</div>
+
+<div class="divider"></div>
+
+<!-- ══════════════════ TODAY SCREENS ══════════════════ -->
+<div class="section-title">Home — Today</div>
+<div class="section-sub">Date hero · Trade-colored left borders · Shimmer skeleton · Empty state</div>
+
+<div class="phone-row">
+
+  <!-- TODAY: active tasks -->
+  <div>
+    <div class="phone">
+      <div class="topbar">
+        <div class="icon-btn">☰</div>
+        <div style="flex:1;">
+          <div class="topbar-title">Tower B</div>
+        </div>
+        <span style="font-size:13px; color:var(--muted);">☁️ 31°</span>
+      </div>
+
+      <div class="screen-content">
+        <!-- Date hero -->
+        <div class="date-hero">
+          <div style="display:flex; align-items:baseline; gap:6px;">
+            <span class="date-dow">FRI</span>
+            <span class="date-num">06</span>
+            <div>
+              <div class="date-mon">JUN</div>
+              <div class="date-yr">'26</div>
+            </div>
+          </div>
+          <div style="display:flex; flex-direction:column; align-items:flex-end; gap:4px;">
+            <span style="font-size:11px; font-weight:700; letter-spacing:.04em; color:var(--muted); text-transform:uppercase;">Tower B</span>
+            <span class="pill orange">3 tasks</span>
+          </div>
+        </div>
+
+        <!-- Section header -->
+        <div class="sec-hdr">
+          <span class="sec-label">Today's progress</span>
+          <div class="sec-rule"></div>
+        </div>
+
+        <!-- Task 1: Electrical -->
+        <div class="task-card fade-up" style="border-left-color:#f59e0b; animation-delay:.00s; opacity:0;">
+          <div class="trade-icon" style="background:var(--orangeSoft);">⚡</div>
+          <div>
+            <div class="task-name">Electrical rough-in</div>
+            <div class="task-meta">Level 4 · Electrical</div>
+            <div class="task-dates">Jun 01 – Jun 08</div>
+          </div>
+          <div class="mark yes">✓</div>
+          <div class="mark no">×</div>
+        </div>
+
+        <!-- Task 2: Materials/Delivery -->
+        <div class="task-card fade-up" style="border-left-color:#2563eb; animation-delay:.05s; opacity:0;">
+          <div class="trade-icon" style="background:var(--blueSoft);">📦</div>
+          <div>
+            <div class="task-name">Kitchen materials</div>
+            <div class="task-meta">Gate 2 · 9:30 AM</div>
+            <div class="task-dates">Jun 06 delivery</div>
+          </div>
+          <div class="mark yes">✓</div>
+          <div class="mark no">×</div>
+        </div>
+
+        <!-- Task 3: Framing -->
+        <div class="task-card fade-up" style="border-left-color:#8b5cf6; animation-delay:.10s; opacity:0;">
+          <div class="trade-icon" style="background:#f5f3ff;">🏗</div>
+          <div>
+            <div class="task-name">Framing prep</div>
+            <div class="task-meta">Level 4 · 8 AM – 12 PM</div>
+            <div class="task-dates">Jun 05 – Jun 10</div>
+          </div>
+          <div class="mark yes">✓</div>
+          <div class="mark no">×</div>
+        </div>
+
+        <!-- Task 4: Safety -->
+        <div class="task-card fade-up" style="border-left-color:#ef4444; animation-delay:.15s; opacity:0;">
+          <div class="trade-icon" style="background:var(--redSoft);">🛡</div>
+          <div>
+            <div class="task-name">Safety check</div>
+            <div class="task-meta">Level 2 · 10:00 AM</div>
+            <div class="task-dates">Jun 06</div>
+          </div>
+          <div class="mark yes">✓</div>
+          <div class="mark no">×</div>
+        </div>
+      </div>
+
+      <div class="fab">+</div>
+
+      <div class="bottom-nav">
+        <button class="nav-tab active">🏠<br>Home</button>
+        <button class="nav-tab">🔔<br>Alerts</button>
+        <button class="nav-tab">▣<br>Reports</button>
+        <button class="nav-tab">☷<br>Site</button>
+      </div>
+    </div>
+    <div class="phone-label">Today — with tasks</div>
+  </div>
+
+  <!-- TODAY: loading skeleton -->
+  <div>
+    <div class="phone">
+      <div class="topbar">
+        <div class="icon-btn">☰</div>
+        <div class="topbar-title" style="flex:1;">Tower B</div>
+      </div>
+      <div class="screen-content">
+        <div class="date-hero">
+          <div style="display:flex; align-items:baseline; gap:6px;">
+            <span class="date-dow">FRI</span>
+            <span class="date-num">06</span>
+            <div><div class="date-mon">JUN</div><div class="date-yr">'26</div></div>
+          </div>
+          <div class="skeleton" style="width:62px; height:24px; border-radius:999px;"></div>
+        </div>
+        <div class="sec-hdr">
+          <span class="sec-label">Today's progress</span>
+          <div class="sec-rule"></div>
+        </div>
+        <!-- 3 skeleton cards -->
+        <div class="skeleton-card">
+          <div class="skeleton" style="width:42px; height:42px; border-radius:16px;"></div>
+          <div>
+            <div class="skeleton" style="height:13px; width:62%; margin-bottom:8px;"></div>
+            <div class="skeleton" style="height:10px; width:40%; margin-bottom:6px;"></div>
+            <div class="skeleton" style="height:9px; width:28%;"></div>
+          </div>
+          <div class="skeleton" style="width:44px; height:44px; border-radius:14px;"></div>
+          <div class="skeleton" style="width:44px; height:44px; border-radius:14px;"></div>
+        </div>
+        <div class="skeleton-card">
+          <div class="skeleton" style="width:42px; height:42px; border-radius:16px;"></div>
+          <div>
+            <div class="skeleton" style="height:13px; width:55%; margin-bottom:8px;"></div>
+            <div class="skeleton" style="height:10px; width:35%; margin-bottom:6px;"></div>
+            <div class="skeleton" style="height:9px; width:24%;"></div>
+          </div>
+          <div class="skeleton" style="width:44px; height:44px; border-radius:14px;"></div>
+          <div class="skeleton" style="width:44px; height:44px; border-radius:14px;"></div>
+        </div>
+        <div class="skeleton-card">
+          <div class="skeleton" style="width:42px; height:42px; border-radius:16px;"></div>
+          <div>
+            <div class="skeleton" style="height:13px; width:70%; margin-bottom:8px;"></div>
+            <div class="skeleton" style="height:10px; width:44%; margin-bottom:6px;"></div>
+            <div class="skeleton" style="height:9px; width:31%;"></div>
+          </div>
+          <div class="skeleton" style="width:44px; height:44px; border-radius:14px;"></div>
+          <div class="skeleton" style="width:44px; height:44px; border-radius:14px;"></div>
+        </div>
+      </div>
+      <div class="bottom-nav">
+        <button class="nav-tab active">🏠<br>Home</button>
+        <button class="nav-tab">🔔<br>Alerts</button>
+        <button class="nav-tab">▣<br>Reports</button>
+        <button class="nav-tab">☷<br>Site</button>
+      </div>
+    </div>
+    <div class="phone-label">Today — loading</div>
+  </div>
+
+  <!-- TODAY: empty state -->
+  <div>
+    <div class="phone">
+      <div class="topbar">
+        <div class="icon-btn">☰</div>
+        <div class="topbar-title" style="flex:1;">Tower B</div>
+        <span style="font-size:13px; color:var(--muted);">☁️ 29°</span>
+      </div>
+      <div class="screen-content">
+        <div class="date-hero">
+          <div style="display:flex; align-items:baseline; gap:6px;">
+            <span class="date-dow">FRI</span>
+            <span class="date-num">06</span>
+            <div><div class="date-mon">JUN</div><div class="date-yr">'26</div></div>
+          </div>
+          <span class="pill green">All clear</span>
+        </div>
+        <div class="sec-hdr">
+          <span class="sec-label">Today's progress</span>
+          <div class="sec-rule"></div>
+        </div>
+        <div class="empty-state">
+          <div class="empty-icon" style="background:var(--greenSoft);">✓</div>
+          <div class="empty-title">All clear</div>
+          <div class="empty-sub">No tasks scheduled for today. Nice work.</div>
+        </div>
+      </div>
+      <div class="fab">+</div>
+      <div class="bottom-nav">
+        <button class="nav-tab active">🏠<br>Home</button>
+        <button class="nav-tab">🔔<br>Alerts</button>
+        <button class="nav-tab">▣<br>Reports</button>
+        <button class="nav-tab">☷<br>Site</button>
+      </div>
+    </div>
+    <div class="phone-label">Today — empty</div>
+  </div>
+
+</div><!-- /phone-row -->
+
+<div class="divider"></div>
+
+<!-- ══════════════════ PLANS + TASK ══════════════════ -->
+<div class="section-title">Plans · Task Detail</div>
+<div class="section-sub">Segmented tab control · Timeline with trade left-borders · Delay form with pill reason codes</div>
+
+<div class="phone-row">
+
+  <!-- PLANS -->
+  <div>
+    <div class="phone">
+      <div class="topbar">
+        <div class="icon-btn">‹</div>
+        <div style="flex:1;">
+          <div class="topbar-title">Plans &amp; deliveries</div>
+          <div class="topbar-sub">This week</div>
+        </div>
+      </div>
+
+      <!-- Segmented tabs (my layout, demo colors) -->
+      <div class="seg-wrap">
+        <div class="seg-control">
+          <button class="seg-tab active">Weekly</button>
+          <button class="seg-tab">Monthly</button>
+          <button class="seg-tab">Schedule</button>
+        </div>
+      </div>
+
+      <div class="screen-content" style="padding-top:8px;">
+        <div class="event" style="border-left-color:#f59e0b;">
+          <div class="date-box today"><span class="dow">FRI</span><span class="day">06</span></div>
+          <div>
+            <div style="font-weight:800; font-size:14px; letter-spacing:-.02em;">Electrical rough-in</div>
+            <div style="font-size:12px; color:var(--muted);">Level 4</div>
+          </div>
+          <span class="pill orange">Today</span>
+        </div>
+        <div class="event" style="border-left-color:#8b5cf6;">
+          <div class="date-box"><span class="dow">SAT</span><span class="day">07</span></div>
+          <div>
+            <div style="font-weight:800; font-size:14px; letter-spacing:-.02em;">Framing prep</div>
+            <div style="font-size:12px; color:var(--muted);">Level 4</div>
+          </div>
+          <span class="pill" style="background:#f5f3ff; color:#6d28d9;">Frame</span>
+        </div>
+        <div class="event" style="border-left-color:#2563eb;">
+          <div class="date-box"><span class="dow">MON</span><span class="day">09</span></div>
+          <div>
+            <div style="font-weight:800; font-size:14px; letter-spacing:-.02em;">Inspection</div>
+            <div style="font-size:12px; color:var(--muted);">Level 3</div>
+          </div>
+          <span class="pill">Inspect</span>
+        </div>
+        <div class="event" style="border-left-color:#f59e0b;">
+          <div class="date-box"><span class="dow">TUE</span><span class="day">10</span></div>
+          <div>
+            <div style="font-weight:800; font-size:14px; letter-spacing:-.02em;">Kitchen materials</div>
+            <div style="font-size:12px; color:var(--muted);">Gate 2</div>
+          </div>
+          <span class="pill orange">Delivery</span>
+        </div>
+        <div class="event" style="border-left-color:#139a4b;">
+          <div class="date-box"><span class="dow">WED</span><span class="day">11</span></div>
+          <div>
+            <div style="font-weight:800; font-size:14px; letter-spacing:-.02em;">Concrete pour</div>
+            <div style="font-size:12px; color:var(--muted);">Level 2</div>
+          </div>
+          <span class="pill green">Concrete</span>
+        </div>
+      </div>
+      <div class="bottom-nav">
+        <button class="nav-tab active">🏠<br>Home</button>
+        <button class="nav-tab">🔔<br>Alerts</button>
+        <button class="nav-tab">▣<br>Reports</button>
+        <button class="nav-tab">☷<br>Site</button>
+      </div>
+    </div>
+    <div class="phone-label">Plans — weekly</div>
+  </div>
+
+  <!-- TASK DETAIL -->
+  <div>
+    <div class="phone">
+      <div class="topbar">
+        <div class="icon-btn">‹</div>
+        <div style="flex:1;">
+          <div class="topbar-title">Electrical rough-in</div>
+          <div class="topbar-sub">Level 4</div>
+        </div>
+        <span style="font-size:20px; color:var(--muted); cursor:pointer;">⋮</span>
+      </div>
+      <div class="screen-content" style="padding:14px 18px 0;">
+
+        <!-- Done / Not done -->
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:18px;">
+          <button class="btn green" style="height:52px;">✓ Done</button>
+          <button class="btn red" style="height:52px; background:var(--red); color:#fff;">× Not done</button>
+        </div>
+
+        <!-- Why not completed -->
+        <p style="font-weight:900; font-size:13px; margin-bottom:10px;">Why not completed?</p>
+        <div class="reason-row" style="padding:0 0 16px;">
+          <button class="reason-pill active">Weather delay</button>
+          <button class="reason-pill">Materials</button>
+          <button class="reason-pill">Equipment</button>
+          <button class="reason-pill">Labour</button>
+          <button class="reason-pill">Other</button>
+        </div>
+
+        <!-- New date -->
+        <p style="font-weight:900; font-size:13px; margin-bottom:8px;">New date</p>
+        <div style="height:48px; border:1px solid var(--line); border-radius:15px; padding:0 14px; display:flex; align-items:center; justify-content:space-between; background:#fff; margin-bottom:16px;">
+          <span style="font-size:14px; color:#111827; font-weight:600;">Jun 10, 2026</span>
+          <span style="font-size:16px; color:var(--muted);">📅</span>
+        </div>
+
+        <!-- Cascade preview -->
+        <p style="font-weight:900; font-size:13px; margin-bottom:8px;">Affected tasks</p>
+        <div style="border:1px solid var(--line); border-radius:20px; overflow:hidden; background:var(--surface2); margin-bottom:16px;">
+          <div class="cascade-item">
+            <div>
+              <div style="font-weight:700; font-size:13px; color:#111827;">Rough-in Plumbing</div>
+              <div style="font-size:11px; color:var(--muted);">Jun 05 → Jun 07</div>
+            </div>
+            <span class="pill orange" style="padding:4px 8px; font-size:11px;">+2d</span>
+          </div>
+          <div class="cascade-item">
+            <div>
+              <div style="font-weight:700; font-size:13px; color:#111827;">Pour Concrete Slab</div>
+              <div style="font-size:11px; color:var(--muted);">Jun 09 → Jun 11</div>
+            </div>
+            <span class="pill orange" style="padding:4px 8px; font-size:11px;">+2d</span>
+          </div>
+        </div>
+
+        <!-- Notes -->
+        <p style="font-weight:900; font-size:13px; margin-bottom:8px;">Notes</p>
+        <div style="min-height:48px; border:1px solid var(--line); border-radius:15px; padding:13px; color:var(--muted); font-size:13px; margin-bottom:16px;">Add a note…</div>
+
+        <button class="btn">Save</button>
+      </div>
+    </div>
+    <div class="phone-label">Task — delay form</div>
+  </div>
+
+  <!-- SITE / FILTERS -->
+  <div>
+    <div class="phone">
+      <div class="topbar">
+        <div class="icon-btn">‹</div>
+        <div style="flex:1;">
+          <div class="topbar-title">Tower B</div>
+          <div class="topbar-sub">Choose level</div>
+        </div>
+      </div>
+      <div class="screen-content" style="padding:16px 18px;">
+        <div style="display:grid; grid-template-columns:1fr 110px; gap:18px; align-items:flex-start; margin-top:10px;">
+          <div class="tower" style="height:310px;"></div>
+          <div>
+            <div class="level-item"><span class="level-dot" style="background:#22c55e;"></span>Level 5</div>
+            <div class="level-item active"><span class="level-dot" style="background:var(--blue);"></span>Level 4</div>
+            <div class="level-item"><span class="level-dot" style="background:#f59e0b;"></span>Level 3</div>
+            <div class="level-item"><span class="level-dot" style="background:#f59e0b;"></span>Level 2</div>
+            <div class="level-item"><span class="level-dot" style="background:#ef4444;"></span>Level 1</div>
+            <div class="level-item"><span class="level-dot" style="background:#cbd5e1;"></span>Roof</div>
+          </div>
+        </div>
+        <!-- Expanded tasks for selected level -->
+        <div style="margin-top:16px;">
+          <p style="font-weight:900; font-size:13px; margin-bottom:8px;">Level 4 tasks</p>
+          <div style="border:1px solid var(--line); border-radius:22px; overflow:hidden; background:#fff;">
+            <div style="display:flex; align-items:center; gap:10px; padding:12px 14px; border-bottom:1px solid var(--line);">
+              <span style="width:8px; height:8px; border-radius:50%; background:var(--blue); flex-shrink:0;"></span>
+              <div style="flex:1;"><div style="font-weight:600; font-size:13px;">Electrical rough-in</div><div style="font-size:11px; color:var(--muted);">Electrical</div></div>
+              <span style="font-size:11px; color:#98a2b3;">Jun 06</span>
+            </div>
+            <div style="display:flex; align-items:center; gap:10px; padding:12px 14px;">
+              <span style="width:8px; height:8px; border-radius:50%; background:#cbd5e1; flex-shrink:0;"></span>
+              <div style="flex:1;"><div style="font-weight:600; font-size:13px;">Framing prep</div><div style="font-size:11px; color:var(--muted);">Framing</div></div>
+              <span style="font-size:11px; color:#98a2b3;">Jun 07</span>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div style="position:absolute; bottom:72px; left:18px; right:18px;">
+        <button class="btn soft" style="height:52px;">Apply filters</button>
+      </div>
+      <div class="bottom-nav">
+        <button class="nav-tab">🏠<br>Home</button>
+        <button class="nav-tab">🔔<br>Alerts</button>
+        <button class="nav-tab">▣<br>Reports</button>
+        <button class="nav-tab active">☷<br>Site</button>
+      </div>
+    </div>
+    <div class="phone-label">Site — level picker</div>
+  </div>
+
+</div><!-- /phone-row -->
+
+<div class="divider"></div>
+
+<!-- ══════════════════ UPLOAD + REVIEW + ALERTS ══════════════════ -->
+<div class="section-title">Upload · Review · Alerts · Reports</div>
+<div class="section-sub">Onboarding flow · AI extracted schedule · Designed stub screens</div>
+
+<div class="phone-row">
+
+  <!-- UPLOAD -->
+  <div>
+    <div class="phone">
+      <div class="topbar">
+        <div class="icon-btn">‹</div>
+        <span style="font-size:13px; color:var(--blue); margin-left:auto;">Skip</span>
+      </div>
+      <div class="screen-content" style="display:flex; flex-direction:column; padding-bottom:80px;">
+        <!-- Hero -->
+        <div style="padding:28px 18px 20px; display:flex; flex-direction:column; align-items:center; text-align:center;">
+          <div style="width:112px; height:112px; border-radius:34px; background:linear-gradient(145deg,#eaf2ff,#fff); border:1px solid var(--line); display:grid; place-items:center; font-size:54px; margin-bottom:16px;">☁️</div>
+          <h2 style="font-size:28px; font-weight:900; letter-spacing:-.06em; line-height:1.05; margin-bottom:8px;">Upload your<br>schedule</h2>
+          <p style="font-size:14px; line-height:1.5; color:#475467; max-width:260px;">We'll extract your tasks automatically and build your daily workflow.</p>
+        </div>
+        <!-- Upload rows -->
+        <div style="padding:0 10px;">
+          <div class="upload-row">
+            <span style="font-size:26px;">📁</span>
+            <div><div style="font-weight:700; font-size:15px;">.xlsx Schedule</div><div style="font-size:13px; color:var(--muted);">Excel, project plans</div></div>
+            <span style="font-size:18px; color:#98a2b3; margin-left:auto;">›</span>
+          </div>
+          <div class="upload-row disabled">
+            <span style="font-size:26px;">🖼️</span>
+            <div><div style="font-weight:700; font-size:15px;">Site Photos</div><div style="font-size:13px; color:var(--muted);">Coming soon</div></div>
+            <span style="font-size:18px; color:#98a2b3; margin-left:auto;">›</span>
+          </div>
+          <div class="upload-row disabled">
+            <span style="font-size:26px;">🔎</span>
+            <div><div style="font-weight:700; font-size:15px;">Scan document</div><div style="font-size:13px; color:var(--muted);">Coming soon</div></div>
+            <span style="font-size:18px; color:#98a2b3; margin-left:auto;">›</span>
+          </div>
+        </div>
+        <!-- Loading state -->
+        <div style="margin:14px 10px 0; padding:14px 18px; background:var(--blueSoft); border-radius:18px; display:flex; align-items:center; gap:12px;">
+          <span style="font-size:20px;">⟳</span>
+          <div>
+            <div style="font-weight:700; font-size:14px; color:var(--blue);">Extracting tasks…</div>
+            <div style="font-size:12px; color:var(--muted);">Claude is reading your schedule</div>
+          </div>
+        </div>
+      </div>
+      <div style="position:absolute; bottom:0; left:0; right:0; padding:12px 18px 20px; background:rgba(255,255,255,.97); border-top:1px solid var(--line);">
+        <button class="btn">Upload files</button>
+      </div>
+    </div>
+    <div class="phone-label">Upload</div>
+  </div>
+
+  <!-- REVIEW -->
+  <div>
+    <div class="phone">
+      <div class="topbar">
+        <div class="icon-btn">‹</div>
+        <div style="flex:1;">
+          <div class="topbar-title">Review &amp; confirm</div>
+          <div class="topbar-sub">We organized your project.</div>
+        </div>
+        <span class="pill" style="font-size:11px; padding:4px 10px;">12 tasks</span>
+      </div>
+      <div class="screen-content" style="padding:10px 0 110px;">
+        <!-- Confidence bar -->
+        <div style="margin:0 10px 10px; padding:12px 14px; background:var(--greenSoft); border-radius:18px; display:flex; align-items:center; gap:10px;">
+          <span style="font-size:20px;">✅</span>
+          <div>
+            <div style="font-weight:700; font-size:14px; color:var(--green);">94% confidence</div>
+            <div style="font-size:12px; color:var(--muted);">AI extraction complete</div>
+          </div>
+        </div>
+        <!-- Review cards -->
+        <div class="review-card" style="border-left-color:#f59e0b;">
+          <div style="font-weight:800; font-size:14px; letter-spacing:-.02em; margin-bottom:7px;">Electrical Conduit Run L4</div>
+          <div style="display:flex; gap:6px; flex-wrap:wrap; margin-bottom:7px;">
+            <span class="pill" style="padding:3px 10px; font-size:12px;">Level 4</span>
+            <span class="pill orange" style="padding:3px 10px; font-size:12px;">Electrical</span>
+          </div>
+          <div style="font-size:12px; color:var(--muted);">Jun 01 · 8 days</div>
+        </div>
+        <div class="review-card" style="border-left-color:#2563eb;">
+          <div style="font-weight:800; font-size:14px; letter-spacing:-.02em; margin-bottom:7px;">Rough-in Plumbing L3</div>
+          <div style="display:flex; gap:6px; flex-wrap:wrap; margin-bottom:7px;">
+            <span class="pill" style="padding:3px 10px; font-size:12px;">Level 3</span>
+            <span class="pill" style="padding:3px 10px; font-size:12px; background:#eff6ff; color:#1d4ed8;">Plumbing</span>
+          </div>
+          <div style="font-size:12px; color:var(--muted);">Jun 05 · 7 days</div>
+        </div>
+        <div class="review-card" style="border-left-color:#64748b;">
+          <div style="font-weight:800; font-size:14px; letter-spacing:-.02em; margin-bottom:7px;">Pour Concrete Slab L5</div>
+          <div style="display:flex; gap:6px; flex-wrap:wrap; margin-bottom:7px;">
+            <span class="pill" style="padding:3px 10px; font-size:12px;">Level 5</span>
+            <span class="pill slate" style="padding:3px 10px; font-size:12px;">Concrete</span>
+          </div>
+          <div style="font-size:12px; color:var(--muted);">Jun 09 · 5 days</div>
+        </div>
+        <div class="review-card" style="border-left-color:#8b5cf6;">
+          <div style="font-weight:800; font-size:14px; letter-spacing:-.02em; margin-bottom:7px;">Steel Frame Assembly L6</div>
+          <div style="display:flex; gap:6px; flex-wrap:wrap; margin-bottom:7px;">
+            <span class="pill" style="padding:3px 10px; font-size:12px;">Level 6</span>
+            <span class="pill" style="padding:3px 10px; font-size:12px; background:#f5f3ff; color:#6d28d9;">Framing</span>
+          </div>
+          <div style="font-size:12px; color:var(--muted);">Jun 10 · 9 days</div>
+        </div>
+      </div>
+      <!-- Sticky action bar -->
+      <div style="position:absolute; bottom:0; left:0; right:0; padding:12px 18px 20px; background:rgba(255,255,255,.97); backdrop-filter:blur(10px); border-top:1px solid var(--line); display:flex; gap:10px;">
+        <button class="btn soft" style="flex:0 0 auto; width:auto; padding:0 18px;">Re-upload</button>
+        <button class="btn" style="flex:1;">✓ Looks good</button>
+      </div>
+    </div>
+    <div class="phone-label">Review — extracted tasks</div>
+  </div>
+
+  <!-- ALERTS -->
+  <div>
+    <div class="phone">
+      <div class="topbar">
+        <div class="icon-btn">‹</div>
+        <div style="flex:1;">
+          <div class="topbar-title">Alerts</div>
+          <div class="topbar-sub">Lookahead</div>
+        </div>
+        <span style="font-size:20px; color:var(--muted);">⋮</span>
+      </div>
+      <div class="screen-content" style="padding-top:8px;">
+        <!-- Tabs (underline style, matching demo) -->
+        <div style="display:grid; grid-template-columns:1fr 1fr 1fr; border-bottom:1px solid var(--line); margin-bottom:6px;">
+          <div style="padding:13px; text-align:center; font-size:13px; font-weight:800; color:#1557c0; border-bottom:2px solid var(--blue);">Upcoming</div>
+          <div style="padding:13px; text-align:center; font-size:13px; color:#475467; border-bottom:2px solid transparent;">Past</div>
+          <div style="border-bottom:2px solid transparent;"></div>
+        </div>
+
+        <!-- No alerts empty state -->
+        <div class="empty-state" style="padding:32px 24px 20px;">
+          <div class="empty-icon" style="background:var(--greenSoft); font-size:32px;">🔔</div>
+          <div class="empty-title">No active alerts</div>
+          <div class="empty-sub">Your project is on track. Cascade alerts will appear here when a delay affects downstream tasks.</div>
+        </div>
+
+        <!-- Preview of future alerts (dimmed) -->
+        <div style="padding:0 10px;">
+          <p style="font-size:11px; font-weight:700; letter-spacing:.04em; text-transform:uppercase; color:#98a2b3; margin-bottom:8px;">Coming in Sprint 3</p>
+        </div>
+        <div style="opacity:.28; pointer-events:none;">
+          <div class="alert-card">
+            <div class="trade-icon" style="background:var(--orangeSoft); border-radius:16px;">⚠️</div>
+            <div>
+              <div style="font-weight:700; font-size:14px;">Concrete pour delayed +3d</div>
+              <div style="font-size:12px; color:var(--muted);">4 downstream tasks affected</div>
+            </div>
+            <span>›</span>
+          </div>
+          <div class="alert-card">
+            <div class="trade-icon" style="background:var(--greenSoft); border-radius:16px;">🔔</div>
+            <div>
+              <div style="font-weight:700; font-size:14px;">Framing starts tomorrow</div>
+              <div style="font-size:12px; color:var(--muted);">Level 4 · Tue, Jun 10</div>
+            </div>
+            <span>›</span>
+          </div>
+        </div>
+      </div>
+      <div class="bottom-nav">
+        <button class="nav-tab">🏠<br>Home</button>
+        <button class="nav-tab active">🔔<br>Alerts</button>
+        <button class="nav-tab">▣<br>Reports</button>
+        <button class="nav-tab">☷<br>Site</button>
+      </div>
+    </div>
+    <div class="phone-label">Alerts — empty + preview</div>
+  </div>
+
+  <!-- REPORT -->
+  <div>
+    <div class="phone">
+      <div class="topbar">
+        <div class="icon-btn">‹</div>
+        <div style="flex:1;">
+          <div class="topbar-title">Daily Report</div>
+          <div class="topbar-sub">Mon, Jun 9</div>
+        </div>
+        <span class="pill orange">Draft</span>
+      </div>
+      <div class="screen-content" style="padding:8px 0 0;">
+        <!-- Stats grid (demo pattern) -->
+        <div class="stat-grid">
+          <div class="stat-card"><span style="font-size:18px;">☁️</span><b>31°C</b><span style="font-size:12px; color:var(--muted);">Weather</span></div>
+          <div class="stat-card"><span style="font-size:18px;">👷</span><b>24</b><span style="font-size:12px; color:var(--muted);">Crew</span></div>
+          <div class="stat-card"><span style="font-size:18px;">✅</span><b>3</b><span style="font-size:12px; color:var(--muted);">Completed</span></div>
+          <div class="stat-card"><span style="font-size:18px;">❌</span><b>1</b><span style="font-size:12px; color:var(--muted);">Not done</span></div>
+          <div class="stat-card"><span style="font-size:18px;">📦</span><b>2</b><span style="font-size:12px; color:var(--muted);">Deliveries</span></div>
+          <div class="stat-card"><span style="font-size:18px;">📷</span><b>8</b><span style="font-size:12px; color:var(--muted);">Photos</span></div>
+        </div>
+        <!-- Coming soon note -->
+        <div style="padding:14px 18px 0;">
+          <div style="background:var(--surface2); border:1px solid var(--line); border-radius:18px; padding:14px;">
+            <div style="font-weight:700; font-size:13px; color:#111827; margin-bottom:4px;">AI Summary &amp; PDF export</div>
+            <div style="font-size:12px; color:var(--muted); line-height:1.5;">One-tap narrative + downloadable report. Coming in Sprint 5.</div>
+          </div>
+        </div>
+      </div>
+      <div style="position:absolute; bottom:0; left:0; right:0; padding:12px 18px 20px; background:rgba(255,255,255,.97); border-top:1px solid var(--line);">
+        <button class="btn" style="opacity:.4; cursor:not-allowed;">Generate report</button>
+      </div>
+      <div class="bottom-nav">
+        <button class="nav-tab">🏠<br>Home</button>
+        <button class="nav-tab">🔔<br>Alerts</button>
+        <button class="nav-tab active">▣<br>Reports</button>
+        <button class="nav-tab">☷<br>Site</button>
+      </div>
+    </div>
+    <div class="phone-label">Report — rich stub</div>
+  </div>
+
+</div><!-- /phone-row -->
+
+<!-- ── Footer ── -->
+<div style="text-align:center; padding-bottom:20px;">
+  <div style="font-size:12px; font-weight:700; letter-spacing:.06em; text-transform:uppercase; color:#98a2b3; margin-bottom:4px;">simple. · Design Preview</div>
+  <div style="font-size:13px; color:#cbd5e1;">Font: Inter · Colors: exact demo tokens · Radius: 20–22px · Layout innovations: date hero, left-border cards, shimmer skeleton, segmented tabs, empty states</div>
+</div>
+
+</body>
+</html>

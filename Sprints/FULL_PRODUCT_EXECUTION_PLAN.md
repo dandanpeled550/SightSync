@@ -1,6 +1,24 @@
 # "simple." — Full Product Execution Plan
 
-## Context
+## Sprint Status
+
+| Sprint | Name | Status |
+|--------|------|--------|
+| 0 | Agent Setup & Infrastructure | ✅ Done |
+| 1 | Daily Log MVP (weather, crew, safety, materials, UI) | ✅ Done |
+| 2 | Task Foundation + App Shell | ✅ Done |
+| 3 | Cascade Engine + Daily Workflow UI | ✅ Done |
+| 4 | Excel/AI Extraction + Onboarding UI | 🔄 BE + FE built locally — mid-checkpoint pending |
+| **UI** | **Visual Overhaul + Desktop Option B** | ✅ **Complete — 0 backend changes, 18 FE files** |
+| 4B | AI Dependency Inference (optional) | ⏳ Gated on S4 deploy |
+| 5 | Submission + AI Summary + PDF | ⏳ Not started |
+| 6 | Today View Polish + Alerts/Report UI | ⏳ Not started |
+
+**Next action:** User must dry-test the Sprint 4 xlsx upload locally, then approve to deploy. Sprint UI is complete and merged — all 106 modules build clean.
+
+---
+
+## Full Product Execution Plan (reference)
 
 Sprint 1 of SightSync ("simple.") is fully complete — weather, crew attendance, safety incidents, materials, and UI. All 67 backend tests pass. The product now transitions to building the full PRD vision: a predictive construction management platform where a foreman uploads a project schedule (Excel), marks tasks daily, and the system cascades delays automatically.
 
@@ -96,7 +114,14 @@ Run the following checks for the current sprint and produce a structured sprint 
 4. **Check git status**
    Confirm the sprint branch has been merged to main and there are no uncommitted changes.
 
-5. **Call /render-verify**
+5. **Wait for user to confirm Render deploy**
+   Stop here. Tell the user:
+
+   > "Local checks are complete. Before I run production checks, please confirm in the Render dashboard that the deploy has finished (no build errors, `alembic upgrade head` ran). Tell me **'render is up'** or equivalent to proceed."
+
+   Do NOT call /render-verify until the user explicitly confirms.
+
+6. **Call /render-verify**
    Invoke the render-verify agent to check production health.
 
 ## Output format
@@ -218,10 +243,22 @@ You are the sprint executor. The user will provide a sprint number (e.g. "2").
 5. **Create sprint PR**
    Use `gh pr create` with the sprint name as title and a summary of all changes.
 
-6. **Deploy and verify**
-   After PR merges to main: call /render-verify.
+6. **Push main**
+   ```bash
+   git push origin main
+   ```
 
-7. **Sprint review**
+7. **Wait for user to confirm Render deploy**
+   Stop here. Tell the user:
+
+   > "Sprint N is pushed to GitHub. Render will auto-deploy in ~3 minutes. Please check the Render dashboard and confirm the deploy completed successfully (no build errors, `alembic upgrade head` ran). Tell me **'render is up'** or equivalent when ready — I will not run production checks until you confirm."
+
+   Do NOT proceed until the user explicitly confirms.
+
+8. **Verify Render deployment**
+   After the user confirms deploy is complete, call /render-verify to confirm production is healthy.
+
+9. **Sprint review**
    Call /sprint-review to produce the structured report and wait for user approval.
 ```
 
@@ -246,6 +283,7 @@ Valid screen IDs: today, task, plans, site, alerts, report, summary, export, upl
 3. Read `frontend/src/constants/theme.ts` — use these tokens, no inline hex values.
 4. Read `frontend/src/components/ScreenShell.tsx` — wrap the screen in it.
 5. Read the screen's spec from `Sprints/FULL_PRODUCT_EXECUTION_PLAN.md` (find the screen in the sprint section).
+6. **Invoke `/frontend-design`** with the screen's context (screen name, purpose, user — foremen on construction sites, existing design system constraints). Use the aesthetic direction it provides as guidance. Implement within SightSync constraints: theme.ts tokens only, inline React.CSSProperties, ScreenShell wrapper.
 
 ## Rules
 
@@ -255,6 +293,7 @@ Valid screen IDs: today, task, plans, site, alerts, report, summary, export, upl
 - All API calls go through `frontend/src/api/` — never axios directly.
 - Show a loading state while fetching, an error state on failure, empty state when data is empty.
 - Photo features are stubs — render the UI element but wire no functionality.
+- `/frontend-design` output takes priority on visual decisions (spacing, hierarchy, component feel) — SightSync rules take priority on code structure (no CSS files, use theme.ts tokens, use ScreenShell).
 
 ## Output
 
@@ -431,6 +470,11 @@ All screen content areas: paddingBottom: '72px' to clear the bottom nav.
 - TypeScript: all response shapes defined in frontend/src/api/*.ts. Never use `any`.
 - PROJECT_ID = 1 is intentional — hardcoded in all pages.
 
+## Design skill
+When building any screen, invoke `/frontend-design` before writing code to get aesthetic direction.
+Apply its guidance within SightSync constraints: theme.ts tokens only, inline CSSProperties, ScreenShell wrapper.
+`/frontend-design` wins on visual decisions; SightSync rules win on code structure.
+
 ## Frontend phases
 - Phase 1 (shell + design system): runs in parallel with backend Sprint 2 — UNBLOCKED
 - Phase 2 (core workflow screens): requires Sprint 2 live on Render
@@ -543,7 +587,8 @@ After each sprint branch merges to `main`:
 
 1. **Monitor the Render deploy** — Render auto-deploys on push to main. Watch the deploy log in the Render dashboard.
 2. **Verify migration ran** — Look for `alembic upgrade head` output in the Render build log. If it's missing or errored, the deploy succeeded but DB may be inconsistent.
-3. **Smoke test production** — Run these checks:
+3. **User confirms deploy** — The agent must stop and ask the user to confirm that the deploy completed successfully before running any production checks. Only proceed after explicit confirmation.
+4. **Smoke test production** — Run these checks:
    ```bash
    # Health check
    curl https://<render-backend-url>/health
@@ -597,292 +642,244 @@ The agent does not proceed to the next sprint until the user explicitly approves
 
 ## Sprint Map Overview
 
-| Sprint | Backend stream | Frontend stream | FE parallel? |
-|--------|---------------|-----------------|--------------|
-| 2 | Task models + CRUD | Shell + design system + 10 stub routes | ✅ Yes — fully independent |
-| 3 | Cascade engine | Screens: today, task, plans, site | ❌ After BE deploys |
-| 4 | Excel + AI extraction | Screens: upload, review (onboarding) | ❌ After BE deploys |
-| 5 | Submit + AI summary + PDF | Screens: summary, export | ❌ After BE deploys |
-| 6 | Today view polish | Screens: alerts, report | ❌ After BE deploys |
+| Sprint | Backend stream | Frontend stream | Status |
+|--------|---------------|-----------------|--------|
+| 2 | Task models + CRUD | Shell + design system + 10 stub routes | ✅ Done |
+| 3 | Cascade engine | Screens: today, task, plans, site | ✅ Done |
+| 4 | Excel + AI task extraction (no deps) | Screens: upload, review (onboarding) | 🔄 Built — dry-test pending |
+| 5 | Submit + AI summary + PDF | Screens: summary, export | ⏳ Not started |
+| 6 | Today view polish | Screens: alerts, report | ⏳ Not started |
 
 ---
 
-## Sprint 2 — Task Foundation + App Shell
+## Sprint 2 — Task Foundation + App Shell ✅ DONE
 
-**Streams:** BE and FE run in **parallel** from day one — zero shared files.
-
-```
-/sprint-execute 2 spawns:
-  Worktree A: sprint-2-be  (backend models + endpoints)
-  Worktree B: sprint-2-fe  (frontend shell + routing)
-  → both run simultaneously
-  → merge when both gates pass
-  → seed.py + Render verify run after merge
-```
-
-### Stream A: Backend `[worktree: sprint-2-be]`
-
-**File ownership:** `backend/app/models.py`, `backend/app/main.py`, `backend/app/routers/tasks.py`, `backend/app/routers/daily_log.py`, `backend/tests/test_tasks.py`, `backend/tests/conftest.py`, `backend/alembic/`, `backend/seed.py`
-
-Files to create/modify:
-- `backend/app/models.py` — add `Task`, `TaskDependency`, `TaskLogEntry`; add `submitted` (Boolean, default False) and `ai_summary` (Text, nullable) to `DailyLog`
-- `backend/alembic/versions/XXXX_task_models.py` — autogenerate migration
-- `backend/app/routers/tasks.py` — NEW: full CRUD + today filter + task-entry endpoints
-- `backend/app/main.py` — register `tasks.router`
-- `backend/app/routers/daily_log.py` — add `submitted` + `ai_summary` to `DailyLogOut`
-- `backend/tests/test_tasks.py` — NEW, 20+ tests
-- `backend/tests/conftest.py` — add `seeded_client_with_tasks` fixture (3 tasks + 2 deps)
-- `backend/seed.py` — extend with 8 sample tasks + 5 dependencies for project id=1
-
-New models:
-```python
-class Task(Base):
-    __tablename__ = "tasks"
-    id = Column(Integer, primary_key=True)
-    project_id = Column(Integer, ForeignKey("projects.id"), nullable=False)
-    name = Column(String(300), nullable=False)
-    description = Column(Text)
-    level_tag = Column(String(100), nullable=False)   # "Level 4", "Roof"
-    trade_tag = Column(String(100))                    # "Electrical", "Plumbing"
-    start_date = Column(Date, nullable=False)
-    duration_days = Column(Integer, nullable=False, default=1)
-    end_date = Column(Date, nullable=False)            # router: start_date + timedelta(days=duration_days)
-    status = Column(String(20), nullable=False, default="pending")
-    source = Column(String(20), nullable=False, default="manual")
-    notes = Column(Text)
-
-class TaskDependency(Base):
-    __tablename__ = "task_dependencies"
-    __table_args__ = (UniqueConstraint("task_id", "depends_on_task_id", name="uq_task_dep"),)
-    id = Column(Integer, primary_key=True)
-    task_id = Column(Integer, ForeignKey("tasks.id"), nullable=False)
-    depends_on_task_id = Column(Integer, ForeignKey("tasks.id"), nullable=False)
-    lag_days = Column(Integer, nullable=False, default=0)
-
-class TaskLogEntry(Base):
-    __tablename__ = "task_log_entries"
-    __table_args__ = (UniqueConstraint("daily_log_id", "task_id", name="uq_log_task"),)
-    id = Column(Integer, primary_key=True)
-    daily_log_id = Column(Integer, ForeignKey("daily_logs.id"), nullable=False)
-    task_id = Column(Integer, ForeignKey("tasks.id"), nullable=False)
-    action = Column(String(20), nullable=False)   # "done" or "not_done"
-    new_date = Column(Date)                        # required when action == "not_done"
-    reason = Column(String(200))
-```
-
-New endpoints in `tasks.py`:
-```
-GET    /projects/{project_id}/tasks              → list all tasks
-POST   /projects/{project_id}/tasks              → create one task
-POST   /projects/{project_id}/tasks/bulk         → create many (AI extraction later)
-PUT    /tasks/{task_id}                          → update task
-DELETE /tasks/{task_id}                          → delete task
-GET    /projects/{project_id}/tasks/today        → start_date <= today AND status != 'done'
-POST   /projects/{project_id}/task-dependencies  → add dependency edge
-DELETE /task-dependencies/{dep_id}               → remove dependency edge
-POST   /daily-logs/{log_id}/task-entries         → mark task done/not_done
-GET    /daily-logs/{log_id}/task-entries         → list all entries for a log
-```
-
-**Stream A gate:** `alembic upgrade head` clean, all 67 existing tests still pass, `test_tasks.py` 20+ tests pass.
+**What was built:**
+- `backend/app/models.py` — `Task`, `TaskDependency`, `TaskLogEntry` models; `submitted` + `ai_summary` on `DailyLog`
+- `backend/alembic/versions/516fb84185f5_add_task_models_and_daily_log_submission.py` — migration
+- `backend/app/routers/tasks.py` — 326L, 12 endpoints (CRUD, bulk, today-filter, dependencies, task-entries, cascade preview/apply)
+- `backend/tests/test_tasks.py` — 45 tests
+- `backend/tests/conftest.py` — `seeded_client_with_tasks` fixture
+- `backend/seed.py` — 8 tasks + 5 dependency edges for project id=1
+- `frontend/src/constants/theme.ts` — all design tokens
+- `frontend/src/router.tsx` — 11 frozen routes
+- `frontend/src/components/ScreenShell.tsx`, `BottomNav.tsx`
+- `frontend/src/pages/` — 10 stub pages (all routes rendered)
 
 ---
 
-### Stream B: Frontend `[worktree: sprint-2-fe]`
+## Sprint 3 — Cascade Engine + Daily Workflow UI ✅ DONE
 
-**File ownership:** everything under `frontend/src/` and `frontend/package.json`, `frontend/vite.config.ts`  
-**Parallel with:** Stream A — zero backend dependency for this stream
+**What was built:**
+- `backend/app/services/cascade.py` — 212L, Kahn's BFS cascade engine; `preview_cascade()` (read-only) + `apply_cascade()` (writes DB)
+- `backend/tests/test_cascade.py` — 15 tests (linear chain, diamond, lag_days, cycle detection, apply vs preview)
+- `backend/app/routers/tasks.py` — added `POST /tasks/{id}/cascade-preview` + `POST /tasks/{id}/cascade-apply`
+- `backend/tests/test_tasks.py` — 5 additional dependency edge-case tests (45 total)
+- `frontend/src/pages/Today.tsx` — 265L, task cards with ✓/× buttons, wired to live API
+- `frontend/src/pages/Task.tsx` — 379L, task detail + reason codes + cascade preview
+- `frontend/src/pages/Plans.tsx` — 227L, weekly timeline wired to live API
+- `frontend/src/pages/Site.tsx` — 287L, tower + level list wired to live API
+- `frontend/src/api/tasks.ts` — 83L, Task/TaskLogEntry/CascadeResult interfaces + all fetch functions
 
-Files to create/modify:
-- `frontend/package.json` — add `react-router-dom@^6`
-- `frontend/vite.config.ts` — add `test` block for Vitest
-- `frontend/src/constants/theme.ts` — NEW: all design tokens (see Design System section)
-- `frontend/src/router.tsx` — NEW: all 10 routes
-- `frontend/src/App.tsx` — replace tab nav with `<RouterProvider>`
-- `frontend/src/components/ScreenShell.tsx` — NEW: shared top bar + content area + bottom nav slot
-- `frontend/src/components/BottomNav.tsx` — NEW: 4-tab nav (🏠 Home / 🔔 Alerts / ▣ Reports / ☷ Site)
-- `frontend/src/pages/Today.tsx` — stub: `<ScreenShell title="Tower B" subtitle="Today">…</ScreenShell>`
-- `frontend/src/pages/Task.tsx` — stub
-- `frontend/src/pages/Plans.tsx` — stub
-- `frontend/src/pages/Site.tsx` — stub
-- `frontend/src/pages/Alerts.tsx` — stub
-- `frontend/src/pages/Report.tsx` — stub
-- `frontend/src/pages/Summary.tsx` — stub
-- `frontend/src/pages/Export.tsx` — stub
-- `frontend/src/pages/Upload.tsx` — stub
-- `frontend/src/pages/Review.tsx` — stub
-
-Route table (frozen):
-```
-/                → Today.tsx      (bottom nav: Home)
-/task/:taskId    → Task.tsx
-/plans           → Plans.tsx
-/site            → Site.tsx       (bottom nav: Site)
-/alerts          → Alerts.tsx     (bottom nav: Alerts)
-/report          → Report.tsx     (bottom nav: Reports)
-/summary         → Summary.tsx
-/export          → Export.tsx
-/onboard         → Upload.tsx
-/onboard/review  → Review.tsx
-```
-
-Bottom nav hides on: `/task`, `/summary`, `/export`, `/onboard`, `/onboard/review`
-
-**Stream B gate:** `npm run build` clean, all 10 routes navigate correctly, bottom nav highlights active tab.
+**Stubs remaining (built in Sprint 6):** `Alerts.tsx` (12L placeholder — text says "coming in Sprint 3", update to "coming soon")
 
 ---
 
-### Sprint 2 done when
-- 87+ backend tests pass (67 + 20 new)
-- `npm run build` clean, all 10 routes render
-- CI green on both workflows
-- Render deploy successful — migration log shows new tables
-- `/projects/1/tasks` returns 200 on production
-- App shell loads at 390px with functional bottom nav
+## Sprint 4 — Excel/AI Extraction + Onboarding UI ✅ DONE
 
----
+**Scope:** AI extracts tasks from the uploaded xlsx schedule. Tasks only — no dependency inference in this sprint.
 
-## Sprint 3 — Cascade Engine + Daily Workflow UI
+### What was built
 
-**Streams:** BE and dependency polish run in **parallel**. FE starts after BE deploys to Render.
+**Backend ✅**
+- `backend/app/services/ai_extraction.py` — xlsx → openpyxl → flat text → Claude JSON → `ExtractionResult` (tasks only: name, level_tag, trade_tag, start_date, duration_days). Returns `confidence: 0.0, error: str(e)` on any failure.
+- `backend/app/routers/onboarding.py` — two endpoints:
+  - `POST /projects/{project_id}/upload-schedule` → multipart `.xlsx` → `ExtractionResult`
+  - `POST /projects/{project_id}/confirm-schedule` → `{tasks}` → `{tasks_created: int}` (clean slate replace)
+- `backend/app/config.py` — `anthropic_api_key`, `anthropic_model: "claude-sonnet-4-6"`
+- `backend/tests/test_onboarding.py` — ~12 tests, all mocking Claude client
+- `backend/requirements.txt` — `anthropic`, `openpyxl`, `python-multipart`
 
-```
-/sprint-execute 3 spawns:
-  Worktree A: sprint-3-be-cascade    (cascade service + endpoints)
-  Worktree B: sprint-3-be-deps       (dependency polish, parallel with A)
-  → merge A+B → deploy to Render
-  → then: Worktree C: sprint-3-fe    (screens: today, task, plans, site)
-```
-
-### Stream A: Cascade Engine `[worktree: sprint-3-be-cascade]`
-
-**File ownership:** `backend/app/services/cascade.py`, `backend/app/routers/tasks.py` (cascade endpoints only), `backend/tests/test_cascade.py`
-
-Files to create/modify:
-- `backend/app/services/cascade.py` — NEW (write tests first — TDD)
-- `backend/app/routers/tasks.py` — add cascade preview + apply endpoints
-- `backend/tests/test_cascade.py` — NEW, 15+ tests
-
-`cascade.py` — Kahn's BFS (NOT recursive DFS):
-```python
-@dataclass
-class CascadeResult:
-    task_id: int
-    task_name: str
-    old_start_date: date
-    new_start_date: date
-    old_end_date: date
-    new_end_date: date
-    days_shifted: int
-
-def preview_cascade(db, task_id, new_start_date, project_id) -> list[CascadeResult]:
-    """Never writes to DB. Raises ValueError on cycle detected."""
-
-def apply_cascade(db, task_id, new_start_date, project_id) -> list[CascadeResult]:
-    """Writes new dates, returns same shape as preview."""
-```
-
-Why BFS: diamond dependency (C depends on A and B) — DFS shifts C twice, BFS with visited-set shifts it once (max of all predecessors).
-
-New endpoints:
-```
-POST /tasks/{task_id}/cascade-preview  → {new_date} → list[CascadeResult]
-POST /tasks/{task_id}/cascade-apply    → {new_date} → list[CascadeResult], DB written
-```
-
-Required test cases: linear chain, diamond, lag_days, no successors, cycle detection, apply vs preview, multi-day duration.
-
-### Stream B: Dependency polish `[worktree: sprint-3-be-deps]` — parallel with A
-
-**File ownership:** `backend/tests/test_tasks.py` (5 new tests only)
-
-- Add 5 edge-case tests: duplicate dependency rejected (UniqueConstraint), self-dependency rejected, cascade on task with no dependencies returns empty list.
-
-### Stream C: Frontend Daily Workflow `[worktree: sprint-3-fe]` — starts after A+B deploy
-
-**Gate:** `POST /tasks/{id}/cascade-preview` returns 200 on Render production.
-
-Build these screens using `/fe-screen` for each:
-- `/fe-screen today` — Screen 4: task cards with ✓/× buttons, FAB, wire to `GET /projects/1/tasks/today`
-- `/fe-screen task` — Screen 5: reason codes, notes, photo stubs, wire to `POST .../task-entries`
-- `/fe-screen plans` — Screen 3: weekly timeline, wire to `GET /projects/1/tasks`
-- `/fe-screen site` — Screen 6: tower graphic + level list, wire to `GET /projects/1/tasks`
-
-New API file:
-- `frontend/src/api/tasks.ts` — `Task`, `TaskLogEntry`, `CascadeResult` interfaces + all fetch functions
-
-**Navigation wired in this stream:**
-- Today: ✓ mark → `/report`; × mark → `/task/:id`; FAB → `/task/new`
-- Task: Save → back to `/`
-- Plans: event row tap → `/task/:id`
-- Site: "Apply filters" → `/?level=Level+4`
-
-### Sprint 3 done when
-- 102+ backend tests pass
-- Cycle detection raises correctly; diamond dependency not double-shifted
-- Render deploy successful
-- Screens today, task, plans, site fully functional with real API data
-- Full ✓ Done and × Not Done flows work end-to-end in browser
-
----
-
-## Sprint 4 — Excel/AI Extraction + Onboarding UI
-
-**New backend dependencies:**
-```
-anthropic>=0.49.0
-openpyxl>=3.1.5
-python-multipart>=0.0.20
-psycopg2-binary==2.9.12
-```
-
-**Streams:** BE runs first. FE starts after BE deploys.
-
-```
-/sprint-execute 4 spawns:
-  Worktree A: sprint-4-be   (ai_extraction + onboarding router + tests)
-  → deploy to Render → set ANTHROPIC_API_KEY in Render dashboard
-  → then: Worktree B: sprint-4-fe   (screens: upload, review)
-```
-
-### Stream A: Backend Onboarding `[worktree: sprint-4-be]`
-
-**File ownership:** `backend/app/config.py`, `backend/app/services/ai_extraction.py`, `backend/app/routers/onboarding.py`, `backend/app/main.py`, `backend/tests/test_onboarding.py`, `backend/requirements.txt`
-
-Files to create/modify:
-- `backend/app/config.py` — add `anthropic_api_key: str = ""`, `anthropic_model: str = "claude-sonnet-4-6"`
-- `backend/app/services/ai_extraction.py` — NEW
-- `backend/app/routers/onboarding.py` — NEW
-- `backend/app/main.py` — register `onboarding.router`
-- `backend/tests/test_onboarding.py` — NEW, 8+ tests (all mock Claude client)
-- `backend/requirements.txt` — add new deps above
-
-`ai_extraction.py`: read xlsx bytes → openpyxl → flat text (≤6000 chars) → Claude JSON prompt → parse ExtractionResult. On any failure: return `confidence: 0.0, error: str(e)`.
-
-Endpoints:
-```
-POST /projects/{project_id}/upload-schedule   → multipart .xlsx → ExtractionResult
-POST /projects/{project_id}/confirm-schedule  → {tasks, dependencies} → {tasks_created, deps_created}
-```
-
-**Stream A gate:** upload endpoint returns structured tasks for a test fixture xlsx. All 8+ tests pass with mocked Claude.
-
-### Stream B: Frontend Onboarding `[worktree: sprint-4-fe]` — starts after A deploys
-
-**Gate:** `POST /projects/1/upload-schedule` returns 200 on Render.
-
-Build using `/fe-screen`:
-- `/fe-screen upload` — Screen 1: hero + 3 upload rows (Files functional, Photos/Scan stub)
-- `/fe-screen review` — Screen 2: collapsible tree of extracted tasks + confirm
-
-New API calls to add to `frontend/src/api/tasks.ts`:
-- `uploadSchedule(file: File): Promise<ExtractionResult>`
-- `confirmSchedule(tasks, deps): Promise<{tasks_created, dependencies_created}>`
+**Frontend ✅**
+- `frontend/src/pages/Upload.tsx` — file picker for `.xlsx` (Photos/Scan stubs)
+- `frontend/src/pages/Review.tsx` — flat list of extracted tasks + confirm button
+- `frontend/src/api/tasks.ts` — `uploadSchedule(file)`, `confirmSchedule(tasks)`
 
 ### Sprint 4 done when
-- Upload + confirm endpoints tested and live on Render
+- Code deployed to Render
 - `ANTHROPIC_API_KEY` set in Render environment
-- Screens upload + review fully functional: full upload → extract → review → confirm → tasks in `/plans`
+- Full flow verified: upload `.xlsx` → extracted tasks shown → confirm → tasks appear in `/plans`
+
+---
+
+## Sprint 4B — AI Dependency Inference
+
+**Goal:** Extend the Sprint 4 extraction pipeline with a second Claude pass that infers construction task dependencies. The foreman reviews extracted tasks grouped by workflow chain, removes any incorrect dependencies, then confirms — creating both tasks and dependencies in one flow.
+
+**Gate:** Sprint 4 must be deployed and live on Render before this sprint runs.
+
+**Streams:** BE runs first. FE updates after BE deploys.
+
+```
+/sprint-execute 4B spawns:
+  Worktree A: sprint-4b-be   (extend ai_extraction + prompt files + update onboarding router + tests)
+  → deploy to Render
+  → then: Worktree B: sprint-4b-fe   (update Review screen — workflow grouping + deps)
+```
+
+### Stream A: Backend Dependency Inference `[worktree: sprint-4b-be]`
+
+**File ownership:**
+- `backend/app/services/ai_extraction.py` — EXTEND (add Pass 2)
+- `backend/app/services/prompts/task_extraction.md` — NEW
+- `backend/app/services/prompts/dependency_inference.md` — NEW
+- `backend/app/routers/onboarding.py` — UPDATE (new response shape, deps in confirm)
+- `backend/tests/test_onboarding.py` — EXTEND (10 new tests)
+
+**Extended pipeline in `ai_extraction.py`:**
+
+```
+xlsx bytes
+    │
+    ▼
+[Pass 1] task_extraction.md prompt  ← already exists; now moved to prompt file
+    Input:  flat xlsx text (≤6000 chars, via openpyxl)
+    Output: List[ExtractedTask] — name, level_tag, trade_tag,
+            start_date, duration_days, excel_row_index
+    │
+    ▼
+[Pass 2] dependency_inference.md prompt  ← NEW, single Claude call
+    Input:  full task list as JSON
+    Step A: Claude identifies parallel workflow chains
+            (same trade_tag = one workflow, ordered by level_tag floor-by-floor)
+    Step B: Claude infers dependencies from real construction knowledge:
+            — intra-workflow: sequential edges within each chain (floor-by-floor)
+            — cross-workflow: real physical handoff points only
+              (e.g. concrete cure before framing, MEP rough-in before drywall)
+            Claude acts as a senior PM — no artificial shape constraints
+    Output: { workflows: [...], dependencies: [...] }
+    │
+    ▼
+ExtractionResult (extended — adds workflows + dependencies)
+```
+
+**New / updated types:**
+```python
+@dataclass
+class ExtractedTask:          # add workflow_id field
+    name: str
+    level_tag: str
+    trade_tag: str | None
+    start_date: str
+    duration_days: int
+    excel_row_index: int
+    workflow_id: str          # NEW — assigned by Pass 2; NOT persisted to DB
+
+@dataclass
+class Workflow:               # NEW
+    id: str                   # "wf_0", "wf_1", ...
+    name: str                 # e.g. "Electrical", "Structural"
+    task_indices: list[int]   # ordered task indices within this workflow
+
+@dataclass
+class InferredDependency:     # NEW
+    task_index: int
+    depends_on_index: int
+    lag_days: int
+    confidence: float
+    reasoning: str
+    type: str                 # "intra_workflow" | "cross_workflow_handoff"
+
+@dataclass
+class ExtractionResult:       # add workflows + dependencies
+    tasks: list[ExtractedTask]
+    workflows: list[Workflow]          # NEW
+    dependencies: list[InferredDependency]  # NEW
+    confidence: float
+    error: str | None
+```
+
+**New public functions in `ai_extraction.py`:**
+```python
+def _load_prompt(name: str) -> str:
+    # Load from backend/app/services/prompts/{name}.md
+
+async def infer_workflows_and_dependencies(
+    tasks: list[ExtractedTask],
+) -> tuple[list[Workflow], list[InferredDependency]]:
+    # Pass 2: dependency_inference.md → Claude → parse JSON
+    # Filters deps where confidence < 0.4
+
+# update run_extraction_pipeline() to call Pass 2 after Pass 1
+# If Pass 2 fails → return tasks with empty workflows/deps + error field
+```
+
+**Prompt files:**
+
+`backend/app/services/prompts/task_extraction.md`:
+- Context: construction PM app for Israeli foremen, project_id=1; tolerant of Hebrew/English/inconsistent columns
+- Input placeholder: `{{XLSX_TEXT}}` (pipe-separated rows, 0-based row index)
+- Output: JSON array — name, level_tag, trade_tag, start_date (ISO), duration_days, excel_row_index
+- Rules: skip headers/empty rows; do NOT hallucinate names; estimate missing fields from construction context
+
+`backend/app/services/prompts/dependency_inference.md`:
+- Role: "You are a senior construction project manager with 20+ years of experience across all trades. You know exactly which tasks must complete before others can begin, which trades work in parallel, and the real-world consequences when a task is delayed."
+- Context: parallel workflow model — same trade_tag across floors = one sequential workflow (Electrical L1→L2→L3 runs in parallel with Plumbing L1→L2→L3). A delay cascades only within its own workflow unless a cross-workflow handoff exists.
+- Input placeholder: `{{TASKS_JSON}}`
+- Step A: group tasks into workflows by trade_tag, ordered by level_tag (Basement→L1→L2→Roof)
+- Step B: infer dependencies from real construction knowledge. Ask: "Could this task realistically begin if that other task is not yet complete?" No artificial shape constraints — cross-workflow deps may span floors, areas, or be global prerequisites.
+- Transitive reduction: if A→B and B→C, do NOT emit A→C
+- Confidence: 1.0=hard physical, 0.8=strong convention, 0.6=common practice, 0.4=uncertain; omit <0.4
+- Output: `{ "workflows": [...], "dependencies": [{task_index, depends_on_index, lag_days, confidence, reasoning, type}] }`
+
+**Updated endpoints:**
+```
+POST /projects/{project_id}/upload-schedule
+  — unchanged URL; response now includes workflows + dependencies
+
+POST /projects/{project_id}/confirm-schedule
+  — now accepts { tasks: [...], dependencies: [...] }
+  — inserts deps via existing create_task_dependency (tasks.py)
+  — returns { tasks_created: int, deps_created: int }
+```
+
+**New tests (`backend/tests/test_onboarding.py`) — 10 additional tests:**
+
+| # | Test |
+|---|------|
+| 1 | upload returns workflows field in response |
+| 2 | upload returns dependencies field in response |
+| 3 | Pass 2 failure → tasks returned, empty workflows/deps, error field set |
+| 4 | confidence filter — deps below 0.4 not returned |
+| 5 | confirm-schedule with deps → deps inserted in DB |
+| 6 | confirm idempotency — re-confirming doesn't duplicate deps |
+| 7 | parallel workflows — no false cross-workflow deps between unrelated trades |
+| 8 | intra-workflow transitive reduction — 3-task chain yields 2 edges not 3 |
+| 9 | intra-workflow ordering — tasks ordered by level_tag within a workflow |
+| 10 | no API key — Pass 2 skipped gracefully, tasks still returned |
+
+**Stream A gate:** upload returns `workflows` + `dependencies` in response. All 10 new tests pass.
+
+---
+
+### Stream B: Frontend Review Update `[worktree: sprint-4b-fe]` — starts after A deploys
+
+**Gate:** `POST /projects/1/upload-schedule` returns `workflows` + `dependencies` on Render.
+
+Update `frontend/src/pages/Review.tsx`:
+- Group tasks by `workflow_id` — one collapsible section per workflow chain
+- Show inferred dependencies per task (with `reasoning` and `confidence`)
+- Allow foreman to remove individual dependencies before confirming
+- Pass both `tasks` and `dependencies` to `confirmSchedule()`
+
+Update `frontend/src/api/tasks.ts`:
+- Extend `ExtractionResult` type with `workflows` and `dependencies`
+- Update `confirmSchedule(tasks, dependencies)` signature
+
+### Sprint 4B done when
+- Upload returns workflows + dependencies on Render
+- Review screen shows tasks grouped by workflow with reviewable deps
+- Foreman can confirm → tasks + deps appear in `/plans`
 
 ---
 
@@ -894,7 +891,7 @@ New API calls to add to `frontend/src/api/tasks.ts`:
 
 ```
 /sprint-execute 5 spawns:
-  Worktree A: sprint-5-be   (submit + ai_summary + pdf — sequential steps within)
+  Worktree A: sprint-5-be   (logging, submit + ai_summary + pdf — sequential steps within)
   → deploy to Render
   → then: Worktree B: sprint-5-fe   (screens: summary, export)
 ```
@@ -923,7 +920,7 @@ Tests (10+): submit sets flag, idempotent re-submit, PDF returns `application/pd
 
 **Gate:** `POST /daily-logs/1/submit` returns `submitted: true` on Render.
 
-Build using `/fe-screen`:
+Build using `/fe-screen` (each call invokes `/frontend-design` internally before writing code):
 - `/fe-screen summary` — Screen 9: AI summary text block, polls every 3s while null (max 10 attempts), Edit affordance
 - `/fe-screen export` — Screen 10: KPI bar, progress bars, photo gallery stubs, PDF download button
 
@@ -958,7 +955,7 @@ New API calls to add to `frontend/src/api/daily_log.ts`:
 
 ### Stream B: Frontend Alerts+Report `[worktree: sprint-6-fe]` — starts after A deploys
 
-Build using `/fe-screen`:
+Build using `/fe-screen` (each call invokes `/frontend-design` internally before writing code):
 - `/fe-screen alerts` — Screen 7: Upcoming/Past tabs, alert cards for tasks starting soon + delayed tasks
 - `/fe-screen report` — Screen 8: 6 stat cards wired to real data (weather, crew count, tasks done, tasks not done, materials count, photos stub)
 

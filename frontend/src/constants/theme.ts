@@ -7,8 +7,10 @@ export const colors = {
   blueDeep:    '#174ea6',
   green:       '#139a4b',
   greenSoft:   '#eaf8ef',
+  greenBorder: '#c7ead3',
   red:         '#ef4444',
   redSoft:     '#fff1f1',
+  redBorder:   '#ffd0d0',
   orange:      '#f59e0b',
   orangeSoft:  '#fff7e6',
   text:        '#111827',
@@ -54,4 +56,19 @@ export const bottomNavStyle: CSSProperties = {
   background:          'rgba(255,255,255,0.95)',
   backdropFilter:      'blur(8px)',
   zIndex:              10,
+}
+
+export const gradients = {
+  bluePrimary: 'linear-gradient(180deg,#3b82f6,#2563eb)',
+  phoneShell:  'linear-gradient(180deg,#fff,#fbfdff)',
+}
+
+export const desktop = {
+  breakpoint:   900,
+  sidebarWidth: '220px',
+  asideWidth:   '260px',
+}
+
+export const animations = {
+  delayStep: 0.05,
 }

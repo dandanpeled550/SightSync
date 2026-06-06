@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import ScreenShell, { IconBtn } from '../components/ScreenShell'
-import { colors, radius } from '../constants/theme'
+import { colors, radius, gradients, animations } from '../constants/theme'
 import { fetchTodayLog } from '../api/daily_log'
 import { fetchTodayTasks, markTaskDone, type Task } from '../api/tasks'
 
@@ -27,14 +27,24 @@ function getTradeIcon(trade: string | null): string {
   return '📋'
 }
 
-function getTradeColor(trade: string | null): string {
+function getTradeColorSoft(trade: string | null): string {
   if (!trade) return colors.orangeSoft
-  const lower = trade.toLowerCase()
-  if (lower.includes('electrical'))                        return colors.orangeSoft
-  if (lower.includes('safety'))                            return colors.blueSoft
-  if (lower.includes('concrete') || lower.includes('framing')) return colors.greenSoft
-  if (lower.includes('plumbing'))                          return colors.blueSoft
+  const l = trade.toLowerCase()
+  if (l.includes('electrical'))                          return colors.orangeSoft
+  if (l.includes('safety'))                              return colors.blueSoft
+  if (l.includes('concrete') || l.includes('framing'))  return colors.greenSoft
+  if (l.includes('plumbing'))                            return colors.blueSoft
   return colors.orangeSoft
+}
+
+function getTradeColorSolid(trade: string | null): string {
+  if (!trade) return colors.orange
+  const l = trade.toLowerCase()
+  if (l.includes('electrical'))                          return colors.orange
+  if (l.includes('plumbing'))                            return colors.blue
+  if (l.includes('safety'))                              return colors.red
+  if (l.includes('concrete') || l.includes('framing'))  return colors.green
+  return colors.orange
 }
 
 function formatDate(iso: string): string {
@@ -53,7 +63,6 @@ export default function Today() {
 
   useEffect(() => {
     let cancelled = false
-
     async function load() {
       setLoading(true)
       setError(null)
@@ -61,11 +70,8 @@ export default function Today() {
         const log = await fetchTodayLog()
         if (cancelled) return
         setLogId(log.id)
-        // pull weather temp for the right-action chip
         const w = log.weather
-        if (w && w.temp_max != null) {
-          setWeather(`${Math.round(w.temp_max)}°`)
-        }
+        if (w && w.temp_max != null) setWeather(`${Math.round(w.temp_max)}°`)
         const todayTasks = await fetchTodayTasks(PROJECT_ID)
         if (cancelled) return
         setTasks(Array.isArray(todayTasks) ? todayTasks : [])
@@ -76,7 +82,6 @@ export default function Today() {
         if (!cancelled) setLoading(false)
       }
     }
-
     load()
     return () => { cancelled = true }
   }, [])
@@ -95,13 +100,18 @@ export default function Today() {
     }
   }
 
-  const today   = new Date()
+  const today = new Date()
+  const dayNum = today.getDate()
+  const dayName = today.toLocaleDateString('en-US', { weekday: 'short' }).toUpperCase()
+  const monthName = today.toLocaleDateString('en-US', { month: 'short' }).toUpperCase()
+  const yearShort = String(today.getFullYear()).slice(2)
   const dateStr = today.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })
 
   return (
     <ScreenShell
       title="Tower B"
       subtitle={dateStr}
+      desktopHideLeft
       leftAction={
         <IconBtn onClick={() => navigate('/onboard')}>☰</IconBtn>
       }
@@ -111,27 +121,58 @@ export default function Today() {
         ) : undefined
       }
     >
-      <div style={{ padding: '16px 24px 0', maxWidth: '720px' }}>
-        <p style={{
-          margin: '0 0 12px',
+      {/* Date hero */}
+      <div style={{
+        padding: '20px 24px 16px',
+        display: 'flex',
+        alignItems: 'flex-end',
+        gap: '14px',
+      }}>
+        <div style={{
+          fontSize: '64px',
           fontWeight: 900,
-          fontSize: '15px',
-          letterSpacing: '-0.02em',
+          letterSpacing: '-0.06em',
           color: colors.text,
+          lineHeight: 1,
         }}>
-          Today's progress
-        </p>
-
-        {loading && (
-          <div style={{ padding: '48px 0', textAlign: 'center', color: colors.muted, fontSize: '14px' }}>
-            Loading…
+          {dayNum}
+        </div>
+        <div style={{ paddingBottom: '6px' }}>
+          <div style={{ fontSize: '13px', fontWeight: 800, color: colors.blue, letterSpacing: '0.04em' }}>
+            {dayName}
           </div>
-        )}
+          <div style={{ fontSize: '13px', fontWeight: 600, color: colors.muted, letterSpacing: '0.02em' }}>
+            {monthName} '{yearShort}
+          </div>
+        </div>
+      </div>
+
+      <div style={{ padding: '0 24px 0' }}>
+        {/* Section header */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '14px' }}>
+          <span style={{ fontSize: '13px', fontWeight: 900, color: colors.text, letterSpacing: '-0.01em', flexShrink: 0 }}>
+            Today's progress
+          </span>
+          <div style={{ flex: 1, height: '1px', background: colors.line }} />
+        </div>
+
+        {/* Shimmer skeleton */}
+        {loading && [0,1,2].map(i => (
+          <div
+            key={i}
+            className="shimmer"
+            style={{
+              height: '64px',
+              borderRadius: '20px',
+              marginBottom: '10px',
+            }}
+          />
+        ))}
 
         {error && !loading && (
           <div style={{
             background: colors.redSoft,
-            border: `1px solid #ffd0d0`,
+            border: `1px solid ${colors.redBorder}`,
             borderRadius: radius.card,
             padding: '16px',
             color: colors.red,
@@ -141,30 +182,53 @@ export default function Today() {
           </div>
         )}
 
+        {/* Empty state */}
         {!loading && !error && tasks.length === 0 && (
           <div style={{
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            padding: '48px 20px',
+            gap: '12px',
             textAlign: 'center',
-            color: colors.muted,
-            padding: '60px 20px',
-            fontSize: '14px',
           }}>
-            No tasks scheduled for today.
+            <div style={{
+              width: '80px',
+              height: '80px',
+              borderRadius: '50%',
+              background: colors.greenSoft,
+              display: 'grid',
+              placeItems: 'center',
+              fontSize: '36px',
+            }}>
+              ✅
+            </div>
+            <div style={{ fontSize: '22px', fontWeight: 900, letterSpacing: '-0.04em', color: colors.text }}>
+              All clear
+            </div>
+            <div style={{ fontSize: '14px', color: colors.muted, lineHeight: 1.5 }}>
+              No tasks scheduled for today.
+            </div>
           </div>
         )}
 
-        {!loading && !error && tasks.map(task => (
+        {/* Task cards */}
+        {!loading && !error && tasks.map((task, index) => (
           <div
             key={task.id}
+            className="fade-up"
             style={{
               display: 'grid',
               gridTemplateColumns: '42px 1fr 44px 44px',
               gap: '9px',
               alignItems: 'center',
               border: `1px solid ${colors.line}`,
+              borderLeft: `4px solid ${getTradeColorSolid(task.trade_tag)}`,
               borderRadius: '20px',
               padding: '10px',
               marginBottom: '10px',
               background: colors.surface,
+              animationDelay: `${index * animations.delayStep}s`,
             }}
           >
             {/* Trade icon */}
@@ -174,7 +238,7 @@ export default function Today() {
               borderRadius: '16px',
               display: 'grid',
               placeItems: 'center',
-              background: getTradeColor(task.trade_tag),
+              background: getTradeColorSoft(task.trade_tag),
               fontSize: '20px',
             }}>
               {getTradeIcon(task.trade_tag)}
@@ -207,7 +271,7 @@ export default function Today() {
                 cursor: markingId === task.id ? 'wait' : 'pointer',
                 background: colors.greenSoft,
                 color: colors.green,
-                border: `1px solid #c7ead3`,
+                border: `1px solid ${colors.greenBorder}`,
               }}
             >
               ✓
@@ -227,7 +291,7 @@ export default function Today() {
                 cursor: markingId ? 'not-allowed' : 'pointer',
                 background: colors.redSoft,
                 color: colors.red,
-                border: `1px solid #ffd0d0`,
+                border: `1px solid ${colors.redBorder}`,
               }}
             >
               ×
@@ -240,8 +304,8 @@ export default function Today() {
       <button
         onClick={() => navigate('/task/new')}
         style={{
-          position: 'fixed',
-          bottom: '72px',
+          position: 'absolute',
+          bottom: '80px',
           left: '50%',
           transform: 'translateX(-50%)',
           width: '58px',
@@ -249,7 +313,7 @@ export default function Today() {
           borderRadius: '50%',
           display: 'grid',
           placeItems: 'center',
-          background: 'linear-gradient(180deg,#3b82f6,#2563eb)',
+          background: gradients.bluePrimary,
           color: '#fff',
           fontSize: '30px',
           boxShadow: '0 12px 28px rgba(37,99,235,.28)',

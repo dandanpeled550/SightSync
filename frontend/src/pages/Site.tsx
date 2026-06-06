@@ -258,11 +258,10 @@ export default function Site() {
 
       {/* Apply filters button */}
       <div style={{
-        position: 'fixed',
+        position: 'absolute',
         bottom: '72px',
         left: '24px',
         right: '24px',
-        maxWidth: '672px',
       }}>
         <button
           onClick={handleApply}

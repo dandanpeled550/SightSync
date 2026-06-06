@@ -142,12 +142,8 @@ export default function Review() {
 
       {/* Sticky bottom action bar */}
       <div style={{
-        position: 'fixed',
+        position: 'sticky',
         bottom: 0,
-        left: '50%',
-        transform: 'translateX(-50%)',
-        width: '100%',
-        maxWidth: '390px',
         padding: '12px 16px 20px',
         background: 'rgba(255,255,255,0.97)',
         backdropFilter: 'blur(10px)',
@@ -198,9 +194,10 @@ export default function Review() {
 
 function TaskCard({ task }: { task: ExtractedTask }) {
   return (
-    <div style={{
+    <div className="fade-up" style={{
       background: colors.surface,
       border: `1.5px solid ${colors.line}`,
+      borderLeft: `4px solid ${colors.blue}`,
       borderRadius: radius.task,
       padding: '14px 16px',
     }}>
