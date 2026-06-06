@@ -1,7 +1,8 @@
 import datetime
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, ConfigDict
 from sqlalchemy.orm import Session
 
@@ -9,6 +10,8 @@ from app.database import get_db
 from app.models import DailyLog, Project, User
 from app.services.weather import fetch_weather_for_location
 from app.services.auth_service import get_current_user, require_project_member
+from app.services import ai_summary as ai_summary_service
+from app.services import pdf_generator as pdf_generator_service
 
 router = APIRouter(tags=["daily-logs"])
 
@@ -135,3 +138,50 @@ def get_log_by_date(
         raise HTTPException(status_code=404, detail=f"No log found for {date}")
 
     return _serialize(log)
+
+
+@router.post("/projects/{project_id}/daily-logs/{log_id}/submit", response_model=DailyLogOut)
+async def submit_log(
+    project_id: int,
+    log_id: int,
+    background_tasks: BackgroundTasks,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> DailyLogOut:
+    require_project_member(project_id, current_user, db)
+    log = db.query(DailyLog).filter(DailyLog.id == log_id, DailyLog.project_id == project_id).first()
+    if not log:
+        raise HTTPException(status_code=404, detail="Daily log not found")
+
+    log.submitted = True
+    db.commit()
+    db.refresh(log)
+
+    background_tasks.add_task(ai_summary_service.generate_and_store_summary, log_id, db)
+
+    return _serialize(log)
+
+
+@router.get("/projects/{project_id}/daily-logs/{log_id}/export-pdf")
+def export_pdf(
+    project_id: int,
+    log_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> StreamingResponse:
+    require_project_member(project_id, current_user, db)
+    log = db.query(DailyLog).filter(DailyLog.id == log_id, DailyLog.project_id == project_id).first()
+    if not log:
+        raise HTTPException(status_code=404, detail="Daily log not found")
+
+    try:
+        pdf_bytes = pdf_generator_service.generate_daily_log_pdf(log_id, db)
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc))
+
+    filename = f"daily-log-{log.date}.pdf"
+    return StreamingResponse(
+        iter([pdf_bytes]),
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
