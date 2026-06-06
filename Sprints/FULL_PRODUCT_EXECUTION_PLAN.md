@@ -8,12 +8,37 @@
 | 1 | Daily Log MVP (weather, crew, safety, materials, UI) | ✅ Done |
 | 2 | Task Foundation + App Shell | ✅ Done |
 | 3 | Cascade Engine + Daily Workflow UI | ✅ Done |
-| 4 | Excel/AI Extraction + Onboarding UI | ✅ Done — deployed, ANTHROPIC_API_KEY set on Render |
-| 5 | User Module + Multi-Project | ✅ Done — JWT auth, User/ProjectMember, all routes protected |
-| 6 | Submission + AI Summary + PDF | ⏳ Not started |
-| 7 | Today View Polish + Alerts/Report UI | ⏳ Not started |
+| 4 | Excel/AI Extraction + Onboarding UI | ✅ Done |
+| 5 | User Module + Multi-Project | ✅ Done |
+| 6 | AI Dependency Inference (extend onboarding) | ✅ Done |
+| 7 | Submission + AI Summary + PDF | ⏳ Next |
+| 8 | Today View Polish + Alerts/Report UI | ⏳ Not started |
 
-**Next action:** Sprint 6 — Submission + AI Summary + PDF export.
+**Next action:** Execute Sprint 7 — log submission, AI daily summary, PDF export.
+
+---
+
+## Sprint 6 — AI Dependency Inference ✅ DONE
+
+**What was built:**
+
+### Backend
+- `backend/app/services/ai_extraction.py` — Extended with `Workflow`, `InferredDependency` dataclasses; `ExtractedTask` gains `workflow_id`; new `_load_prompt()` + `infer_workflows_and_dependencies()` (Pass 2 pipeline); full graceful degradation (Pass 2 fail → tasks only, no 500)
+- `backend/app/services/prompts/task_extraction.md` — NEW: existing inline Pass 1 prompt moved to file
+- `backend/app/services/prompts/dependency_inference.md` — NEW: full construction expert Pass 2 prompt (workflow grouping + sequential/cross-workflow dep inference; acts as a senior PM with 20+ years experience)
+- `backend/app/routers/onboarding.py` — `upload-schedule` response now includes `workflows` + `dependencies`; `confirm-schedule` now accepts deps and inserts `TaskDependency` records; returns `{ tasks_created, deps_created }`
+- `backend/tests/test_onboarding.py` — 10 new Pass 2 tests (mocked Claude, all paths including degradation, confidence filtering, idempotency)
+
+### Frontend
+- `frontend/src/api/tasks.ts` — Added `Workflow`, `InferredDependency` interfaces; extended `ExtractionResult`; updated `confirmSchedule(projectId, tasks, dependencies)` signature; added `updateTask()` for full task field editing
+- `frontend/src/pages/Review.tsx` — Tasks grouped by workflow accordion sections; inferred deps shown with reasoning + confidence badge (green/orange/red); × button removes deps from local state; falls back to flat list when `workflows` is empty
+
+**Test results:** 160 backend tests passing / 0 failed. Frontend: TypeScript clean.
+
+### Post-sprint fixes (same session)
+- `frontend/src/components/SidebarNav.tsx` — Restored Upload (⬆️) link dropped during Sprint 5 sidebar rebuild
+- `frontend/src/pages/Task.tsx` — **Full rewrite**: Task screen now shows all current task data pre-filled in editable fields (name, description, level, trade, apartment, room, start/end dates, notes). "Today's status" (Done/Not Done) is an optional collapsible section at the bottom. Save calls `PUT /tasks/{id}` for field edits and optionally logs a task entry. Cascade preview only shows when start date is changed and "Not done" is selected, and correctly excludes the root task from "Affected tasks".
+- `frontend/src/pages/Task.tsx` (cascade bug) — `preview_cascade()` always prepended the root task to results; fixed in FE by filtering `item.task_id !== numId` from the display.
 
 ---
 
@@ -645,10 +670,11 @@ The agent does not proceed to the next sprint until the user explicitly approves
 |--------|---------------|-----------------|--------|
 | 2 | Task models + CRUD | Shell + design system + 10 stub routes | ✅ Done |
 | 3 | Cascade engine | Screens: today, task, plans, site | ✅ Done |
-| 4 | Excel + AI task extraction (no deps) | Screens: upload, review (onboarding) | ✅ Done |
+| 4 | Excel + AI task extraction (no deps) | Screens: upload, review | ✅ Done |
 | 5 | User model + JWT auth + multi-project | Login, register, project selector screens | ✅ Done |
-| 6 | Submit + AI summary + PDF | Screens: summary, export | ⏳ Not started |
-| 7 | Today view polish | Screens: alerts, report | ⏳ Not started |
+| 6 | AI dependency inference (Pass 2) | Review screen — workflow grouping + reviewable deps | ⏳ Next |
+| 7 | Submit + AI summary + PDF | Screens: summary, export | ⏳ Not started |
+| 8 | Today view polish | Screens: alerts, report | ⏳ Not started |
 
 ---
 
@@ -685,7 +711,7 @@ The agent does not proceed to the next sprint until the user explicitly approves
 
 ---
 
-## Sprint 4 — Excel/AI Extraction + Onboarding UI 🔄 BUILT — DRY-TEST PENDING
+## Sprint 4 — Excel/AI Extraction + Onboarding UI ✅ DONE
 
 **Scope note:** AI extracts **tasks only** from the uploaded schedule. Dependency extraction is out of scope — dependencies remain seeded manually or via API. `confirm-schedule` does a **clean slate replace** (deletes all existing tasks before inserting).
 
@@ -729,46 +755,171 @@ The agent does not proceed to the next sprint until the user explicitly approves
 
 ---
 
-## Sprint 5 — User Module + Multi-Project ✅ DONE
+## Sprint 6 — AI Dependency Inference ⏳ NEXT
 
-**What was built:**
+**Goal:** Extend the Sprint 4 task-extraction pipeline with a second Claude pass that infers construction task dependencies. The foreman reviews extracted tasks grouped by workflow chain, removes any incorrect dependencies, then confirms — creating both tasks and dependencies in a single onboarding flow.
 
-**Backend**
-- `backend/app/models.py` — `User` (id, email, password_hash, name, created_at) + `ProjectMember` (user_id, project_id, role); `members` relationship on `Project`
-- `backend/app/services/auth_service.py` — bcrypt hashing, JWT creation/decode (`python-jose`), `get_current_user` dependency, `require_project_member` / `require_project_owner` guards
-- `backend/app/routers/auth.py` — `POST /auth/register` (201), `POST /auth/login` (OAuth2 form → JWT), `GET /auth/me`
-- `backend/app/routers/projects.py` — full CRUD + `POST/DELETE /projects/{id}/members`
-- `backend/app/routers/daily_log.py` — removed `HARDCODED_PROJECT_ID`; routes moved to `/projects/{id}/daily-logs/today` and `/projects/{id}/daily-logs/{date}`
-- All other routers (tasks, crew, incidents, materials, onboarding) — `get_current_user` + membership check on every endpoint
-- `backend/app/main.py` — CORS updated to `settings.cors_origins` + `allow_credentials=True`
-- `backend/alembic/versions/9496245d758b_add_user_projectmember_models.py` — migration
-- `backend/tests/conftest.py` — all fixtures override `get_current_user` via `dependency_overrides`
-- `backend/tests/test_auth.py` — 12 auth tests (register, login, /me, project access, membership, owner-only)
-- `backend/requirements.txt` — `python-jose[cryptography]`, `passlib[bcrypt]`, `bcrypt==4.0.1`
+**Gate:** Sprint 4 deployed and live on Render (`POST /projects/{id}/upload-schedule` returns 200). ✅ Already satisfied.
 
-**Frontend**
-- `frontend/src/contexts/AuthContext.tsx` — token + user in localStorage, `login()` / `logout()`
-- `frontend/src/contexts/ProjectContext.tsx` — current project in localStorage, `setCurrentProject()`
-- `frontend/src/api/auth.ts` — `registerUser`, `loginUser`, `getMe`
-- `frontend/src/api/projects.ts` — `fetchProjects`, `createProject`, `addMember`, `removeMember`
-- `frontend/src/components/ProtectedRoute.tsx` — redirects to `/login` if unauthenticated
-- `frontend/src/pages/Login.tsx` — email/password form, sets token before `getMe()`
-- `frontend/src/pages/Register.tsx` — auto-logs in after registration
-- `frontend/src/pages/ProjectSelect.tsx` — project list + inline create form + empty-state CTA
-- `frontend/src/api/client.ts` — request interceptor (Bearer), response interceptor (401 → `/login`)
-- `frontend/src/router.tsx` — `/login`, `/register`, `/projects` routes; `DesktopShell` wrapped in `ProtectedRoute`
-- All pages — `const PROJECT_ID = 1` replaced with `useProject()` context
+**Streams:** BE runs first. FE updates after BE deploys.
 
-**Post-sprint fixes**
-- `render.yaml` — `CORS_ORIGINS` env var set to allow `sightsync-web.onrender.com` (fixes OPTIONS 400 on auth endpoints)
-- `frontend/src/pages/Plans.tsx` — empty-state "Upload schedule" button linking to `/onboard`
-- `frontend/src/components/SidebarNav.tsx` — sidebar nav updated
-
-**Test count:** 150 backend tests passing (138 carried + 12 new auth tests). 88% coverage.
+```
+/sprint-execute 4B spawns:
+  Worktree A: sprint-4b-be   (extend ai_extraction + prompt files + update onboarding router + new tests)
+  → deploy to Render → user confirms Render is up
+  → then: Worktree B: sprint-4b-fe   (update Review screen — workflow grouping + reviewable deps)
+```
 
 ---
 
-## Sprint 5 — User Module + Multi-Project (spec)
+### Core Principle: Workflow-Scoped Dependencies
+
+A construction project runs **multiple parallel workflow chains** — one per trade — simultaneously. A delay in one workflow only cascades within that workflow.
+
+```
+Workflow A (Structural):  [Frame L1] → [Frame L2] → [Frame L3]
+Workflow B (Electrical):  [Rough-in L1] → [Rough-in L2] → [Rough-in L3] → [Panel]
+Workflow C (Plumbing):    [Stack] → [Rough Plumbing L1] → [Rough Plumbing L2]
+```
+
+- Intra-workflow: same trade, next floor — always sequential
+- Cross-workflow handoff: real physical constraint (e.g. framing close → MEP rough-in on that floor)
+- No artificial shape constraints — Claude acts as a senior PM
+
+---
+
+### Stream A: Backend `[worktree: sprint-4b-be]`
+
+**File ownership:** `backend/app/services/ai_extraction.py`, `backend/app/services/prompts/task_extraction.md` (NEW), `backend/app/services/prompts/dependency_inference.md` (NEW), `backend/app/routers/onboarding.py`, `backend/tests/test_onboarding.py`, `backend/requirements.txt`
+
+#### New / updated types in `ai_extraction.py`
+
+```python
+@dataclass
+class ExtractedTask:          # add workflow_id field (NOT persisted to DB)
+    name: str
+    level_tag: str
+    trade_tag: str | None
+    start_date: str
+    duration_days: int
+    excel_row_index: int
+    workflow_id: str           # assigned by Pass 2
+
+@dataclass
+class Workflow:               # NEW
+    id: str                   # "wf_0", "wf_1", ...
+    name: str                 # e.g. "Electrical", "Structural"
+    task_indices: list[int]   # ordered task indices within this workflow
+
+@dataclass
+class InferredDependency:     # NEW
+    task_index: int
+    depends_on_index: int
+    lag_days: int
+    confidence: float          # omit if < 0.4
+    reasoning: str
+    type: str                  # "intra_workflow" | "cross_workflow_handoff"
+
+@dataclass
+class ExtractionResult:       # extend: add workflows + dependencies
+    tasks: list[ExtractedTask]
+    workflows: list[Workflow]             # NEW
+    dependencies: list[InferredDependency]  # NEW
+    confidence: float
+    error: str | None
+    raw_text_length: int = 0
+```
+
+#### New functions in `ai_extraction.py`
+
+```python
+def _load_prompt(name: str) -> str:
+    # loads backend/app/services/prompts/{name}.md relative to this file
+
+def infer_workflows_and_dependencies(
+    tasks: list[ExtractedTask],
+) -> tuple[list[Workflow], list[InferredDependency]]:
+    # Pass 2: inject tasks JSON into dependency_inference.md → call Claude
+    # Filter deps where confidence < 0.4
+    # On any failure: return ([], []) — never raise
+```
+
+Update `extract_tasks_from_xlsx()` to call `infer_workflows_and_dependencies()` after Pass 1 and return the extended `ExtractionResult`. If Pass 2 fails → return tasks with `workflows=[], dependencies=[], error` set.
+
+#### Prompt files
+
+**`backend/app/services/prompts/task_extraction.md`** — move existing inline prompt here; add tolerance notes (Hebrew/English, merged cells), field table, input placeholder `{{XLSX_TEXT}}`.
+
+**`backend/app/services/prompts/dependency_inference.md`** — full prompt (see SPRINT_4B_PLAN.md for exact content). Key sections: Role (senior construction PM), Context (parallel workflow chains), Input `{{TASKS_JSON}}`, two-step task (Step 1: identify workflows, Step 2: infer deps), output JSON schema.
+
+#### Updated endpoints (`onboarding.py`)
+
+```
+POST /projects/{project_id}/upload-schedule
+  — response now includes: tasks, workflows, dependencies, confidence, error
+
+POST /projects/{project_id}/confirm-schedule
+  — now accepts: { tasks: [...], dependencies: [...] }
+  — inserts tasks (clean slate) then inserts deps via existing create_task_dependency()
+  — returns: { tasks_created: int, deps_created: int }
+```
+
+Reuse: `create_task_dependency()` from `backend/app/routers/tasks.py` (already handles UniqueConstraint).
+
+#### Graceful degradation
+
+- No API key → Pass 1 skipped entirely; return empty result with `error`
+- Pass 1 succeeds, Pass 2 fails → return tasks only, `workflows=[], dependencies=[], error` set
+- Foreman can still confirm tasks-only in both degraded cases — never return 500
+
+#### New tests in `backend/tests/test_onboarding.py` (10 additions)
+
+All mock `anthropic.Anthropic()`. Add `_mock_pass2_response()` helper returning `{workflows, dependencies}` JSON shape.
+
+| # | Test |
+|---|------|
+| 1 | upload response includes `workflows` field |
+| 2 | upload response includes `dependencies` field |
+| 3 | Pass 2 failure → tasks returned, `workflows=[]`, `dependencies=[]`, `error` set |
+| 4 | deps with confidence < 0.4 excluded from response |
+| 5 | confirm-schedule with deps → deps inserted in DB |
+| 6 | confirm idempotency — re-confirming doesn't duplicate deps |
+| 7 | parallel workflows — Electrical and Plumbing get zero cross-workflow deps between them |
+| 8 | intra-workflow transitive reduction — 3-task chain yields 2 edges (A→B, B→C), not 3 |
+| 9 | intra-workflow ordering — tasks ordered by level_tag within a workflow |
+| 10 | no API key — Pass 2 skipped, tasks still returned, error field set |
+
+**Stream A gate:** 10 new tests pass (mocked), all existing onboarding + task tests still pass.
+
+---
+
+### Stream B: Frontend Review Update `[worktree: sprint-4b-fe]` — starts after A deploys
+
+**Gate:** `POST /projects/{id}/upload-schedule` returns `workflows` + `dependencies` fields on Render.
+
+**File ownership:** `frontend/src/pages/Review.tsx`, `frontend/src/api/tasks.ts`
+
+**`frontend/src/api/tasks.ts`** — extend types:
+- Add `Workflow`, `InferredDependency` interfaces
+- Extend `ExtractionResult` with `workflows: Workflow[]`, `dependencies: InferredDependency[]`
+- Update `confirmSchedule(tasks, dependencies)` signature and request body
+
+**`frontend/src/pages/Review.tsx`** — update UI:
+- Group tasks by `workflow_id` — one collapsible section per workflow (workflow name as header)
+- Show each inferred dependency with its `reasoning` and `confidence` badge
+- Allow foreman to remove individual deps before confirming (local state remove)
+- Pass both `tasks` and `dependencies` to `confirmSchedule()`
+
+### Sprint 4B done when
+- Upload returns `workflows` + `dependencies` on Render
+- Review screen groups tasks by workflow and shows reviewable deps
+- Foreman can remove individual deps before confirming
+- Confirm → tasks + deps both appear in `/plans` and cascade engine can use them
+- All 10 new tests pass
+
+---
+
+## Sprint 5 — User Module + Multi-Project ✅ DONE
 
 **Goal:** Add JWT authentication (email + password), a `User` model, a `ProjectMember` join table (many-to-many), and replace all hardcoded `project_id=1` references with dynamic project context. After this sprint every API call is authenticated and project-scoped.
 
@@ -941,7 +1092,7 @@ Add `test_user` fixture that creates a `User` row in the test DB. Update `seeded
 
 ---
 
-## Sprint 6 — Submission + AI Summary + PDF + Export UI
+## Sprint 7 — Submission + AI Summary + PDF + Export UI
 
 **New backend dependency:** `reportlab>=4.2.0`
 
@@ -992,7 +1143,7 @@ New API calls to add to `frontend/src/api/daily_log.ts`:
 
 ---
 
-## Sprint 7 — Today View Polish + Alerts/Report UI
+## Sprint 8 — Today View Polish + Alerts/Report UI
 
 **Streams:** BE validation runs first (lightweight). FE starts after.
 
@@ -1027,6 +1178,68 @@ Screen 8 wires to: `DailyLog` (weather), attendance endpoint (crew count), `Task
 - Screens alerts + report render real data
 - "Generate report" → submit → AI summary → export flow is complete end-to-end
 - Render deploy successful — full app is feature-complete
+
+---
+
+---
+
+## Post-Sprint Features
+
+These features are queued for deployment after all main sprints (1–8) are complete. Each is self-contained and can be executed independently.
+
+---
+
+### Feature A — Crew Registry + Daily Attendance
+
+**Status:** ⏳ Not started  
+**Effort:** Frontend-only (backend is fully built)
+
+#### What already exists
+
+| Layer | File | What it does |
+|-------|------|-------------|
+| Backend | `backend/app/routers/crew.py` | Full CRUD + attendance endpoints |
+| Backend | `backend/app/models.py` | `CrewMember` + `CrewAttendance` models |
+| Frontend | `frontend/src/pages/CrewManagement.tsx` | Worker list + add/delete (144L, uses dynamic `currentProject.id`) |
+| Frontend | `frontend/src/components/CrewAttendanceBlock.tsx` | Attendance toggle per worker (137L) |
+| Frontend | `frontend/src/api/crew.ts` | All API calls wired |
+
+#### What is missing
+
+1. **No route** — `CrewManagement.tsx` exists but `/crew` is not in `frontend/src/router.tsx`
+2. **No navigation entry point** — no link to crew in sidebar, bottom nav, or any screen
+3. **Daily attendance not surfaced** — `CrewAttendanceBlock` exists but is not accessible in the current app flow (Today/Report screens don't show it)
+
+#### Implementation plan
+
+**`frontend/src/router.tsx`** — add two routes inside the `DesktopShell` children:
+```
+/crew              → CrewManagement.tsx   (worker registry: list, add, delete)
+/crew/attendance   → CrewAttendance.tsx   (NEW — daily attendance marking)
+```
+
+**`frontend/src/pages/CrewAttendance.tsx`** — NEW screen:
+- Header: today's date
+- List all crew members for current project (calls `fetchCrew(projectId)`)
+- For each worker: name + status toggle (Present / Absent / Partial) + optional note
+- Uses existing `CrewAttendanceBlock` component or wires directly to `upsertAttendance()`
+- Requires today's `log_id` — call `fetchTodayLog()` on mount to get it
+- On-site count shown at top: "4 / 5 on site today"
+
+**Navigation — add Crew entry point to:**
+- `frontend/src/components/SidebarNav.tsx` (desktop) — add "Crew" item linking to `/crew`
+- `frontend/src/pages/Report.tsx` — "Mark attendance" button linking to `/crew/attendance`
+- `frontend/src/pages/Today.tsx` — crew summary card (X/Y on site) tapping → `/crew/attendance`
+
+**`frontend/src/pages/CrewManagement.tsx`** — verify it works with:
+- Current auth token (axios interceptor handles this)
+- Dynamic `currentProject.id` from context (already uses `currentProject?.id ?? 1` — remove the `?? 1` fallback)
+
+#### Done when
+- `/crew` shows worker list, add and delete work per-project
+- `/crew/attendance` shows today's workers with present/absent/partial toggles
+- At least one nav entry point reaches each screen
+- No hardcoded `project_id=1` fallback remains in crew files
 
 ---
 
