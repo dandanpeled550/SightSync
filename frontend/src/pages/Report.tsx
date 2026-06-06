@@ -4,7 +4,7 @@ import ScreenShell from '../components/ScreenShell'
 import { colors, radius, gradients, shadow } from '../constants/theme'
 import { fetchTodayLog, submitLog, type DailyLog } from '../api/daily_log'
 import { fetchAttendance, type AttendanceRecord } from '../api/crew'
-import { fetchTaskEntries, type TaskLogEntry } from '../api/tasks'
+import { fetchTaskEntries, fetchAllTasks, type TaskLogEntry, type Task } from '../api/tasks'
 import { fetchMaterials, type Material } from '../api/materials'
 import { useProject } from '../contexts/ProjectContext'
 
@@ -86,6 +86,7 @@ export default function Report() {
   const [attendance, setAttendance] = useState<AttendanceRecord[]>([])
   const [taskEntries, setTaskEntries] = useState<TaskLogEntry[]>([])
   const [materials, setMaterials] = useState<Material[]>([])
+  const [allTasks, setAllTasks] = useState<Task[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
@@ -101,15 +102,17 @@ export default function Report() {
         if (cancelled) return
         setLog(todayLog)
 
-        const [att, entries, mats] = await Promise.all([
+        const [att, entries, mats, tasks] = await Promise.all([
           fetchAttendance(todayLog.id),
           fetchTaskEntries(todayLog.id),
           fetchMaterials(todayLog.id),
+          fetchAllTasks(PROJECT_ID),
         ])
         if (cancelled) return
         setAttendance(att)
         setTaskEntries(entries)
         setMaterials(mats)
+        setAllTasks(tasks)
       } catch (err: unknown) {
         if (!cancelled) setError(err instanceof Error ? err.message : 'Failed to load report data')
       } finally {
@@ -150,6 +153,16 @@ export default function Report() {
   })()
 
   const weatherIco = weatherIcon(log?.weather?.conditions ?? null)
+
+  const doneTasks: Task[] = taskEntries
+    .filter(e => e.action === 'done')
+    .map(e => allTasks.find(t => t.id === e.task_id))
+    .filter((t): t is Task => t !== undefined)
+
+  const notDoneTasks: { task: Task; entry: TaskLogEntry }[] = taskEntries
+    .filter(e => e.action === 'not_done')
+    .map(e => ({ task: allTasks.find(t => t.id === e.task_id), entry: e }))
+    .filter((x): x is { task: Task; entry: TaskLogEntry } => x.task !== undefined)
 
   const draftBadge = (
     <span style={{
@@ -246,6 +259,122 @@ export default function Report() {
             accent={colors.muted}
           />
         </div>
+
+        {/* Completed today */}
+        {doneTasks.length > 0 && (
+          <div style={{ marginBottom: '20px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '10px' }}>
+              <span style={{ fontSize: '13px', fontWeight: 900, color: colors.text, letterSpacing: '-0.01em' }}>
+                Completed today
+              </span>
+              <div style={{ flex: 1, height: '1px', background: colors.line }} />
+              <span style={{
+                fontSize: '11px', fontWeight: 800, color: colors.green,
+                background: colors.greenSoft, borderRadius: radius.pill, padding: '3px 8px',
+              }}>
+                {doneTasks.length}
+              </span>
+            </div>
+            {doneTasks.map(task => (
+              <div
+                key={task.id}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '10px',
+                  padding: '10px 12px',
+                  background: colors.greenSoft,
+                  border: `1px solid ${colors.greenBorder}`,
+                  borderRadius: radius.card,
+                  marginBottom: '8px',
+                }}
+              >
+                <div style={{
+                  width: '32px', height: '32px', borderRadius: '10px',
+                  background: '#fff', display: 'grid', placeItems: 'center', fontSize: '16px', flexShrink: 0,
+                }}>
+                  ✅
+                </div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: '13px', fontWeight: 800, color: colors.text, letterSpacing: '-0.02em', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                    {task.name}
+                  </div>
+                  <div style={{ fontSize: '11px', color: colors.muted }}>
+                    {task.level_tag}{task.trade_tag ? ` · ${task.trade_tag}` : ''}
+                  </div>
+                </div>
+                <span style={{
+                  fontSize: '11px', fontWeight: 800, color: colors.green,
+                  background: '#fff', borderRadius: radius.pill, padding: '3px 8px', flexShrink: 0,
+                }}>
+                  Done
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Rescheduled / not done */}
+        {notDoneTasks.length > 0 && (
+          <div style={{ marginBottom: '20px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '10px' }}>
+              <span style={{ fontSize: '13px', fontWeight: 900, color: colors.text, letterSpacing: '-0.01em' }}>
+                Rescheduled
+              </span>
+              <div style={{ flex: 1, height: '1px', background: colors.line }} />
+              <span style={{
+                fontSize: '11px', fontWeight: 800, color: colors.orange,
+                background: colors.orangeSoft, borderRadius: radius.pill, padding: '3px 8px',
+              }}>
+                {notDoneTasks.length}
+              </span>
+            </div>
+            {notDoneTasks.map(({ task, entry }) => (
+              <div
+                key={task.id}
+                style={{
+                  padding: '10px 12px',
+                  background: colors.orangeSoft,
+                  border: `1px solid ${colors.line}`,
+                  borderRadius: radius.card,
+                  marginBottom: '8px',
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <div style={{
+                    width: '32px', height: '32px', borderRadius: '10px',
+                    background: '#fff', display: 'grid', placeItems: 'center', fontSize: '16px', flexShrink: 0,
+                  }}>
+                    🔁
+                  </div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: '13px', fontWeight: 800, color: colors.text, letterSpacing: '-0.02em', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                      {task.name}
+                    </div>
+                    <div style={{ fontSize: '11px', color: colors.muted }}>
+                      {task.level_tag}{task.trade_tag ? ` · ${task.trade_tag}` : ''}
+                    </div>
+                  </div>
+                  {entry.new_date && (
+                    <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                      <div style={{ fontSize: '10px', color: colors.muted, textDecoration: 'line-through' }}>
+                        {new Date(task.end_date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                      </div>
+                      <div style={{ fontSize: '12px', fontWeight: 800, color: colors.orange }}>
+                        → {new Date(entry.new_date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                      </div>
+                    </div>
+                  )}
+                </div>
+                {entry.reason && (
+                  <div style={{ fontSize: '11px', color: colors.muted, marginTop: '6px', paddingLeft: '42px' }}>
+                    {entry.reason}
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
 
         {/* Submit error */}
         {submitError && (

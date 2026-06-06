@@ -82,9 +82,18 @@ export default function TaskPage() {
   const [statusAction, setStatusAction] = useState<'done' | 'not_done' | null>(null)
   const [selectedReason, setSelectedReason] = useState<string | null>(null)
 
-  // Cascade preview
+  // Cascade preview (for schedule date edits)
   const [cascade, setCascade] = useState<CascadeResult[]>([])
   const [cascadeLoading, setCascadeLoading] = useState(false)
+
+  // Reschedule date + cascade preview for "not done" flow
+  const [notDoneDate, setNotDoneDate] = useState<string>(() => {
+    const d = new Date()
+    d.setDate(d.getDate() + 1)
+    return d.toISOString().split('T')[0]
+  })
+  const [notDoneCascade, setNotDoneCascade] = useState<CascadeResult[]>([])
+  const [notDoneCascadeLoading, setNotDoneCascadeLoading] = useState(false)
 
   const [saving, setSaving] = useState(false)
   const [saveError, setSaveError] = useState<string | null>(null)
@@ -133,6 +142,19 @@ export default function TaskPage() {
       .finally(() => setLoading(false))
   }, [taskId])
 
+  // Cascade preview for "not done" reschedule date
+  useEffect(() => {
+    if (statusAction !== 'not_done' || !notDoneDate || !task) {
+      setNotDoneCascade([])
+      return
+    }
+    setNotDoneCascadeLoading(true)
+    fetchCascadePreview(numId, notDoneDate)
+      .then(r => setNotDoneCascade(r))
+      .catch(() => setNotDoneCascade([]))
+      .finally(() => setNotDoneCascadeLoading(false))
+  }, [notDoneDate, statusAction, task])
+
   // Cascade preview — triggers whenever start date changes from original (no status gate)
   useEffect(() => {
     if (!task || !editStartDate || editStartDate === task.start_date) {
@@ -179,7 +201,7 @@ export default function TaskPage() {
   const canSave = !saving && predecessorViolations.length === 0 && (
     hasFieldChanges ||
     statusAction === 'done' ||
-    (statusAction === 'not_done' && !!selectedReason)
+    (statusAction === 'not_done' && !!selectedReason && !!notDoneDate)
   )
 
   async function handleSave() {
@@ -211,7 +233,7 @@ export default function TaskPage() {
       if (logId && statusAction === 'done') {
         await markTaskDone(logId, numId)
       } else if (logId && statusAction === 'not_done' && selectedReason) {
-        const result = await markTaskNotDone(logId, numId, editStartDate, selectedReason)
+        const result = await markTaskNotDone(logId, numId, notDoneDate, selectedReason)
         const downstream = result.cascade_results.filter(r => r.task_id !== numId)
         if (downstream.length > 0) {
           setCascadedCount(downstream.length)
@@ -480,7 +502,7 @@ export default function TaskPage() {
           {statusAction === 'not_done' && (
             <>
               <div style={{ fontSize: '13px', fontWeight: 700, color: colors.text, marginBottom: '8px' }}>Why not completed?</div>
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginBottom: '16px' }}>
                 {REASON_CODES.map(r => {
                   const active = selectedReason === r
                   return (
@@ -503,6 +525,60 @@ export default function TaskPage() {
                   )
                 })}
               </div>
+
+              {/* Reschedule date */}
+              <div style={{ fontSize: '13px', fontWeight: 700, color: colors.text, marginBottom: '8px' }}>
+                Reschedule to:
+              </div>
+              <input
+                type="date"
+                value={notDoneDate}
+                min={new Date().toISOString().split('T')[0]}
+                onChange={e => setNotDoneDate(e.target.value)}
+                style={{ ...inputStyle, marginBottom: '12px' }}
+              />
+
+              {/* Live cascade preview for reschedule */}
+              {notDoneCascadeLoading && (
+                <div style={{ fontSize: '12px', color: colors.muted }}>Calculating impact…</div>
+              )}
+              {!notDoneCascadeLoading && notDoneCascade.filter(c => c.task_id !== numId).length > 0 && (
+                <div>
+                  <div style={{ fontSize: '12px', fontWeight: 700, color: colors.orange, marginBottom: '6px' }}>
+                    ⚡ {notDoneCascade.filter(c => c.task_id !== numId).length} downstream task{notDoneCascade.filter(c => c.task_id !== numId).length !== 1 ? 's' : ''} will be rescheduled
+                  </div>
+                  <div style={{ border: `1px solid ${colors.line}`, borderRadius: radius.card, overflow: 'hidden', background: colors.surface2 }}>
+                    {notDoneCascade.filter(c => c.task_id !== numId).map((item, i, arr) => (
+                      <div
+                        key={item.task_id}
+                        style={{
+                          padding: '8px 12px',
+                          borderBottom: i < arr.length - 1 ? `1px solid ${colors.line}` : 'none',
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          alignItems: 'center',
+                        }}
+                      >
+                        <div>
+                          <div style={{ fontSize: '13px', fontWeight: 600, color: colors.text }}>{item.task_name}</div>
+                          <div style={{ fontSize: '11px', color: colors.muted }}>
+                            {formatDate(item.old_start_date)} → {formatDate(item.new_start_date)}
+                          </div>
+                        </div>
+                        <div style={{
+                          fontSize: '12px', fontWeight: 800, color: colors.orange,
+                          background: colors.orangeSoft, borderRadius: radius.pill, padding: '4px 8px',
+                        }}>
+                          +{item.days_shifted}d
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {!notDoneCascadeLoading && notDoneCascade.filter(c => c.task_id !== numId).length === 0 && notDoneDate && (
+                <div style={{ fontSize: '12px', color: colors.muted }}>No downstream tasks affected.</div>
+              )}
             </>
           )}
         </div>
