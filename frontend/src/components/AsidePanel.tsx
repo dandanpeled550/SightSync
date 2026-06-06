@@ -33,31 +33,34 @@ export default function AsidePanel() {
   useEffect(() => {
     let cancelled = false
     async function load() {
+      // Tasks + attendance — critical; weather is optional and must not block these
       try {
         const log = await fetchTodayLog(projectId)
         if (cancelled) return
-        const [todayTasks, att, wx] = await Promise.all([
+        const [todayTasks, att] = await Promise.all([
           fetchTodayTasks(projectId),
           fetchAttendance(log.id),
-          fetchWeather(projectCity),
         ])
         if (cancelled) return
         setTasks(Array.isArray(todayTasks) ? todayTasks : [])
         setAttendance(Array.isArray(att) ? att : [])
-        setForecast(wx.forecast.slice(0, 4))
       } catch {
-        // aside panel failures are non-blocking
-      } finally {
-        if (!cancelled) setLoading(false)
+        // non-blocking
       }
+      // Weather in its own try/catch so a failure never zeros out task/crew data
+      try {
+        const wx = await fetchWeather(projectCity)
+        if (!cancelled) setForecast(wx.forecast.slice(0, 4))
+      } catch {
+        // weather unavailable — panel still renders without forecast
+      }
+      if (!cancelled) setLoading(false)
     }
     load()
     return () => { cancelled = true }
   }, [projectId, projectCity])
 
-  const doneCount    = tasks.filter(t => t.status === 'done').length
-  const totalCount   = tasks.length
-  const pct          = totalCount > 0 ? Math.round((doneCount / totalCount) * 100) : 0
+  const pendingCount = tasks.length
   const presentCount = attendance.filter(a => a.status === 'present').length
 
   const cardStyle = {
@@ -136,18 +139,11 @@ export default function AsidePanel() {
 
       {/* Progress */}
       <div style={cardStyle}>
-        <div style={sectionLabel}>Today's Progress</div>
-        <div style={{ fontSize: '14px', fontWeight: 800, color: colors.text, marginBottom: '8px', letterSpacing: '-0.02em' }}>
-          {doneCount} of {totalCount} tasks · {pct}%
-        </div>
-        <div style={{ height: '6px', background: colors.line, borderRadius: '999px', overflow: 'hidden' }}>
-          <div style={{
-            height: '100%',
-            width: `${pct}%`,
-            background: colors.primary,
-            borderRadius: '999px',
-            transition: 'width 0.4s ease',
-          }} />
+        <div style={sectionLabel}>Today's Tasks</div>
+        <div style={{ fontSize: '14px', fontWeight: 800, color: colors.text, letterSpacing: '-0.02em' }}>
+          {pendingCount === 0
+            ? 'All clear ✅'
+            : `${pendingCount} task${pendingCount !== 1 ? 's' : ''} remaining`}
         </div>
       </div>
 
