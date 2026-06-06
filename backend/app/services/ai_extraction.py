@@ -96,10 +96,11 @@ def _call_openai(prompt: str) -> str:
     """Call OpenAI and return the raw response text. Raises on any error."""
     import openai
     client = openai.OpenAI(api_key=settings.openai_api_key)
+    # No response_format param — SDK version differences cause Pydantic validation errors.
+    # _strip_fences() handles markdown-wrapped responses as a fallback.
     response = client.chat.completions.create(
         model=settings.openai_model,
         max_tokens=4096,
-        response_format={"type": "json_object"},
         messages=[{"role": "user", "content": prompt}],
     )
     return response.choices[0].message.content
