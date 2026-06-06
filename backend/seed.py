@@ -10,19 +10,9 @@ import sys
 sys.path.insert(0, os.path.dirname(__file__))
 
 from app.database import SessionLocal, engine
-from app.models import Base, Project, CrewMember, Task, TaskDependency, User
-from app.services.auth_service import hash_password
+from app.models import Base, Project, CrewMember, Task, TaskDependency
 
 Base.metadata.create_all(bind=engine)
-
-# ── Password reset (runs on every deploy — idempotent) ────────────────────────
-_db = SessionLocal()
-_user = _db.query(User).filter(User.email == "mywebdan@gmail.com").first()
-if _user:
-    _user.password_hash = hash_password("dandanpeled1!")
-    _db.commit()
-    print("Password reset for mywebdan@gmail.com")
-_db.close()
 
 db = SessionLocal()
 
