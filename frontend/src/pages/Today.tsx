@@ -115,12 +115,11 @@ export default function Today() {
   const dayName = today.toLocaleDateString('en-US', { weekday: 'short' }).toUpperCase()
   const monthName = today.toLocaleDateString('en-US', { month: 'short' }).toUpperCase()
   const yearShort = String(today.getFullYear()).slice(2)
-  const dateStr = today.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })
+
 
   return (
     <ScreenShell
-      title="Tower B"
-      subtitle={dateStr}
+      title={currentProject?.name ?? 'Today'}
       desktopHideLeft
       leftAction={
         <IconBtn onClick={() => navigate('/onboard')}>☰</IconBtn>
