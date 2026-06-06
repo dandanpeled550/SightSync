@@ -11,12 +11,17 @@ Never raises exceptions — all failures are captured in ExtractionResult.error.
 
 import io
 import json
+import logging
+import time
+import zipfile
 from dataclasses import dataclass, field
 from typing import Optional
 
 import openpyxl
 
 from app.config import settings
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -36,22 +41,65 @@ class ExtractionResult:
     raw_text_length: int = 0
 
 
-def _xlsx_to_text(xlsx_bytes: bytes) -> tuple[str, int]:
-    """Parse xlsx bytes into flat text (max 6000 chars). Returns (text, length)."""
-    # read_only=True uses a streaming parser that throws "The string did not match the
-    # expected pattern." on date/formula-cache cells in certain openpyxl versions.
-    wb = openpyxl.load_workbook(io.BytesIO(xlsx_bytes), data_only=True)
-    lines: list[str] = []
+# Minimal valid styles.xml — replaces invalid styles to bypass openpyxl's colour-pattern
+# validation (MatchPattern raises "The string did not match the expected pattern." on
+# non-standard ARGB values like 3-char hex or vendor-specific colour codes).
+_MINIMAL_STYLES_XML = (
+    '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+    '<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">'
+    '<fonts count="1"><font><sz val="11"/><name val="Calibri"/></font></fonts>'
+    '<fills count="2">'
+    '<fill><patternFill patternType="none"/></fill>'
+    '<fill><patternFill patternType="gray125"/></fill>'
+    '</fills>'
+    '<borders count="1"><border><left/><right/><top/><bottom/><diagonal/></border></borders>'
+    '<cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>'
+    '<cellXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/></cellXfs>'
+    '</styleSheet>'
+)
+
+
+def _strip_xlsx_styles(xlsx_bytes: bytes) -> bytes:
+    """Replace xl/styles.xml with a minimal valid stub so cell values can be read."""
+    buf_in = io.BytesIO(xlsx_bytes)
+    buf_out = io.BytesIO()
+    with zipfile.ZipFile(buf_in, 'r') as zin, \
+         zipfile.ZipFile(buf_out, 'w', zipfile.ZIP_DEFLATED) as zout:
+        for item in zin.infolist():
+            data = _MINIMAL_STYLES_XML.encode() if item.filename == 'xl/styles.xml' \
+                   else zin.read(item.filename)
+            zout.writestr(item, data)
+    return buf_out.getvalue()
+
+
+def _parse_workbook(wb) -> list[str]:
+    """Extract non-empty rows from all sheets as tab-separated strings."""
+    out: list[str] = []
     for sheet in wb.worksheets:
-        lines.append(f"Sheet: {sheet.title}")
+        out.append(f"Sheet: {sheet.title}")
         for row in sheet.iter_rows(values_only=True):
             try:
                 row_values = [str(cell) if cell is not None else "" for cell in row]
             except Exception:
                 continue
             if any(v.strip() for v in row_values):
-                lines.append("\t".join(row_values))
+                out.append("\t".join(row_values))
     wb.close()
+    return out
+
+
+def _xlsx_to_text(xlsx_bytes: bytes) -> tuple[str, int]:
+    """Parse xlsx bytes into flat text (max 6000 chars). Returns (text, length)."""
+    try:
+        wb = openpyxl.load_workbook(io.BytesIO(xlsx_bytes), data_only=True)
+        lines = _parse_workbook(wb)
+    except Exception:
+        # Fallback: strip xl/styles.xml to bypass colour/style pattern errors.
+        # Cell values live in sheet XMLs — styles only affect formatting, not data.
+        cleaned = _strip_xlsx_styles(xlsx_bytes)
+        wb = openpyxl.load_workbook(io.BytesIO(cleaned), data_only=True)
+        lines = _parse_workbook(wb)
+
     full_text = "\n".join(lines)
     truncated = full_text[:6000]
     return truncated, len(truncated)
@@ -88,18 +136,26 @@ Spreadsheet data:
 def _call_anthropic(prompt: str) -> str:
     """Call Claude and return the raw response text. Raises on any error."""
     import anthropic
+    logger.debug("AI prompt [anthropic/%s] (%d chars):\n%s", settings.anthropic_model, len(prompt), prompt)
+    start = time.perf_counter()
     client = anthropic.Anthropic(api_key=settings.anthropic_api_key)
     message = client.messages.create(
         model=settings.anthropic_model,
         max_tokens=4096,
         messages=[{"role": "user", "content": prompt}],
     )
-    return message.content[0].text
+    text = message.content[0].text
+    elapsed = int((time.perf_counter() - start) * 1000)
+    logger.info("AI call [anthropic/%s] done in %dms — %d chars", settings.anthropic_model, elapsed, len(text))
+    logger.debug("AI response:\n%s", text)
+    return text
 
 
 def _call_openai(prompt: str) -> str:
     """Call OpenAI and return the raw response text. Raises on any error."""
     import openai
+    logger.debug("AI prompt [openai/%s] (%d chars):\n%s", settings.openai_model, len(prompt), prompt)
+    start = time.perf_counter()
     client = openai.OpenAI(api_key=settings.openai_api_key)
     # No response_format param — SDK version differences cause Pydantic validation errors.
     # _strip_fences() handles markdown-wrapped responses as a fallback.
@@ -108,7 +164,11 @@ def _call_openai(prompt: str) -> str:
         max_tokens=4096,
         messages=[{"role": "user", "content": prompt}],
     )
-    return response.choices[0].message.content
+    text = response.choices[0].message.content
+    elapsed = int((time.perf_counter() - start) * 1000)
+    logger.info("AI call [openai/%s] done in %dms — %d chars", settings.openai_model, elapsed, len(text))
+    logger.debug("AI response:\n%s", text)
+    return text
 
 
 def _strip_fences(text: str) -> str:
