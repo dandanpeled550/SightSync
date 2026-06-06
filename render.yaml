@@ -17,10 +17,7 @@ services:
           name: sightsync-db
           property: connectionString
       - key: FRONTEND_URL
-        fromService:
-          name: sightsync-web
-          type: web
-          property: host
+        value: https://sightsync-web.onrender.com
       - key: SECRET_KEY
         generateValue: true
       - key: PYTHON_VERSION
@@ -35,10 +32,7 @@ services:
     staticPublishPath: frontend/dist
     envVars:
       - key: VITE_API_URL
-        fromService:
-          name: sightsync-api
-          type: web
-          property: host
+        value: https://sightsync-api.onrender.com
     headers:
       - path: /*
         name: X-Frame-Options
