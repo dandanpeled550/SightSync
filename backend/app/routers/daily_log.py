@@ -154,6 +154,7 @@ async def submit_log(
         raise HTTPException(status_code=404, detail="Daily log not found")
 
     log.submitted = True
+    log.ai_summary = None  # clear stale result so frontend polls for fresh generation
     db.commit()
     db.refresh(log)
 
