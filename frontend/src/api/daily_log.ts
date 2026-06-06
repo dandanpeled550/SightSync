@@ -14,6 +14,8 @@ export interface DailyLog {
   project_id: number
   date: string
   weather: WeatherData
+  submitted?: boolean
+  ai_summary?: string | null
 }
 
 export async function fetchTodayLog(projectId: number): Promise<DailyLog> {
@@ -28,5 +30,10 @@ export async function fetchLogByDate(projectId: number, date: string): Promise<D
 
 export async function refetchWeather(projectId: number, logId: number): Promise<DailyLog> {
   const res = await api.post<DailyLog>(`/projects/${projectId}/daily-logs/${logId}/refetch-weather`)
+  return res.data
+}
+
+export async function submitLog(logId: number): Promise<DailyLog> {
+  const res = await api.post<DailyLog>(`/daily-logs/${logId}/submit`)
   return res.data
 }

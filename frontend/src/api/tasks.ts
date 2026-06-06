@@ -37,6 +37,11 @@ export interface CascadeResult {
   days_shifted: number
 }
 
+export async function fetchTaskEntries(logId: number): Promise<TaskLogEntry[]> {
+  const res = await api.get<TaskLogEntry[]>(`/daily-logs/${logId}/task-entries`)
+  return res.data
+}
+
 export async function fetchTodayTasks(projectId: number): Promise<Task[]> {
   const res = await api.get<Task[]>(`/projects/${projectId}/tasks/today`)
   return res.data
