@@ -346,22 +346,20 @@ export default function Report() {
         {/* Delays (directly delayed + cascade impacts) */}
         {log && <DelaysBlock logId={log.id} readOnly />}
 
-        {/* Safety documentation section */}
-        {log && (
+        {/* Safety documentation section — only shown when incidents exist */}
+        {log && incidentCount > 0 && (
           <div style={{ marginBottom: '20px' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '10px' }}>
               <span style={{ fontSize: '13px', fontWeight: 900, color: colors.text, letterSpacing: '-0.01em' }}>
                 Safety documentation
               </span>
               <div style={{ flex: 1, height: '1px', background: colors.line }} />
-              {incidentCount > 0 && (
-                <span style={{
-                  fontSize: '11px', fontWeight: 800, color: colors.red,
-                  background: colors.redSoft, borderRadius: radius.pill, padding: '3px 8px',
-                }}>
-                  {incidentCount}
-                </span>
-              )}
+              <span style={{
+                fontSize: '11px', fontWeight: 800, color: colors.red,
+                background: colors.redSoft, borderRadius: radius.pill, padding: '3px 8px',
+              }}>
+                {incidentCount}
+              </span>
             </div>
             <SafetyBlock logId={log.id} readOnly />
           </div>
