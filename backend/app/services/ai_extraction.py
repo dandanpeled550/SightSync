@@ -38,12 +38,17 @@ class ExtractionResult:
 
 def _xlsx_to_text(xlsx_bytes: bytes) -> tuple[str, int]:
     """Parse xlsx bytes into flat text (max 6000 chars). Returns (text, length)."""
-    wb = openpyxl.load_workbook(io.BytesIO(xlsx_bytes), read_only=True, data_only=True)
+    # read_only=True uses a streaming parser that throws "The string did not match the
+    # expected pattern." on date/formula-cache cells in certain openpyxl versions.
+    wb = openpyxl.load_workbook(io.BytesIO(xlsx_bytes), data_only=True)
     lines: list[str] = []
     for sheet in wb.worksheets:
         lines.append(f"Sheet: {sheet.title}")
         for row in sheet.iter_rows(values_only=True):
-            row_values = [str(cell) if cell is not None else "" for cell in row]
+            try:
+                row_values = [str(cell) if cell is not None else "" for cell in row]
+            except Exception:
+                continue
             if any(v.strip() for v in row_values):
                 lines.append("\t".join(row_values))
     wb.close()
