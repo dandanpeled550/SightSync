@@ -19,14 +19,10 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="SightSync API", lifespan=lifespan)
 
-_cors_origins = list(settings.cors_origins)
-if settings.frontend_url and settings.frontend_url not in _cors_origins:
-    _cors_origins.append(settings.frontend_url)
-
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=_cors_origins,
-    allow_credentials=True,
+    allow_origins=["*"],
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )
