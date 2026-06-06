@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { colors } from '../constants/theme'
 import { fetchTodayLog } from '../api/daily_log'
-import { fetchTodayTasks, type Task } from '../api/tasks'
+import { fetchAllTasks, type Task } from '../api/tasks'
 import { fetchAttendance, type AttendanceRecord } from '../api/crew'
 import { fetchWeather, type DailyForecast } from '../api/weather'
 import { useProject } from '../contexts/ProjectContext'
@@ -26,7 +26,7 @@ export default function AsidePanel() {
   const projectCity = currentProject?.location_city ?? 'Tel Aviv'
 
   const [forecast, setForecast]     = useState<DailyForecast[]>([])
-  const [tasks, setTasks]           = useState<Task[]>([])
+  const [allTodayTasks, setAllTodayTasks] = useState<Task[]>([])
   const [attendance, setAttendance] = useState<AttendanceRecord[]>([])
   const [loading, setLoading]       = useState(true)
 
@@ -37,12 +37,17 @@ export default function AsidePanel() {
       try {
         const log = await fetchTodayLog(projectId)
         if (cancelled) return
-        const [todayTasks, att] = await Promise.all([
-          fetchTodayTasks(projectId),
+        const todayStr = new Date().toISOString().split('T')[0]
+        const [allTasks, att] = await Promise.all([
+          fetchAllTasks(projectId),
           fetchAttendance(log.id),
         ])
         if (cancelled) return
-        setTasks(Array.isArray(todayTasks) ? todayTasks : [])
+        // Filter all tasks to those active today (includes done ones for accurate progress)
+        const activeTodayTasks = Array.isArray(allTasks)
+          ? allTasks.filter(t => t.start_date <= todayStr && t.end_date >= todayStr)
+          : []
+        setAllTodayTasks(activeTodayTasks)
         setAttendance(Array.isArray(att) ? att : [])
       } catch {
         // non-blocking
@@ -60,7 +65,9 @@ export default function AsidePanel() {
     return () => { cancelled = true }
   }, [projectId, projectCity])
 
-  const pendingCount = tasks.length
+  const doneCount    = allTodayTasks.filter(t => t.status === 'done').length
+  const totalCount   = allTodayTasks.length
+  const pct          = totalCount > 0 ? Math.round((doneCount / totalCount) * 100) : 0
   const presentCount = attendance.filter(a => a.status === 'present').length
 
   const cardStyle = {
@@ -139,12 +146,21 @@ export default function AsidePanel() {
 
       {/* Progress */}
       <div style={cardStyle}>
-        <div style={sectionLabel}>Today's Tasks</div>
-        <div style={{ fontSize: '14px', fontWeight: 800, color: colors.text, letterSpacing: '-0.02em' }}>
-          {pendingCount === 0
-            ? 'All clear ✅'
-            : `${pendingCount} task${pendingCount !== 1 ? 's' : ''} remaining`}
+        <div style={sectionLabel}>Today's Progress</div>
+        <div style={{ fontSize: '14px', fontWeight: 800, color: colors.text, marginBottom: '8px', letterSpacing: '-0.02em' }}>
+          {totalCount === 0 ? 'No tasks today' : `${doneCount} of ${totalCount} tasks · ${pct}%`}
         </div>
+        {totalCount > 0 && (
+          <div style={{ height: '6px', background: colors.line, borderRadius: '999px', overflow: 'hidden' }}>
+            <div style={{
+              height: '100%',
+              width: `${pct}%`,
+              background: pct === 100 ? colors.green : colors.primary,
+              borderRadius: '999px',
+              transition: 'width 0.4s ease',
+            }} />
+          </div>
+        )}
       </div>
 
       {/* Crew */}
