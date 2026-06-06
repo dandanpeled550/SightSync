@@ -14,6 +14,8 @@ export default function DesktopShell() {
       display: 'grid',
       gridTemplateColumns: `${desktop.sidebarWidth} 1fr ${desktop.asideWidth}`,
       minHeight: '100vh',
+      maxHeight: '100vh',
+      overflow: 'hidden',
       background: colors.bg,
     }}>
       <SidebarNav />
@@ -23,6 +25,7 @@ export default function DesktopShell() {
         flexDirection: 'column',
         overflowY: 'auto',
         height: '100vh',
+        background: colors.bg,
       }}>
         <Outlet />
       </main>

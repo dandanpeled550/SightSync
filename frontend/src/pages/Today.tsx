@@ -4,21 +4,12 @@ import ScreenShell, { IconBtn } from '../components/ScreenShell'
 import MaterialsBlock from '../components/MaterialsBlock'
 import SafetyBlock from '../components/SafetyBlock'
 import PhotoUploader from '../components/PhotoUploader'
-import { colors, radius, animations, desktop } from '../constants/theme'
+import { colors, radius, shadow, animations, desktop } from '../constants/theme'
 import { useWindowSize } from '../hooks/useWindowSize'
 import { fetchTodayLog } from '../api/daily_log'
 import { fetchTodayTasks, fetchAllTasks, markTaskDone, type Task } from '../api/tasks'
 import { fetchAttendance } from '../api/crew'
-import { fetchWeather, type DailyForecast } from '../api/weather'
 import { useProject } from '../contexts/ProjectContext'
-
-const WMO_LABEL: Record<number, string> = {
-  0: 'Sun', 1: 'Clr', 2: 'PC', 3: 'Cld',
-  51: 'Driz', 61: 'Rain', 71: 'Snow', 95: 'Tstm',
-}
-function weatherLabel(code: number): string {
-  return WMO_LABEL[code] ?? '—'
-}
 
 function getTradeIcon(trade: string | null): string {
   if (!trade) return '?'
@@ -44,29 +35,75 @@ function getTradeColorSoft(trade: string | null): string {
   return colors.orangeSoft
 }
 
+function getTradeTextColor(trade: string | null): string {
+  if (!trade) return colors.primary
+  const l = trade.toLowerCase()
+  if (l.includes('safety') || l.includes('plumbing')) return colors.blue
+  if (l.includes('concrete') || l.includes('framing')) return colors.green
+  return colors.primary
+}
 
 function formatDate(iso: string): string {
   const d = new Date(iso + 'T00:00:00')
   return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
 }
 
+// ── Shared card styles ────────────────────────────────────────────────────────
+
+const sectionCard: React.CSSProperties = {
+  background: colors.surface,
+  border: `1px solid #e8edf5`,
+  borderRadius: radius.card,
+  boxShadow: shadow.card,
+  marginBottom: '16px',
+  overflow: 'hidden',
+}
+
+const sectionCardHeader: React.CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  padding: '18px 22px 16px',
+  borderBottom: `1px solid #f0f2f5`,
+}
+
+const sectionCardTitle: React.CSSProperties = {
+  fontSize: '14px',
+  fontWeight: 900,
+  textTransform: 'uppercase' as const,
+  letterSpacing: '0.04em',
+  color: colors.text,
+}
+
+const sectionCardSub: React.CSSProperties = {
+  fontSize: '12px',
+  color: colors.mutedLight,
+  marginTop: '2px',
+}
+
+const sectionCardBody: React.CSSProperties = {
+  padding: '16px 22px',
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+
 export default function Today() {
   const navigate = useNavigate()
   const { currentProject } = useProject()
   const PROJECT_ID = currentProject?.id ?? 1
   const isMobile = useWindowSize() < desktop.breakpoint
-  const [logId, setLogId]                   = useState<number | null>(null)
-  const [tasks, setTasks]                   = useState<Task[]>([])
-  const [loading, setLoading]               = useState(true)
-  const [error, setError]                   = useState<string | null>(null)
-  const [markingId, setMarkingId]           = useState<number | null>(null)
-  const [crewPresent, setCrewPresent]       = useState<number>(0)
-  const [crewTotal, setCrewTotal]           = useState<number>(0)
+
+  const [logId, setLogId]                     = useState<number | null>(null)
+  const [tasks, setTasks]                     = useState<Task[]>([])
+  const [loading, setLoading]                 = useState(true)
+  const [error, setError]                     = useState<string | null>(null)
+  const [markingId, setMarkingId]             = useState<number | null>(null)
+  const [crewPresent, setCrewPresent]         = useState<number>(0)
+  const [crewTotal, setCrewTotal]             = useState<number>(0)
   const [pendingDoneTask, setPendingDoneTask] = useState<Task | null>(null)
-  const [donePhotoUrl, setDonePhotoUrl]     = useState<string | null>(null)
-  const [forecast, setForecast]             = useState<DailyForecast[]>([])
-  const [doneCount, setDoneCount]           = useState<number>(0)
-  const [totalCount, setTotalCount]         = useState<number>(0)
+  const [donePhotoUrl, setDonePhotoUrl]       = useState<string | null>(null)
+  const [doneCount, setDoneCount]             = useState<number>(0)
+  const [totalCount, setTotalCount]           = useState<number>(0)
 
   useEffect(() => {
     let cancelled = false
@@ -87,23 +124,16 @@ export default function Today() {
         setTasks(Array.isArray(todayTasks) ? todayTasks : [])
         setCrewTotal(attendance.length)
         setCrewPresent(attendance.filter(a => a.status === 'present').length)
-        const activeTodayTasks = Array.isArray(allTasks)
+        const active = Array.isArray(allTasks)
           ? allTasks.filter(t => t.start_date <= todayStr && t.end_date >= todayStr)
           : []
-        setTotalCount(activeTodayTasks.length)
-        setDoneCount(activeTodayTasks.filter(t => t.status === 'done').length)
+        setTotalCount(active.length)
+        setDoneCount(active.filter(t => t.status === 'done').length)
       } catch (err: unknown) {
         if (cancelled) return
         setError(err instanceof Error ? err.message : "Failed to load today's tasks")
       } finally {
         if (!cancelled) setLoading(false)
-      }
-      // Weather is non-blocking — failure never stops task/crew render
-      try {
-        const wx = await fetchWeather(currentProject?.location_city ?? 'Tel Aviv')
-        if (!cancelled) setForecast(wx.forecast.slice(0, 4))
-      } catch {
-        // weather unavailable — page still renders
       }
     }
     load()
@@ -132,144 +162,184 @@ export default function Today() {
     }
   }
 
-  const today = new Date()
-  const dayNum = today.getDate()
-  const dayName = today.toLocaleDateString('en-US', { weekday: 'short' }).toUpperCase()
-  const monthName = today.toLocaleDateString('en-US', { month: 'short' }).toUpperCase()
-  const yearShort = String(today.getFullYear()).slice(2)
+  const today    = new Date()
+  const allDone  = totalCount > 0 && doneCount === totalCount
+  const pct      = totalCount > 0 ? Math.round((doneCount / totalCount) * 100) : 0
 
+  const dateStr = today.toLocaleDateString('en-US', {
+    weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
+  }).toUpperCase()
 
   return (
     <ScreenShell
       title={currentProject?.name ?? 'Today'}
       desktopHideLeft
-      leftAction={
-        <IconBtn onClick={() => navigate('/onboard')}>☰</IconBtn>
-      }
-      rightAction={
-        <IconBtn onClick={() => navigate('/task/new')}>+</IconBtn>
-      }
+      leftAction={<IconBtn onClick={() => navigate('/onboard')}>☰</IconBtn>}
+      rightAction={<IconBtn onClick={() => navigate('/task/new')}>+</IconBtn>}
     >
-      {/* Date hero */}
-      <div style={{
-        padding: '20px 24px 16px',
-        display: 'flex',
-        alignItems: 'flex-end',
-        gap: '14px',
-      }}>
+      <div style={{ padding: isMobile ? '16px 16px 90px' : '28px 32px 80px' }}>
+
+        {/* ── Page header ────────────────────────────────────── */}
         <div style={{
-          fontSize: '64px',
-          fontWeight: 900,
-          letterSpacing: '-0.06em',
-          color: colors.text,
-          lineHeight: 1,
+          display: 'flex',
+          alignItems: 'flex-start',
+          justifyContent: 'space-between',
+          marginBottom: '24px',
+          gap: '16px',
         }}>
-          {dayNum}
-        </div>
-        <div style={{ paddingBottom: '6px' }}>
-          <div style={{ fontSize: '13px', fontWeight: 800, color: colors.primary, letterSpacing: '0.04em' }}>
-            {dayName}
-          </div>
-          <div style={{ fontSize: '13px', fontWeight: 600, color: colors.muted, letterSpacing: '0.02em' }}>
-            {monthName} '{yearShort}
-          </div>
-        </div>
-      </div>
-
-      <div style={{ padding: '0 24px 0' }}>
-        {/* Weather + Progress row */}
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '16px' }}>
-          {/* Weather card */}
-          <div style={{
-            background: colors.surface,
-            border: `1.5px solid ${colors.line}`,
-            borderRadius: radius.card,
-            padding: '12px',
-          }}>
-            <div style={{ fontSize: '10px', fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: colors.mutedLight, marginBottom: '8px' }}>
-              Weather
+          <div>
+            <div style={{
+              fontSize: isMobile ? '32px' : '48px',
+              fontWeight: 900,
+              color: colors.text,
+              letterSpacing: '-0.05em',
+              lineHeight: 1,
+              marginBottom: '8px',
+              textTransform: 'uppercase',
+            }}>
+              {currentProject?.name ?? 'Today'}
             </div>
-            {forecast.length > 0 ? (
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px' }}>
-                {forecast.map(day => {
-                  const d = new Date(day.date + 'T00:00:00')
-                  const dow = d.toLocaleDateString('en-US', { weekday: 'short' })
-                  return (
-                    <div key={day.date} style={{
-                      background: colors.surface2,
-                      borderRadius: '10px',
-                      padding: '6px 8px',
-                      display: 'flex',
-                      flexDirection: 'column',
-                      gap: '1px',
-                    }}>
-                      <span style={{ fontSize: '10px', fontWeight: 600, color: colors.muted }}>{dow}</span>
-                      <span style={{ fontSize: '10px', fontWeight: 700, color: colors.muted }}>{weatherLabel(day.weather_code)}</span>
-                      <span style={{ fontSize: '12px', fontWeight: 800, color: colors.text, letterSpacing: '-0.02em' }}>{Math.round(day.max_temp)}°</span>
-                    </div>
-                  )
-                })}
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              fontSize: '12px',
+              fontWeight: 700,
+              color: colors.mutedLight,
+              letterSpacing: '0.05em',
+            }}>
+              <span>📅</span>
+              <span>{dateStr}</span>
+            </div>
+          </div>
+
+          {/* Desktop: action buttons in header */}
+          {!isMobile && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexShrink: 0, paddingTop: '4px' }}>
+              <button
+                onClick={() => navigate('/task/new')}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  background: colors.primary,
+                  color: '#fff',
+                  border: 'none',
+                  borderRadius: '12px',
+                  padding: '12px 20px',
+                  fontSize: '13px',
+                  fontWeight: 800,
+                  letterSpacing: '0.02em',
+                  cursor: 'pointer',
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                + ADD TASK
+              </button>
+              <button style={{
+                width: '40px',
+                height: '40px',
+                borderRadius: '12px',
+                border: `1.5px solid ${colors.line}`,
+                background: colors.surface,
+                boxShadow: shadow.card,
+                display: 'grid',
+                placeItems: 'center',
+                fontSize: '18px',
+                color: colors.muted,
+                cursor: 'pointer',
+              }}>···</button>
+            </div>
+          )}
+        </div>
+
+        {/* ── Status / KPI hero card ──────────────────────────── */}
+        {!loading && !error && (
+          <div style={{ ...sectionCard, marginBottom: '20px' }}>
+            {/* Status body */}
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: isMobile ? '16px' : '28px',
+              padding: isMobile ? '20px 18px' : '28px 28px 24px',
+              borderBottom: `1px solid #f0f2f5`,
+            }}>
+              <div style={{
+                flexShrink: 0,
+                width: isMobile ? '72px' : '100px',
+                height: isMobile ? '72px' : '100px',
+                borderRadius: '50%',
+                border: `3px solid ${allDone ? colors.greenBorder : colors.orangeBorder}`,
+                display: 'grid',
+                placeItems: 'center',
+                fontSize: isMobile ? '28px' : '40px',
+              }}>
+                {allDone ? '✅' : totalCount === 0 ? '📋' : '⏳'}
               </div>
-            ) : (
-              <div style={{ fontSize: '12px', color: colors.muted }}>—</div>
-            )}
-          </div>
-
-          {/* Progress card */}
-          <div style={{
-            background: colors.surface,
-            border: `1.5px solid ${colors.line}`,
-            borderRadius: radius.card,
-            padding: '12px',
-            display: 'flex',
-            flexDirection: 'column',
-            justifyContent: 'space-between',
-          }}>
-            <div style={{ fontSize: '10px', fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: colors.mutedLight, marginBottom: '8px' }}>
-              Today's Progress
+              <div>
+                <div style={{
+                  fontSize: isMobile ? '22px' : '30px',
+                  fontWeight: 900,
+                  letterSpacing: '-0.04em',
+                  color: colors.text,
+                  marginBottom: '8px',
+                }}>
+                  {allDone ? 'ALL CLEAR' : totalCount === 0 ? 'NO TASKS' : 'IN PROGRESS'}
+                </div>
+                <div style={{ fontSize: '14px', color: colors.muted, lineHeight: 1.6 }}>
+                  {allDone
+                    ? 'All tasks completed for today.\nGreat work. You\'re all caught up.'
+                    : totalCount === 0
+                    ? 'No tasks scheduled for today.'
+                    : `${totalCount - doneCount} task${totalCount - doneCount !== 1 ? 's' : ''} remaining. Keep going.`}
+                </div>
+              </div>
             </div>
-            {totalCount > 0 ? (
-              <>
-                <div style={{ fontSize: '13px', fontWeight: 800, color: colors.text, letterSpacing: '-0.02em', marginBottom: '10px' }}>
-                  {doneCount} / {totalCount} · {Math.round((doneCount / totalCount) * 100)}%
-                </div>
-                <div style={{ height: '6px', background: colors.line, borderRadius: '999px', overflow: 'hidden' }}>
+
+            {/* KPI stats row */}
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : 'repeat(4, 1fr)',
+              padding: isMobile ? '16px 18px' : '20px 28px',
+              gap: isMobile ? '16px' : '0',
+            }}>
+              {[
+                { icon: '✅', value: `${doneCount} OF ${totalCount}`, label: 'Tasks Completed', color: colors.green },
+                { icon: '👥', value: String(crewPresent),             label: 'Crew on Site',    color: colors.blue  },
+                { icon: '📦', value: '—',                             label: 'Materials Logged', color: colors.orange },
+                { icon: '🛡', value: '—',                             label: 'Safety Alerts',   color: colors.red   },
+              ].map((kpi, i) => (
+                <div key={i} style={{
+                  paddingLeft: !isMobile && i > 0 ? '20px' : '0',
+                  paddingRight: !isMobile && i < 3 ? '20px' : '0',
+                  borderRight: !isMobile && i < 3 ? `1px solid #f0f2f5` : 'none',
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '4px' }}>
+                    <span style={{ fontSize: '20px' }}>{kpi.icon}</span>
+                    <span style={{ fontSize: '22px', fontWeight: 900, letterSpacing: '-0.04em', color: kpi.color }}>{kpi.value}</span>
+                  </div>
                   <div style={{
-                    height: '100%',
-                    width: `${Math.round((doneCount / totalCount) * 100)}%`,
-                    background: doneCount === totalCount ? colors.green : colors.primary,
-                    borderRadius: '999px',
-                    transition: 'width 0.4s ease',
-                  }} />
+                    fontSize: '11px',
+                    fontWeight: 700,
+                    textTransform: 'uppercase' as const,
+                    letterSpacing: '0.06em',
+                    color: colors.mutedLight,
+                    paddingLeft: '30px',
+                  }}>
+                    {kpi.label}
+                  </div>
                 </div>
-              </>
-            ) : (
-              <div style={{ fontSize: '13px', fontWeight: 800, color: colors.muted }}>No tasks today</div>
-            )}
+              ))}
+            </div>
           </div>
-        </div>
+        )}
 
-        {/* Section header */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '14px' }}>
-          <span style={{ fontSize: '13px', fontWeight: 900, color: colors.text, letterSpacing: '-0.01em', flexShrink: 0 }}>
-            Today's progress
-          </span>
-          <div style={{ flex: 1, height: '1px', background: colors.line }} />
-        </div>
-
-        {/* Shimmer skeleton */}
-        {loading && [0,1,2].map(i => (
-          <div
-            key={i}
-            className="shimmer"
-            style={{
-              height: '64px',
-              borderRadius: '20px',
-              marginBottom: '10px',
-            }}
-          />
+        {/* Loading shimmer */}
+        {loading && [80, 64, 64].map((h, i) => (
+          <div key={i} className="shimmer" style={{ height: `${h}px`, borderRadius: radius.task, marginBottom: '10px' }} />
         ))}
 
+        {/* Error state */}
         {error && !loading && (
           <div style={{
             background: colors.redSoft,
@@ -278,216 +348,231 @@ export default function Today() {
             padding: '16px',
             color: colors.red,
             fontSize: '14px',
+            marginBottom: '16px',
           }}>
             {error}
           </div>
         )}
 
-        {/* Empty state */}
-        {!loading && !error && tasks.length === 0 && (
-          <div style={{
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            padding: '48px 20px',
-            gap: '12px',
-            textAlign: 'center',
-          }}>
-            <div style={{
-              width: '80px',
-              height: '80px',
-              borderRadius: '50%',
-              background: colors.greenSoft,
-              display: 'grid',
-              placeItems: 'center',
-              fontSize: '36px',
-            }}>
-              ✓
-            </div>
-            <div style={{ fontSize: '22px', fontWeight: 900, letterSpacing: '-0.04em', color: colors.text }}>
-              All clear
-            </div>
-            <div style={{ fontSize: '14px', color: colors.muted, lineHeight: 1.5 }}>
-              No tasks scheduled for today.
-            </div>
-          </div>
-        )}
-
-        {/* Task cards */}
-        {!loading && !error && tasks.map((task, index) => (
-          <div
-            key={task.id}
-            className="fade-up"
-            style={{
-              display: 'grid',
-              gridTemplateColumns: isMobile ? '42px 1fr 44px' : '42px 1fr 44px 44px',
-              gap: '9px',
-              alignItems: 'center',
-              border: `1.5px solid ${colors.line}`,
-              borderLeft: `4px solid ${colors.primary}`,
-              borderRadius: '20px',
-              padding: '10px',
-              marginBottom: '10px',
-              background: colors.surface,
-              animationDelay: `${index * animations.delayStep}s`,
-            }}
-          >
-            {/* Trade icon */}
-            <div style={{
-              width: '42px',
-              height: '42px',
-              borderRadius: '16px',
-              display: 'grid',
-              placeItems: 'center',
-              background: getTradeColorSoft(task.trade_tag),
-              fontSize: '13px',
-              fontWeight: 800,
-              letterSpacing: '-0.01em',
-            }}>
-              {getTradeIcon(task.trade_tag)}
-            </div>
-
-            {/* Task info */}
-            <div>
-              <div style={{ fontWeight: 800, fontSize: '14px', letterSpacing: '-0.02em', color: colors.text }}>
-                {task.name}
-              </div>
-              <p style={{ margin: '2px 0 0', fontSize: '12px', color: colors.muted }}>
-                {task.level_tag}{task.trade_tag ? ` · ${task.trade_tag}` : ''}
-              </p>
-              <p style={{ margin: '1px 0 0', fontSize: '11px', color: colors.mutedLight }}>
-                {formatDate(task.start_date)} – {formatDate(task.end_date)}
-              </p>
-            </div>
-
-            {/* Done ✓ */}
-            <button
-              onClick={() => handleDone(task)}
-              disabled={markingId === task.id}
-              style={{
-                height: '44px',
-                borderRadius: '14px',
-                display: 'grid',
-                placeItems: 'center',
-                fontWeight: 900,
-                fontSize: '18px',
-                cursor: markingId === task.id ? 'wait' : 'pointer',
-                background: colors.greenSoft,
-                color: colors.green,
-                border: `1px solid ${colors.greenBorder}`,
-              }}
-            >
-              ✓
-            </button>
-
-            {/* Not done × — desktop only (mobile is home-screen-only) */}
-            {!isMobile && (
-              <button
-                onClick={() => navigate(`/task/${task.id}`)}
-                disabled={!!markingId}
-                style={{
-                  height: '44px',
-                  borderRadius: '14px',
-                  display: 'grid',
-                  placeItems: 'center',
-                  fontWeight: 900,
-                  fontSize: '18px',
-                  cursor: markingId ? 'not-allowed' : 'pointer',
-                  background: colors.redSoft,
-                  color: colors.red,
-                  border: `1px solid ${colors.redBorder}`,
-                }}
-              >
-                ×
-              </button>
-            )}
-          </div>
-        ))}
-
-
-        {/* Crew summary card */}
+        {/* ── Today's tasks section card ──────────────────────── */}
         {!loading && !error && (
-          <button
-            onClick={isMobile ? undefined : () => navigate('/crew/attendance')}
-            style={{
-              width: '100%',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              background: crewPresent > 0 ? colors.greenSoft : colors.surface2,
-              border: `1.5px solid ${crewPresent > 0 ? colors.greenBorder : colors.line}`,
-              borderRadius: radius.task,
-              padding: '14px 16px',
-              marginTop: '8px',
-              cursor: isMobile ? 'default' : 'pointer',
-              textAlign: 'left',
-            }}
-          >
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-              <span style={{ fontSize: '22px', lineHeight: 1 }}>◎</span>
-              <span style={{ fontSize: '14px', fontWeight: 800, color: colors.text }}>
-                Crew on site
-              </span>
+          <div style={sectionCard}>
+            <div style={sectionCardHeader}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <span style={{ fontSize: '20px' }}>📋</span>
+                <div>
+                  <div style={sectionCardTitle}>Today's Tasks</div>
+                  <div style={sectionCardSub}>
+                    {tasks.length === 0
+                      ? 'All tasks done for today'
+                      : `${tasks.length} task${tasks.length !== 1 ? 's' : ''} remaining`}
+                  </div>
+                </div>
+              </div>
+              {pct > 0 && (
+                <div style={{
+                  fontSize: '13px',
+                  fontWeight: 800,
+                  color: allDone ? colors.green : colors.primary,
+                  background: allDone ? colors.greenSoft : colors.primarySoft,
+                  padding: '4px 12px',
+                  borderRadius: '999px',
+                }}>
+                  {pct}%
+                </div>
+              )}
             </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <span style={{
-                fontSize: '16px',
-                fontWeight: 900,
-                letterSpacing: '-0.03em',
-                color: crewPresent > 0 ? colors.green : colors.muted,
-              }}>
-                {crewPresent} / {crewTotal}
-              </span>
-              <span style={{ fontSize: '12px', color: colors.mutedLight }}>›</span>
-            </div>
-          </button>
-        )}
 
-        {/* Materials used today */}
-        {!loading && !error && logId != null && (
-          <div style={{ marginTop: '20px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '14px' }}>
-              <span style={{ fontSize: '13px', fontWeight: 900, color: colors.text, letterSpacing: '-0.01em', flexShrink: 0 }}>
-                Materials used today
-              </span>
-              <div style={{ flex: 1, height: '1px', background: colors.line }} />
+            <div style={{ padding: tasks.length === 0 ? '24px 22px' : '12px 16px' }}>
+              {tasks.length === 0 ? (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+                  <div style={{
+                    width: '52px', height: '52px', borderRadius: '50%',
+                    background: colors.greenSoft,
+                    display: 'grid', placeItems: 'center', fontSize: '24px', flexShrink: 0,
+                  }}>✓</div>
+                  <div>
+                    <div style={{ fontSize: '16px', fontWeight: 900, letterSpacing: '-0.03em', color: colors.text }}>All clear</div>
+                    <div style={{ fontSize: '13px', color: colors.muted, marginTop: '2px' }}>No tasks scheduled for today.</div>
+                  </div>
+                </div>
+              ) : (
+                tasks.map((task, index) => (
+                  <div
+                    key={task.id}
+                    className="fade-up"
+                    style={{
+                      display: 'grid',
+                      gridTemplateColumns: isMobile ? '40px 1fr 44px' : '40px 1fr 44px 44px',
+                      gap: '10px',
+                      alignItems: 'center',
+                      background: colors.surface,
+                      border: `1.5px solid ${colors.line}`,
+                      borderLeft: `4px solid ${colors.primary}`,
+                      borderRadius: radius.task,
+                      boxShadow: shadow.card,
+                      padding: '10px 10px 10px 8px',
+                      marginBottom: '10px',
+                      animationDelay: `${index * animations.delayStep}s`,
+                    }}
+                  >
+                    <div style={{
+                      width: '40px', height: '40px', borderRadius: '14px',
+                      display: 'grid', placeItems: 'center',
+                      background: getTradeColorSoft(task.trade_tag),
+                      color: getTradeTextColor(task.trade_tag),
+                      fontSize: '12px', fontWeight: 800, letterSpacing: '-0.01em',
+                    }}>
+                      {getTradeIcon(task.trade_tag)}
+                    </div>
+                    <div>
+                      <div style={{ fontWeight: 800, fontSize: '14px', letterSpacing: '-0.02em', color: colors.text }}>
+                        {task.name}
+                      </div>
+                      <div style={{ fontSize: '12px', color: colors.muted, marginTop: '2px' }}>
+                        {task.level_tag}{task.trade_tag ? ` · ${task.trade_tag}` : ''}
+                      </div>
+                      <div style={{ fontSize: '11px', color: colors.mutedLight, marginTop: '1px' }}>
+                        {formatDate(task.start_date)} – {formatDate(task.end_date)}
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => handleDone(task)}
+                      disabled={markingId === task.id}
+                      style={{
+                        height: '44px', borderRadius: '12px',
+                        display: 'grid', placeItems: 'center',
+                        fontWeight: 900, fontSize: '18px',
+                        cursor: markingId === task.id ? 'wait' : 'pointer',
+                        background: colors.greenSoft, color: colors.green,
+                        border: `1px solid ${colors.greenBorder}`,
+                      }}
+                    >✓</button>
+                    {!isMobile && (
+                      <button
+                        onClick={() => navigate(`/task/${task.id}`)}
+                        disabled={!!markingId}
+                        style={{
+                          height: '44px', borderRadius: '12px',
+                          display: 'grid', placeItems: 'center',
+                          fontWeight: 900, fontSize: '18px',
+                          cursor: markingId ? 'not-allowed' : 'pointer',
+                          background: colors.redSoft, color: colors.red,
+                          border: `1px solid ${colors.redBorder}`,
+                        }}
+                      >×</button>
+                    )}
+                  </div>
+                ))
+              )}
             </div>
-            <MaterialsBlock logId={logId} />
           </div>
         )}
 
-        {/* Safety incidents */}
-        {!loading && !error && logId != null && (
-          <div style={{ marginTop: '20px', paddingBottom: '90px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '14px' }}>
-              <span style={{ fontSize: '13px', fontWeight: 900, color: colors.text, letterSpacing: '-0.01em', flexShrink: 0 }}>
-                Safety documentation
-              </span>
-              <div style={{ flex: 1, height: '1px', background: colors.line }} />
+        {/* ── Crew on site section card ───────────────────────── */}
+        {!loading && !error && (
+          <div style={sectionCard}>
+            <div style={sectionCardHeader}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <span style={{ fontSize: '20px' }}>👥</span>
+                <div>
+                  <div style={sectionCardTitle}>Crew on Site</div>
+                  <div style={sectionCardSub}>
+                    {crewPresent === 0
+                      ? '0 people currently checked in'
+                      : `${crewPresent} people currently checked in`}
+                  </div>
+                </div>
+              </div>
               {!isMobile && (
                 <button
-                  onClick={() => navigate('/safety')}
+                  onClick={() => navigate('/crew/attendance')}
                   style={{
-                    fontSize: '12px',
-                    fontWeight: 700,
-                    color: colors.primary,
-                    background: 'none',
-                    border: 'none',
+                    display: 'flex', alignItems: 'center', gap: '6px',
+                    background: colors.surface2,
+                    border: `1px solid ${colors.line}`,
+                    borderRadius: '10px',
+                    padding: '8px 14px',
+                    fontSize: '12px', fontWeight: 800,
+                    color: colors.text, letterSpacing: '0.04em',
+                    textTransform: 'uppercase' as const,
                     cursor: 'pointer',
-                    padding: '6px 0',
-                    flexShrink: 0,
                   }}
                 >
-                  View all →
+                  Manage Crew ›
                 </button>
               )}
             </div>
-            <SafetyBlock logId={logId} />
+            <div style={{ ...sectionCardBody, padding: '14px 22px' }}>
+              {crewPresent === 0 ? (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: colors.muted, fontSize: '13px' }}>
+                  <span>ℹ️</span>
+                  <span>No crew members are checked in for today.</span>
+                </div>
+              ) : (
+                <div style={{ fontSize: '14px', fontWeight: 700, color: colors.text }}>
+                  <span style={{ color: colors.green, fontWeight: 900 }}>{crewPresent}</span>
+                  <span style={{ color: colors.muted }}> of {crewTotal} crew members on site today</span>
+                </div>
+              )}
+            </div>
           </div>
         )}
+
+        {/* ── Materials section card ──────────────────────────── */}
+        {!loading && !error && logId != null && (
+          <div style={sectionCard}>
+            <div style={sectionCardHeader}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <span style={{ fontSize: '20px' }}>📦</span>
+                <div>
+                  <div style={sectionCardTitle}>Materials Used Today</div>
+                  <div style={sectionCardSub}>Log materials used from inventory or enter custom materials manually.</div>
+                </div>
+              </div>
+            </div>
+            <div style={sectionCardBody}>
+              <MaterialsBlock logId={logId} />
+            </div>
+          </div>
+        )}
+
+        {/* ── Safety documentation section card ──────────────── */}
+        {!loading && !error && logId != null && (
+          <div style={sectionCard}>
+            <div style={sectionCardHeader}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <span style={{ fontSize: '20px' }}>🛡️</span>
+                <div>
+                  <div style={sectionCardTitle}>Safety Documentation</div>
+                  <div style={sectionCardSub}>Record incidents, near-misses, and corrective actions for today.</div>
+                </div>
+              </div>
+              <button
+                style={{
+                  display: 'flex', alignItems: 'center', gap: '6px',
+                  background: colors.redSoft,
+                  border: `1px solid ${colors.redBorder}`,
+                  borderRadius: '10px',
+                  padding: '8px 14px',
+                  fontSize: '12px', fontWeight: 800,
+                  color: colors.red, letterSpacing: '0.02em',
+                  cursor: 'pointer',
+                  flexShrink: 0,
+                }}
+              >
+                + Report Incident
+              </button>
+            </div>
+            <div style={sectionCardBody}>
+              <SafetyBlock logId={logId} />
+            </div>
+          </div>
+        )}
+
       </div>
 
-      {/* Task-done photo sheet */}
+      {/* ── Task-done photo sheet (unchanged) ──────────────────── */}
       {pendingDoneTask && (
         <>
           <div
@@ -496,16 +581,12 @@ export default function Today() {
           />
           <div style={{
             position: 'absolute',
-            bottom: 0,
-            left: 0,
-            right: 0,
+            bottom: 0, left: 0, right: 0,
             background: colors.surface,
             borderRadius: `${radius.card} ${radius.card} 0 0`,
             padding: '24px 20px calc(36px + env(safe-area-inset-bottom))',
             zIndex: 21,
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '16px',
+            display: 'flex', flexDirection: 'column', gap: '16px',
           }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
               <div>
@@ -521,29 +602,21 @@ export default function Today() {
                 style={{ background: 'none', border: 'none', fontSize: '22px', color: colors.muted, cursor: 'pointer', lineHeight: 1, padding: 0 }}
               >×</button>
             </div>
-
             <div>
               <div style={{ fontSize: '13px', fontWeight: 700, color: colors.text, marginBottom: '8px' }}>
                 Attach completion photo (optional)
               </div>
               <PhotoUploader value={donePhotoUrl} onChange={setDonePhotoUrl} />
             </div>
-
             <button
               onClick={confirmDone}
               style={{
                 padding: '14px',
-                background: colors.green,
-                color: '#fff',
-                border: 'none',
-                borderRadius: radius.btn,
-                fontWeight: 900,
-                fontSize: '15px',
-                cursor: 'pointer',
+                background: colors.green, color: '#fff',
+                border: 'none', borderRadius: radius.btn,
+                fontWeight: 900, fontSize: '15px', cursor: 'pointer',
               }}
-            >
-              ✓ Confirm done
-            </button>
+            >✓ Confirm done</button>
           </div>
         </>
       )}

@@ -48,18 +48,20 @@ export default function SidebarNav() {
         display: 'flex',
         alignItems: 'center',
         gap: '12px',
-        marginBottom: '28px',
-        padding: '0 8px',
+        paddingBottom: '20px',
+        borderBottom: `1px solid ${colors.line}`,
+        marginBottom: '16px',
+        padding: '0 8px 20px',
       }}>
         <div style={{
-          width: '42px',
-          height: '42px',
+          width: '38px',
+          height: '38px',
           borderRadius: '12px',
           background: gradients.primary,
           color: colors.surface,
           display: 'grid',
           placeItems: 'center',
-          fontSize: '22px',
+          fontSize: '18px',
           fontWeight: 900,
           flexShrink: 0,
           boxShadow: '0 10px 22px rgba(255,75,11,.25)',
@@ -74,7 +76,7 @@ export default function SidebarNav() {
       </div>
 
       {/* Nav items */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
         {navItems.map(item => {
           const active = isActive(item.path)
           return (
@@ -84,27 +86,27 @@ export default function SidebarNav() {
               style={{
                 display: 'flex',
                 alignItems: 'center',
-                gap: '13px',
-                height: '48px',
-                padding: '0 14px',
+                gap: '12px',
+                height: '44px',
+                padding: '0 12px',
                 borderRadius: '12px',
                 background: active ? colors.primarySoft : 'transparent',
-                color: active ? colors.primary : '#252b35',
-                fontWeight: 800,
-                fontSize: '15px',
+                color: active ? colors.primary : colors.muted,
+                fontWeight: active ? 700 : 600,
+                fontSize: '14px',
                 border: 'none',
                 cursor: 'pointer',
                 textAlign: 'left',
                 transition: 'background 0.12s, color 0.12s',
               }}
               onMouseEnter={e => {
-                if (!active) e.currentTarget.style.background = colors.surface2
+                if (!active) { e.currentTarget.style.background = colors.surface2; e.currentTarget.style.color = colors.text }
               }}
               onMouseLeave={e => {
-                if (!active) e.currentTarget.style.background = 'transparent'
+                if (!active) { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = colors.muted }
               }}
             >
-              <span style={{ fontSize: '20px', lineHeight: 1, flexShrink: 0 }}>{item.icon}</span>
+              <span style={{ fontSize: '18px', lineHeight: 1, flexShrink: 0 }}>{item.icon}</span>
               <span>{item.label}</span>
             </button>
           )
