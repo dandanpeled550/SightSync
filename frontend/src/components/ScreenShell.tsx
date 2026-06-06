@@ -1,6 +1,8 @@
 import type { ReactNode } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { colors, gradients, desktop } from '../constants/theme'
 import { useWindowSize } from '../hooks/useWindowSize'
+import { useAuth } from '../contexts/AuthContext'
 import BottomNav from './BottomNav'
 
 interface ScreenShellProps {
@@ -24,6 +26,34 @@ export default function ScreenShell({
 }: ScreenShellProps) {
   const width = useWindowSize()
   const isDesktop = width >= desktop.breakpoint
+  const { logout } = useAuth()
+  const navigate = useNavigate()
+
+  function handleLogout() {
+    logout()
+    navigate('/login')
+  }
+
+  const mobileLogoutBtn = !isDesktop && !rightAction ? (
+    <button
+      onClick={handleLogout}
+      title="Sign out"
+      style={{
+        width: '36px',
+        height: '36px',
+        border: `1.5px solid ${colors.line}`,
+        borderRadius: '12px',
+        background: colors.surface,
+        color: colors.muted,
+        fontSize: '16px',
+        cursor: 'pointer',
+        display: 'grid',
+        placeItems: 'center',
+      }}
+    >
+      ↩
+    </button>
+  ) : null
 
   return (
     <div style={{
@@ -76,7 +106,7 @@ export default function ScreenShell({
 
         {/* Right slot */}
         <div style={{ flexShrink: 0, minWidth: '40px', display: 'flex', justifyContent: 'flex-end' }}>
-          {rightAction ?? <div />}
+          {rightAction ?? mobileLogoutBtn ?? <div />}
         </div>
       </div>
 

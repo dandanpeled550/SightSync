@@ -1,5 +1,6 @@
 import { useNavigate, useLocation } from 'react-router-dom'
 import { colors, gradients } from '../constants/theme'
+import { useAuth } from '../contexts/AuthContext'
 
 const navItems = [
   { label: 'Home',    icon: '🏠', path: '/' },
@@ -12,6 +13,12 @@ const navItems = [
 export default function SidebarNav() {
   const navigate = useNavigate()
   const { pathname } = useLocation()
+  const { user, logout } = useAuth()
+
+  function handleLogout() {
+    logout()
+    navigate('/login')
+  }
 
   function isActive(path: string): boolean {
     if (path === '/plans') {
@@ -105,17 +112,57 @@ export default function SidebarNav() {
       {/* Spacer */}
       <div style={{ flex: 1 }} />
 
-      {/* Project footer */}
+      {/* User + logout */}
       <div style={{
         border: `1px solid ${colors.line}`,
         borderRadius: '16px',
-        padding: '16px',
+        padding: '14px 16px',
         background: colors.surface2,
+        display: 'flex',
+        alignItems: 'center',
+        gap: '10px',
       }}>
-        <div style={{ fontWeight: 700, fontSize: '14px', color: colors.text }}>Tower B</div>
-        <div style={{ fontSize: '13px', color: colors.muted, marginTop: '4px', lineHeight: 1.4 }}>
-          The Village at Downtown
+        <div style={{
+          width: '32px',
+          height: '32px',
+          borderRadius: '10px',
+          background: gradients.primary,
+          color: colors.surface,
+          display: 'grid',
+          placeItems: 'center',
+          fontSize: '12px',
+          fontWeight: 800,
+          flexShrink: 0,
+        }}>
+          {user?.name ? user.name.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase() : '?'}
         </div>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ fontWeight: 700, fontSize: '13px', color: colors.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            {user?.name ?? 'Account'}
+          </div>
+          <div style={{ fontSize: '11px', color: colors.muted, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            {user?.email ?? ''}
+          </div>
+        </div>
+        <button
+          onClick={handleLogout}
+          title="Sign out"
+          style={{
+            width: '30px',
+            height: '30px',
+            border: `1.5px solid ${colors.line}`,
+            borderRadius: '9px',
+            background: colors.surface,
+            color: colors.muted,
+            fontSize: '14px',
+            cursor: 'pointer',
+            display: 'grid',
+            placeItems: 'center',
+            flexShrink: 0,
+          }}
+        >
+          ↩
+        </button>
       </div>
     </div>
   )
