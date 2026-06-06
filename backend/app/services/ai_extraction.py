@@ -271,9 +271,12 @@ def _parse_response(response_text: str, text_length: int) -> ExtractionResult:
 def infer_workflows_and_dependencies(
     tasks,
     settings_obj=None,
+    use_anthropic: bool = True,
+    use_openai: bool = False,
 ) -> tuple:
-    """Pass 2: inject tasks JSON into dependency_inference.md → call Claude.
+    """Pass 2: inject tasks JSON into dependency_inference.md → call AI provider.
 
+    Provider priority mirrors Pass 1: Anthropic > OpenAI.
     Filter deps where confidence < 0.4.
     On any failure: return ([], []) — never raise.
     """
@@ -297,15 +300,19 @@ def infer_workflows_and_dependencies(
         template = _load_prompt("dependency_inference")
         prompt = template.replace("{{TASKS_JSON}}", tasks_json)
 
-        # Call Claude for Pass 2 (only Anthropic supported for Pass 2)
-        import anthropic
-        client = anthropic.Anthropic(api_key=settings_obj.anthropic_api_key)
-        message = client.messages.create(
-            model=settings_obj.anthropic_model,
-            max_tokens=16000,
-            messages=[{"role": "user", "content": prompt}],
-        )
-        response_text = message.content[0].text
+        if use_anthropic:
+            # Call Anthropic directly — _call_anthropic uses a task-list prefill
+            # that would corrupt the dependency inference JSON shape.
+            import anthropic
+            client = anthropic.Anthropic(api_key=settings_obj.anthropic_api_key)
+            message = client.messages.create(
+                model=settings_obj.anthropic_model,
+                max_tokens=16000,
+                messages=[{"role": "user", "content": prompt}],
+            )
+            response_text = message.content[0].text
+        else:
+            response_text = _call_openai(prompt)
 
         data = _load_json_tolerant(_strip_fences(response_text))
 
@@ -348,8 +355,8 @@ def extract_tasks_from_xlsx(xlsx_bytes: bytes) -> ExtractionResult:
     Never raises — all errors are captured in ExtractionResult.error.
 
     Pass 1: Extract tasks from xlsx text.
-    Pass 2: Infer workflow groupings and dependencies (Anthropic only; gracefully
-            degrades to empty lists if it fails or no Anthropic key is set).
+    Pass 2: Infer workflow groupings and dependencies (Anthropic preferred, OpenAI
+            fallback; gracefully degrades to empty lists if both fail).
     """
     # Detect provider
     use_anthropic = bool(settings.anthropic_api_key)
@@ -384,12 +391,15 @@ def extract_tasks_from_xlsx(xlsx_bytes: bytes) -> ExtractionResult:
     except Exception as e:
         return ExtractionResult(tasks=[], confidence=0.0, error=str(e), raw_text_length=text_length)
 
-    # Pass 2: infer workflows and dependencies (Anthropic only)
-    # Only run if we have tasks and an Anthropic key
+    # Pass 2: infer workflows and dependencies (Anthropic preferred, OpenAI fallback)
     pass2_error = None
-    if result.tasks and use_anthropic:
+    if result.tasks and (use_anthropic or use_openai):
         try:
-            workflows, dependencies = infer_workflows_and_dependencies(result.tasks, settings)
+            workflows, dependencies = infer_workflows_and_dependencies(
+                result.tasks, settings,
+                use_anthropic=use_anthropic,
+                use_openai=use_openai,
+            )
             result.workflows = workflows
             result.dependencies = dependencies
 
@@ -405,7 +415,7 @@ def extract_tasks_from_xlsx(xlsx_bytes: bytes) -> ExtractionResult:
             result.dependencies = []
 
     # If Pass 2 returned empty (failed internally), set error note if not already set
-    if result.tasks and use_anthropic and not result.workflows and not result.dependencies and pass2_error:
+    if result.tasks and (use_anthropic or use_openai) and not result.workflows and not result.dependencies and pass2_error:
         result.error = f"Pass 2 failed: {pass2_error}"
 
     return result
