@@ -159,7 +159,17 @@ export async function uploadSchedule(file: File, projectId: number): Promise<Ext
 
 export async function updateTask(
   taskId: number,
-  update: { duration_days?: number; start_date?: string },
+  update: {
+    name?: string
+    description?: string
+    level_tag?: string
+    trade_tag?: string
+    apartment_tag?: string
+    room_tag?: string
+    start_date?: string
+    duration_days?: number
+    notes?: string
+  },
 ): Promise<Task> {
   const { data } = await api.put<Task>(`/tasks/${taskId}`, update)
   return data
