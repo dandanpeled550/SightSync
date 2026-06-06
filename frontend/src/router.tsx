@@ -17,6 +17,7 @@ import Review from './pages/Review'
 import CrewManagement from './pages/CrewManagement'
 import CrewAttendance from './pages/CrewAttendance'
 import Inventory from './pages/Inventory'
+import SafetyHistory from './pages/SafetyHistory'
 
 export const router = createBrowserRouter([
   { path: '/login', element: <Login /> },
@@ -38,6 +39,7 @@ export const router = createBrowserRouter([
       { path: '/crew',            element: <CrewManagement /> },
       { path: '/crew/attendance', element: <CrewAttendance /> },
       { path: '/inventory',       element: <Inventory /> },
+      { path: '/safety',          element: <SafetyHistory /> },
     ],
   },
 ])

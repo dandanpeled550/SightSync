@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import ScreenShell, { IconBtn } from '../components/ScreenShell'
 import MaterialsBlock from '../components/MaterialsBlock'
+import SafetyBlock from '../components/SafetyBlock'
 import { colors, radius, gradients, animations } from '../constants/theme'
 import { fetchTodayLog } from '../api/daily_log'
 import { fetchTodayTasks, markTaskDone, type Task } from '../api/tasks'
@@ -348,6 +349,34 @@ export default function Today() {
               <div style={{ flex: 1, height: '1px', background: colors.line }} />
             </div>
             <MaterialsBlock logId={logId} />
+          </div>
+        )}
+
+        {/* Safety incidents */}
+        {!loading && !error && logId != null && (
+          <div style={{ marginTop: '20px', paddingBottom: '90px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '14px' }}>
+              <span style={{ fontSize: '13px', fontWeight: 900, color: colors.text, letterSpacing: '-0.01em', flexShrink: 0 }}>
+                Safety incidents
+              </span>
+              <div style={{ flex: 1, height: '1px', background: colors.line }} />
+              <button
+                onClick={() => navigate('/safety')}
+                style={{
+                  fontSize: '12px',
+                  fontWeight: 700,
+                  color: colors.primary,
+                  background: 'none',
+                  border: 'none',
+                  cursor: 'pointer',
+                  padding: 0,
+                  flexShrink: 0,
+                }}
+              >
+                View all →
+              </button>
+            </div>
+            <SafetyBlock logId={logId} />
           </div>
         )}
       </div>
