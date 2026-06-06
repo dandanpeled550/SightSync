@@ -125,7 +125,7 @@ export default function Report() {
     setSubmitting(true)
     setSubmitError(null)
     try {
-      await submitLog(log.id)
+      await submitLog(PROJECT_ID, log.id)
       navigate('/summary')
     } catch (err: unknown) {
       setSubmitError(err instanceof Error ? err.message : 'Submit failed')

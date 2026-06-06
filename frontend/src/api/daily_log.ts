@@ -33,7 +33,7 @@ export async function refetchWeather(projectId: number, logId: number): Promise<
   return res.data
 }
 
-export async function submitLog(logId: number): Promise<DailyLog> {
-  const res = await api.post<DailyLog>(`/daily-logs/${logId}/submit`)
+export async function submitLog(projectId: number, logId: number): Promise<DailyLog> {
+  const res = await api.post<DailyLog>(`/projects/${projectId}/daily-logs/${logId}/submit`)
   return res.data
 }
