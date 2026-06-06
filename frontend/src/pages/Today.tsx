@@ -10,6 +10,7 @@ import { fetchTodayLog } from '../api/daily_log'
 import { fetchTodayTasks, fetchAllTasks, markTaskDone, type Task } from '../api/tasks'
 import { fetchAttendance } from '../api/crew'
 import { useProject } from '../contexts/ProjectContext'
+import { useAuth } from '../contexts/AuthContext'
 
 function getTradeIcon(trade: string | null): string {
   if (!trade) return '?'
@@ -90,6 +91,7 @@ const sectionCardBody: React.CSSProperties = {
 export default function Today() {
   const navigate = useNavigate()
   const { currentProject } = useProject()
+  const { logout } = useAuth()
   const PROJECT_ID = currentProject?.id ?? 1
   const isMobile = useWindowSize() < desktop.breakpoint
 
@@ -175,8 +177,12 @@ export default function Today() {
       title={currentProject?.name ?? 'Today'}
       desktopHideLeft
       desktopHideTopBar
-      leftAction={<IconBtn onClick={() => navigate('/onboard')}>☰</IconBtn>}
-      rightAction={<IconBtn onClick={() => navigate('/task/new')}>+</IconBtn>}
+      leftAction={
+        isMobile
+          ? <IconBtn onClick={() => { logout(); navigate('/login') }}>↩</IconBtn>
+          : <IconBtn onClick={() => navigate('/onboard')}>☰</IconBtn>
+      }
+      rightAction={isMobile ? undefined : <IconBtn onClick={() => navigate('/task/new')}>+</IconBtn>}
     >
       <div style={{ padding: isMobile ? '16px 16px 90px' : '28px 32px 80px' }}>
 
@@ -549,21 +555,6 @@ export default function Today() {
                   <div style={sectionCardSub}>Record incidents, near-misses, and corrective actions for today.</div>
                 </div>
               </div>
-              <button
-                style={{
-                  display: 'flex', alignItems: 'center', gap: '6px',
-                  background: colors.redSoft,
-                  border: `1px solid ${colors.redBorder}`,
-                  borderRadius: '10px',
-                  padding: '8px 14px',
-                  fontSize: '12px', fontWeight: 800,
-                  color: colors.red, letterSpacing: '0.02em',
-                  cursor: 'pointer',
-                  flexShrink: 0,
-                }}
-              >
-                + Report Incident
-              </button>
             </div>
             <div style={sectionCardBody}>
               <SafetyBlock logId={logId} />
