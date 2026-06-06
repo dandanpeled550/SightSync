@@ -129,7 +129,9 @@ class DelayGroupOut(BaseModel):
     trigger_task_id: Optional[int]
     trigger_task_name: str
     reason: Optional[str]
+    old_date: Optional[datetime.date]
     new_date: datetime.date
+    days_shifted: Optional[int]
     impacts: List[CascadeDelayRecordOut]
 
 
@@ -470,7 +472,9 @@ def list_delays(
             trigger_task_id=root.task_id if root else None,
             trigger_task_name=root.task_name if root else "Unknown",
             reason=entry.reason,
+            old_date=root.old_start_date if root else None,
             new_date=entry.new_date,
+            days_shifted=root.days_shifted if root else None,
             impacts=impacts,
         ))
 

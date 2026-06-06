@@ -46,81 +46,118 @@ export default function DelaysBlock({ logId }: Props) {
         <div
           key={group.triggering_entry_id}
           style={{
-            background: colors.orangeSoft,
             border: `1px solid ${colors.line}`,
             borderRadius: radius.card,
-            marginBottom: '8px',
+            marginBottom: '10px',
             overflow: 'hidden',
           }}
         >
-          {/* Root task row */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 12px' }}>
+          {/* Root task — the task that was marked not done */}
+          <div style={{
+            display: 'flex', alignItems: 'flex-start', gap: '10px',
+            padding: '12px 12px 10px',
+            background: colors.orangeSoft,
+          }}>
             <div style={{
-              width: '32px', height: '32px', borderRadius: '10px',
+              width: '34px', height: '34px', borderRadius: '10px',
               background: '#fff', display: 'grid', placeItems: 'center',
-              fontSize: '16px', flexShrink: 0,
+              fontSize: '16px', flexShrink: 0, marginTop: '1px',
             }}>
               ⚠️
             </div>
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{
                 fontSize: '13px', fontWeight: 800, color: colors.text,
-                letterSpacing: '-0.02em', whiteSpace: 'nowrap',
-                overflow: 'hidden', textOverflow: 'ellipsis',
+                letterSpacing: '-0.02em', marginBottom: '3px',
               }}>
                 {group.trigger_task_name}
               </div>
               {group.reason && (
-                <div style={{ fontSize: '11px', color: colors.muted, marginTop: '1px' }}>
+                <div style={{ fontSize: '11px', color: colors.muted, marginBottom: '5px' }}>
                   {group.reason}
                 </div>
               )}
-            </div>
-            <div style={{ textAlign: 'right', flexShrink: 0 }}>
-              <div style={{ fontSize: '12px', fontWeight: 800, color: colors.orange }}>
-                → {fmt(group.new_date)}
+              {/* Date range row */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+                {group.old_date && (
+                  <>
+                    <span style={{ fontSize: '11px', color: colors.muted, textDecoration: 'line-through' }}>
+                      {fmt(group.old_date)}
+                    </span>
+                    <span style={{ fontSize: '10px', color: colors.mutedLight }}>→</span>
+                  </>
+                )}
+                <span style={{ fontSize: '11px', fontWeight: 800, color: colors.orange }}>
+                  {fmt(group.new_date)}
+                </span>
               </div>
-              <span style={{
-                fontSize: '10px', fontWeight: 800, color: colors.orange,
-                background: '#fff', borderRadius: radius.pill, padding: '2px 6px',
-              }}>
-                Delayed
-              </span>
             </div>
+            {/* Days delayed badge */}
+            {group.days_shifted != null && group.days_shifted > 0 && (
+              <div style={{
+                background: colors.orange,
+                color: '#fff',
+                borderRadius: radius.pill,
+                padding: '4px 9px',
+                fontSize: '12px',
+                fontWeight: 900,
+                flexShrink: 0,
+                letterSpacing: '-0.02em',
+              }}>
+                +{group.days_shifted}d
+              </div>
+            )}
           </div>
 
-          {/* Cascade impact rows */}
+          {/* Effect chain */}
           {group.impacts.length > 0 && (
-            <div style={{
-              borderTop: `1px solid ${colors.line}`,
-              background: '#fff',
-              padding: '6px 12px 6px 54px',
-            }}>
+            <div style={{ background: colors.surface }}>
+              {/* Chain label */}
+              <div style={{
+                padding: '7px 12px 6px 54px',
+                borderTop: `1px solid ${colors.line}`,
+                fontSize: '10px', fontWeight: 800, color: colors.muted,
+                textTransform: 'uppercase', letterSpacing: '0.06em',
+              }}>
+                Effect chain — {group.impacts.length} task{group.impacts.length > 1 ? 's' : ''} pushed
+              </div>
+
               {group.impacts.map((impact, i) => (
                 <div
                   key={impact.task_id ?? i}
                   style={{
                     display: 'flex', alignItems: 'center', gap: '8px',
-                    paddingTop: '5px', paddingBottom: '5px',
-                    borderBottom: i < group.impacts.length - 1 ? `1px solid ${colors.line}` : 'none',
+                    padding: '8px 12px 8px 54px',
+                    borderTop: `1px solid ${colors.line}`,
                   }}
                 >
-                  <span style={{ fontSize: '11px', color: colors.mutedLight, flexShrink: 0 }}>↳</span>
+                  {/* Connector */}
+                  <span style={{ fontSize: '12px', color: colors.mutedLight, flexShrink: 0 }}>↳</span>
+
+                  {/* Task name */}
                   <span style={{
-                    fontSize: '12px', color: colors.muted, flex: 1, minWidth: 0,
+                    fontSize: '12px', fontWeight: 700, color: colors.text,
+                    flex: 1, minWidth: 0,
                     whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
                   }}>
                     {impact.task_name}
                   </span>
+
+                  {/* Date range */}
+                  <span style={{
+                    fontSize: '11px', color: colors.muted,
+                    flexShrink: 0, whiteSpace: 'nowrap',
+                  }}>
+                    {fmt(impact.old_start_date)} → {fmt(impact.new_start_date)}
+                  </span>
+
+                  {/* Days badge */}
                   <span style={{
                     fontSize: '11px', fontWeight: 800, color: colors.orange,
                     background: colors.orangeSoft, borderRadius: radius.pill,
-                    padding: '2px 6px', flexShrink: 0,
+                    padding: '2px 7px', flexShrink: 0,
                   }}>
                     +{impact.days_shifted}d
-                  </span>
-                  <span style={{ fontSize: '11px', color: colors.muted, flexShrink: 0, whiteSpace: 'nowrap' }}>
-                    {fmt(impact.old_start_date)} → {fmt(impact.new_start_date)}
                   </span>
                 </div>
               ))}

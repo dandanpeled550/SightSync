@@ -51,7 +51,9 @@ export interface DelayGroup {
   trigger_task_id: number | null
   trigger_task_name: string
   reason: string | null
+  old_date: string | null
   new_date: string
+  days_shifted: number | null
   impacts: CascadeDelayImpact[]
 }
 
