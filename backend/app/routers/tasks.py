@@ -7,8 +7,9 @@ from pydantic import BaseModel, ConfigDict
 from sqlalchemy.orm import Session
 
 from app.database import get_db
-from app.models import DailyLog, Task, TaskDependency, TaskLogEntry
+from app.models import DailyLog, Task, TaskDependency, TaskLogEntry, User
 from app.services.cascade import CascadeResult, apply_cascade, preview_cascade
+from app.services.auth_service import get_current_user, require_project_member
 
 router = APIRouter(tags=["tasks"])
 
@@ -92,12 +93,23 @@ class TaskLogEntryOut(BaseModel):
 # ── Task CRUD ─────────────────────────────────────────────────────────────────
 
 @router.get("/projects/{project_id}/tasks", response_model=List[TaskOut])
-def list_tasks(project_id: int, db: Session = Depends(get_db)):
+def list_tasks(
+    project_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    require_project_member(project_id, current_user, db)
     return db.query(Task).filter(Task.project_id == project_id).all()
 
 
 @router.post("/projects/{project_id}/tasks", response_model=TaskOut, status_code=201)
-def create_task(project_id: int, body: TaskCreate, db: Session = Depends(get_db)):
+def create_task(
+    project_id: int,
+    body: TaskCreate,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    require_project_member(project_id, current_user, db)
     end_date = body.start_date + datetime.timedelta(days=body.duration_days)
     task = Task(
         project_id=project_id,
@@ -111,7 +123,13 @@ def create_task(project_id: int, body: TaskCreate, db: Session = Depends(get_db)
 
 
 @router.post("/projects/{project_id}/tasks/bulk", response_model=List[TaskOut], status_code=201)
-def create_tasks_bulk(project_id: int, body: List[TaskCreate], db: Session = Depends(get_db)):
+def create_tasks_bulk(
+    project_id: int,
+    body: List[TaskCreate],
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    require_project_member(project_id, current_user, db)
     tasks = []
     for item in body:
         end_date = item.start_date + datetime.timedelta(days=item.duration_days)
@@ -129,7 +147,12 @@ def create_tasks_bulk(project_id: int, body: List[TaskCreate], db: Session = Dep
 
 
 @router.get("/projects/{project_id}/tasks/today", response_model=List[TaskOut])
-def list_tasks_today(project_id: int, db: Session = Depends(get_db)):
+def list_tasks_today(
+    project_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    require_project_member(project_id, current_user, db)
     today = datetime.date.today()
     return (
         db.query(Task)
@@ -143,10 +166,16 @@ def list_tasks_today(project_id: int, db: Session = Depends(get_db)):
 
 
 @router.put("/tasks/{task_id}", response_model=TaskOut)
-def update_task(task_id: int, body: TaskUpdate, db: Session = Depends(get_db)):
+def update_task(
+    task_id: int,
+    body: TaskUpdate,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
     task = db.query(Task).filter(Task.id == task_id).first()
     if not task:
         raise HTTPException(status_code=404, detail="Task not found")
+    require_project_member(task.project_id, current_user, db)
 
     update_data = body.model_dump(exclude_unset=True)
 
@@ -165,10 +194,15 @@ def update_task(task_id: int, body: TaskUpdate, db: Session = Depends(get_db)):
 
 
 @router.delete("/tasks/{task_id}", status_code=204)
-def delete_task(task_id: int, db: Session = Depends(get_db)):
+def delete_task(
+    task_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
     task = db.query(Task).filter(Task.id == task_id).first()
     if not task:
         raise HTTPException(status_code=404, detail="Task not found")
+    require_project_member(task.project_id, current_user, db)
     db.delete(task)
     db.commit()
 
@@ -176,7 +210,13 @@ def delete_task(task_id: int, db: Session = Depends(get_db)):
 # ── Task Dependencies ─────────────────────────────────────────────────────────
 
 @router.post("/projects/{project_id}/task-dependencies", response_model=TaskDependencyOut, status_code=201)
-def create_task_dependency(project_id: int, body: TaskDependencyCreate, db: Session = Depends(get_db)):
+def create_task_dependency(
+    project_id: int,
+    body: TaskDependencyCreate,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    require_project_member(project_id, current_user, db)
     if body.task_id == body.depends_on_task_id:
         raise HTTPException(status_code=422, detail="A task cannot depend on itself")
 
@@ -207,10 +247,18 @@ def create_task_dependency(project_id: int, body: TaskDependencyCreate, db: Sess
 
 
 @router.delete("/task-dependencies/{dep_id}", status_code=204)
-def delete_task_dependency(dep_id: int, db: Session = Depends(get_db)):
+def delete_task_dependency(
+    dep_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
     dep = db.query(TaskDependency).filter(TaskDependency.id == dep_id).first()
     if not dep:
         raise HTTPException(status_code=404, detail="Task dependency not found")
+    # Check membership via the task's project
+    task = db.query(Task).filter(Task.id == dep.task_id).first()
+    if task:
+        require_project_member(task.project_id, current_user, db)
     db.delete(dep)
     db.commit()
 
@@ -218,10 +266,16 @@ def delete_task_dependency(dep_id: int, db: Session = Depends(get_db)):
 # ── Task Log Entries ──────────────────────────────────────────────────────────
 
 @router.post("/daily-logs/{log_id}/task-entries", response_model=TaskLogEntryOut, status_code=201)
-def create_task_entry(log_id: int, body: TaskLogEntryCreate, db: Session = Depends(get_db)):
+def create_task_entry(
+    log_id: int,
+    body: TaskLogEntryCreate,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
     log = db.query(DailyLog).filter(DailyLog.id == log_id).first()
     if not log:
         raise HTTPException(status_code=404, detail="Daily log not found")
+    require_project_member(log.project_id, current_user, db)
 
     if body.action not in ("done", "not_done"):
         raise HTTPException(status_code=422, detail="action must be 'done' or 'not_done'")
@@ -262,10 +316,15 @@ def create_task_entry(log_id: int, body: TaskLogEntryCreate, db: Session = Depen
 
 
 @router.get("/daily-logs/{log_id}/task-entries", response_model=List[TaskLogEntryOut])
-def list_task_entries(log_id: int, db: Session = Depends(get_db)):
+def list_task_entries(
+    log_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
     log = db.query(DailyLog).filter(DailyLog.id == log_id).first()
     if not log:
         raise HTTPException(status_code=404, detail="Daily log not found")
+    require_project_member(log.project_id, current_user, db)
     return db.query(TaskLogEntry).filter(TaskLogEntry.daily_log_id == log_id).all()
 
 
@@ -300,11 +359,17 @@ def _cascade_result_to_out(r: CascadeResult) -> CascadeResultOut:
 
 
 @router.post("/tasks/{task_id}/cascade-preview", response_model=List[CascadeResultOut])
-def cascade_preview(task_id: int, body: CascadeRequest, db: Session = Depends(get_db)):
+def cascade_preview(
+    task_id: int,
+    body: CascadeRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
     """Preview cascade delays without writing to the DB."""
     task = db.query(Task).filter(Task.id == task_id).first()
     if not task:
         raise HTTPException(status_code=404, detail="Task not found")
+    require_project_member(task.project_id, current_user, db)
     try:
         results = preview_cascade(db, task_id, body.new_start_date, task.project_id)
     except ValueError as exc:
@@ -313,11 +378,17 @@ def cascade_preview(task_id: int, body: CascadeRequest, db: Session = Depends(ge
 
 
 @router.post("/tasks/{task_id}/cascade-apply", response_model=List[CascadeResultOut])
-def cascade_apply(task_id: int, body: CascadeRequest, db: Session = Depends(get_db)):
+def cascade_apply(
+    task_id: int,
+    body: CascadeRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
     """Apply cascade delays and persist new dates to the DB."""
     task = db.query(Task).filter(Task.id == task_id).first()
     if not task:
         raise HTTPException(status_code=404, detail="Task not found")
+    require_project_member(task.project_id, current_user, db)
     try:
         results = apply_cascade(db, task_id, body.new_start_date, task.project_id)
     except ValueError as exc:

@@ -1,7 +1,19 @@
-from sqlalchemy import Boolean, Column, Integer, String, Float, Date, ForeignKey, Text, UniqueConstraint
+from datetime import datetime as _dt
+
+from sqlalchemy import Boolean, Column, DateTime, Integer, String, Float, Date, ForeignKey, Text, UniqueConstraint
 from sqlalchemy.orm import relationship
 
 from app.database import Base
+
+
+class User(Base):
+    __tablename__ = "users"
+    id            = Column(Integer, primary_key=True)
+    email         = Column(String(255), unique=True, nullable=False, index=True)
+    password_hash = Column(String(255), nullable=False)
+    name          = Column(String(255), nullable=False)
+    created_at    = Column(DateTime, default=_dt.utcnow)
+    projects      = relationship("ProjectMember", back_populates="user")
 
 
 class Project(Base):
@@ -16,6 +28,18 @@ class Project(Base):
     daily_logs = relationship("DailyLog", back_populates="project", cascade="all, delete-orphan")
     crew_members = relationship("CrewMember", back_populates="project", cascade="all, delete-orphan")
     tasks = relationship("Task", back_populates="project", cascade="all, delete-orphan")
+    members = relationship("ProjectMember", back_populates="project", cascade="all, delete-orphan")
+
+
+class ProjectMember(Base):
+    __tablename__ = "project_members"
+    __table_args__ = (UniqueConstraint("user_id", "project_id", name="uq_user_project"),)
+    id         = Column(Integer, primary_key=True)
+    user_id    = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    project_id = Column(Integer, ForeignKey("projects.id", ondelete="CASCADE"), nullable=False)
+    role       = Column(String(20), nullable=False, default="member")
+    user       = relationship("User", back_populates="projects")
+    project    = relationship("Project", back_populates="members")
 
 
 class DailyLog(Base):

@@ -16,6 +16,8 @@ class Settings(BaseSettings):
     openai_api_key: str = ""
     openai_model: str = "gpt-4o"
     log_level: str = "INFO"
+    jwt_algorithm: str = "HS256"
+    jwt_expiration_minutes: int = 60 * 24 * 7
 
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
