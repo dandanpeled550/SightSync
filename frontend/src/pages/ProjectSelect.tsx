@@ -338,7 +338,7 @@ export default function ProjectSelect() {
                   style={inputStyle}
                 />
               </div>
-              <div style={{ marginBottom: '14px' }}>
+              <div style={{ marginBottom: '20px' }}>
                 <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: colors.text, marginBottom: '6px' }}>
                   City *
                 </label>
@@ -351,35 +351,6 @@ export default function ProjectSelect() {
                   style={inputStyle}
                 />
               </div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '20px' }}>
-                <div>
-                  <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: colors.text, marginBottom: '6px' }}>
-                    Latitude
-                  </label>
-                  <input
-                    type="number"
-                    step="any"
-                    value={form.latitude || ''}
-                    onChange={e => setForm(f => ({ ...f, latitude: parseFloat(e.target.value) || 0 }))}
-                    placeholder="32.0853"
-                    style={inputStyle}
-                  />
-                </div>
-                <div>
-                  <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: colors.text, marginBottom: '6px' }}>
-                    Longitude
-                  </label>
-                  <input
-                    type="number"
-                    step="any"
-                    value={form.longitude || ''}
-                    onChange={e => setForm(f => ({ ...f, longitude: parseFloat(e.target.value) || 0 }))}
-                    placeholder="34.7818"
-                    style={inputStyle}
-                  />
-                </div>
-              </div>
-
               {createError && (
                 <div style={{
                   marginBottom: '16px',
