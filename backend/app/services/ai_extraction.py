@@ -141,7 +141,7 @@ def _xlsx_to_text(xlsx_bytes: bytes) -> tuple:
         lines = _parse_workbook(wb)
 
     full_text = "\n".join(lines)
-    truncated = full_text[:20000]
+    truncated = full_text[:40000]
     return truncated, len(truncated)
 
 
@@ -164,12 +164,20 @@ def _call_anthropic(prompt: str) -> str:
     client = anthropic.Anthropic(api_key=settings.anthropic_api_key)
     message = client.messages.create(
         model=settings.anthropic_model,
-        max_tokens=4096,
+        max_tokens=16000,
         messages=[{"role": "user", "content": prompt}],
     )
     text = message.content[0].text
     elapsed = int((time.perf_counter() - start) * 1000)
-    logger.info("AI call [anthropic/%s] done in %dms — %d chars", settings.anthropic_model, elapsed, len(text))
+    logger.info(
+        "AI call [anthropic/%s] done in %dms — %d chars (stop_reason=%s)",
+        settings.anthropic_model, elapsed, len(text), message.stop_reason,
+    )
+    if message.stop_reason == "max_tokens":
+        raise ValueError(
+            f"Claude response was truncated (hit max_tokens). "
+            f"The file may be too large — try splitting it into smaller sheets."
+        )
     logger.debug("AI response:\n%s", text)
     return text
 
@@ -184,7 +192,7 @@ def _call_openai(prompt: str) -> str:
     # _strip_fences() handles markdown-wrapped responses as a fallback.
     response = client.chat.completions.create(
         model=settings.openai_model,
-        max_tokens=4096,
+        max_tokens=16000,
         messages=[{"role": "user", "content": prompt}],
     )
     text = response.choices[0].message.content
@@ -272,7 +280,7 @@ def infer_workflows_and_dependencies(
         client = anthropic.Anthropic(api_key=settings_obj.anthropic_api_key)
         message = client.messages.create(
             model=settings_obj.anthropic_model,
-            max_tokens=4096,
+            max_tokens=16000,
             messages=[{"role": "user", "content": prompt}],
         )
         response_text = message.content[0].text
