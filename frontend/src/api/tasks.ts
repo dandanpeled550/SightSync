@@ -157,6 +157,14 @@ export async function uploadSchedule(file: File, projectId: number): Promise<Ext
   }
 }
 
+export async function updateTask(
+  taskId: number,
+  update: { duration_days?: number; start_date?: string },
+): Promise<Task> {
+  const { data } = await api.put<Task>(`/tasks/${taskId}`, update)
+  return data
+}
+
 // Confirm extracted tasks — clears existing tasks and inserts these, along with inferred deps
 export async function confirmSchedule(
   projectId: number,

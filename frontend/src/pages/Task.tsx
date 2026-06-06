@@ -7,6 +7,7 @@ import {
   fetchAllTasks,
   markTaskNotDone,
   fetchCascadePreview,
+  updateTask,
   type Task,
   type CascadeResult,
 } from '../api/tasks'
@@ -38,7 +39,8 @@ export default function Task() {
   const [taskError, setTaskError] = useState<string | null>(null)
 
   const [selectedReason, setSelectedReason] = useState<string | null>(null)
-  const [newDate, setNewDate] = useState<string>('')
+  const [newStartDate, setNewStartDate] = useState<string>('')
+  const [newEndDate, setNewEndDate] = useState<string>('')
   const [notes, setNotes] = useState('')
 
   const [cascade, setCascade] = useState<CascadeResult[]>([])
@@ -80,7 +82,7 @@ export default function Task() {
   }, [taskId, isNew])
 
   useEffect(() => {
-    if (isNew || !task || !newDate) {
+    if (isNew || !task || !newStartDate) {
       setCascade([])
       return
     }
@@ -88,14 +90,14 @@ export default function Task() {
     if (isNaN(numId)) return
 
     setCascadeLoading(true)
-    fetchCascadePreview(numId, newDate)
+    fetchCascadePreview(numId, newStartDate)
       .then(results => setCascade(results))
       .catch(() => setCascade([]))
       .finally(() => setCascadeLoading(false))
-  }, [newDate, task, taskId, isNew])
+  }, [newStartDate, task, taskId, isNew])
 
   async function handleSave() {
-    if (!logId || !newDate || !selectedReason) return
+    if (!logId || !newStartDate || !selectedReason) return
     if (isNew) {
       navigate('/')
       return
@@ -106,7 +108,16 @@ export default function Task() {
     setSaving(true)
     setSaveError(null)
     try {
-      await markTaskNotDone(logId, numId, newDate, selectedReason + (notes ? `: ${notes}` : ''))
+      // If end date was set, compute new duration and persist it
+      if (newEndDate && task) {
+        const start = new Date(newStartDate + 'T00:00:00')
+        const end = new Date(newEndDate + 'T00:00:00')
+        const newDuration = Math.max(1, Math.round((end.getTime() - start.getTime()) / 86400000))
+        if (newDuration !== task.duration_days) {
+          await updateTask(numId, { duration_days: newDuration })
+        }
+      }
+      await markTaskNotDone(logId, numId, newStartDate, selectedReason + (notes ? `: ${notes}` : ''))
       navigate('/')
     } catch (err: unknown) {
       const e = err as { message?: string }
@@ -116,7 +127,15 @@ export default function Task() {
     }
   }
 
-  const canSave = !!selectedReason && !!newDate && !saving
+  const canSave = !!selectedReason && !!newStartDate && !saving
+
+  // Compute new duration for display when both dates are set
+  const computedDuration = newStartDate && newEndDate
+    ? Math.max(1, Math.round((new Date(newEndDate + 'T00:00:00').getTime() - new Date(newStartDate + 'T00:00:00').getTime()) / 86400000))
+    : null
+
+  // Filter out the root task itself — "Affected tasks" shows only downstream tasks
+  const downstreamCascade = cascade.filter(item => item.task_id !== Number(taskId))
 
   const title = isNew ? 'New Task Entry' : (task?.name ?? 'Task Detail')
   const subtitle = isNew ? '' : (task?.level_tag ?? '')
@@ -220,31 +239,77 @@ export default function Task() {
               })}
             </div>
 
-            {/* New Date picker */}
+            {/* Date range */}
             <p style={{ margin: '0 0 8px', fontWeight: 900, fontSize: '13px', letterSpacing: '-0.01em', color: colors.text }}>
-              New date
+              New dates
             </p>
-            <input
-              type="date"
-              min={todayStr}
-              value={newDate}
-              onChange={e => setNewDate(e.target.value)}
-              style={{
-                width: '100%',
-                minHeight: '48px',
-                border: `1px solid ${colors.line}`,
-                borderRadius: radius.btn,
-                padding: '13px',
-                color: newDate ? colors.text : colors.muted,
-                fontSize: '13px',
-                background: colors.surface,
-                marginBottom: '16px',
-                boxSizing: 'border-box',
-              }}
-            />
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginBottom: '8px' }}>
+              <div>
+                <div style={{ fontSize: '11px', color: colors.muted, marginBottom: '4px', fontWeight: 600 }}>Start</div>
+                <input
+                  type="date"
+                  min={todayStr}
+                  value={newStartDate}
+                  onChange={e => {
+                    setNewStartDate(e.target.value)
+                    // Clear end date if it's before the new start
+                    if (newEndDate && e.target.value && newEndDate <= e.target.value) setNewEndDate('')
+                  }}
+                  style={{
+                    width: '100%',
+                    minHeight: '48px',
+                    border: `1px solid ${colors.line}`,
+                    borderRadius: radius.btn,
+                    padding: '13px 10px',
+                    color: newStartDate ? colors.text : colors.muted,
+                    fontSize: '13px',
+                    background: colors.surface,
+                    boxSizing: 'border-box',
+                  }}
+                />
+              </div>
+              <div>
+                <div style={{ fontSize: '11px', color: colors.muted, marginBottom: '4px', fontWeight: 600 }}>
+                  End <span style={{ fontWeight: 400 }}>(optional)</span>
+                </div>
+                <input
+                  type="date"
+                  min={newStartDate || todayStr}
+                  value={newEndDate}
+                  onChange={e => setNewEndDate(e.target.value)}
+                  style={{
+                    width: '100%',
+                    minHeight: '48px',
+                    border: `1px solid ${colors.line}`,
+                    borderRadius: radius.btn,
+                    padding: '13px 10px',
+                    color: newEndDate ? colors.text : colors.muted,
+                    fontSize: '13px',
+                    background: colors.surface,
+                    boxSizing: 'border-box',
+                  }}
+                />
+              </div>
+            </div>
+            {computedDuration !== null && (
+              <div style={{
+                fontSize: '12px',
+                color: colors.primary,
+                fontWeight: 700,
+                marginBottom: '4px',
+              }}>
+                Duration: {computedDuration} day{computedDuration !== 1 ? 's' : ''}
+                {task && computedDuration !== task.duration_days && (
+                  <span style={{ color: colors.muted, fontWeight: 400 }}>
+                    {' '}(was {task.duration_days}d)
+                  </span>
+                )}
+              </div>
+            )}
+            <div style={{ marginBottom: '16px' }} />
 
             {/* Cascade preview */}
-            {newDate && !isNew && (
+            {newStartDate && !isNew && (
               <div style={{ marginBottom: '16px' }}>
                 <div style={{ fontWeight: 900, fontSize: '13px', color: colors.text, marginBottom: '8px' }}>
                   Affected tasks
@@ -252,22 +317,22 @@ export default function Task() {
                 {cascadeLoading && (
                   <div style={{ fontSize: '12px', color: colors.muted }}>Calculating cascade…</div>
                 )}
-                {!cascadeLoading && cascade.length === 0 && (
+                {!cascadeLoading && downstreamCascade.length === 0 && (
                   <div style={{ fontSize: '12px', color: colors.muted }}>No downstream tasks affected.</div>
                 )}
-                {!cascadeLoading && cascade.length > 0 && (
+                {!cascadeLoading && downstreamCascade.length > 0 && (
                   <div style={{
                     border: `1px solid ${colors.line}`,
                     borderRadius: radius.card,
                     overflow: 'hidden',
                     background: colors.surface2,
                   }}>
-                    {cascade.map((item, i) => (
+                    {downstreamCascade.map((item, i) => (
                       <div
                         key={item.task_id}
                         style={{
                           padding: '10px 14px',
-                          borderBottom: i < cascade.length - 1 ? `1px solid ${colors.line}` : 'none',
+                          borderBottom: i < downstreamCascade.length - 1 ? `1px solid ${colors.line}` : 'none',
                           display: 'flex',
                           justifyContent: 'space-between',
                           alignItems: 'center',
