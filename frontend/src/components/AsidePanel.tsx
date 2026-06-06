@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { colors, radius } from '../constants/theme'
+import { colors } from '../constants/theme'
 import { fetchTodayLog } from '../api/daily_log'
 import { fetchTodayTasks, type Task } from '../api/tasks'
 import { fetchAttendance, type AttendanceRecord } from '../api/crew'
