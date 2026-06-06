@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import ScreenShell, { IconBtn } from '../components/ScreenShell'
 import { colors, radius, gradients } from '../constants/theme'
@@ -14,6 +14,7 @@ import {
   type TaskDependency,
   type CascadeResult,
 } from '../api/tasks'
+import { uploadPhoto } from '../api/photos'
 import { useProject } from '../contexts/ProjectContext'
 
 const REASON_CODES = [
@@ -81,6 +82,14 @@ export default function TaskPage() {
   // Today's status (optional)
   const [statusAction, setStatusAction] = useState<'done' | 'not_done' | null>(null)
   const [selectedReason, setSelectedReason] = useState<string | null>(null)
+
+  // Photo — required when marking done
+  const [photoFile, setPhotoFile] = useState<File | null>(null)
+  const [photoPreview, setPhotoPreview] = useState<string | null>(null)
+  const photoInputRef = useRef<HTMLInputElement>(null)
+  useEffect(() => {
+    return () => { if (photoPreview) URL.revokeObjectURL(photoPreview) }
+  }, [photoPreview])
 
   // Cascade preview (for schedule date edits)
   const [cascade, setCascade] = useState<CascadeResult[]>([])
@@ -196,7 +205,7 @@ export default function TaskPage() {
 
   const canSave = !saving && predecessorViolations.length === 0 && (
     hasFieldChanges ||
-    statusAction === 'done' ||
+    (statusAction === 'done' && !!photoFile) ||
     (statusAction === 'not_done' && !!selectedReason && !!notDoneDate)
   )
 
@@ -226,8 +235,9 @@ export default function TaskPage() {
       }
 
       // 2. Log today's status if chosen
-      if (logId && statusAction === 'done') {
-        await markTaskDone(logId, numId)
+      if (logId && statusAction === 'done' && photoFile) {
+        const photoUrl = await uploadPhoto(photoFile)
+        await markTaskDone(logId, numId, { photo_url: photoUrl })
       } else if (logId && statusAction === 'not_done' && selectedReason) {
         const result = await markTaskNotDone(logId, numId, notDoneDate, selectedReason)
         const downstream = result.cascade_results.filter(r => r.task_id !== numId)
@@ -462,9 +472,13 @@ export default function TaskPage() {
             Today's status <span style={{ fontWeight: 400, textTransform: 'none' }}>(optional)</span>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: statusAction === 'not_done' ? '16px' : 0 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: statusAction ? '16px' : 0 }}>
             <button
-              onClick={() => setStatusAction(prev => prev === 'done' ? null : 'done')}
+              onClick={() => {
+                setStatusAction(prev => prev === 'done' ? null : 'done')
+                setPhotoFile(null)
+                setPhotoPreview(null)
+              }}
               style={{
                 height: '48px',
                 border: `2px solid ${statusAction === 'done' ? colors.green : colors.line}`,
@@ -479,7 +493,11 @@ export default function TaskPage() {
               ✓ Done
             </button>
             <button
-              onClick={() => setStatusAction(prev => prev === 'not_done' ? null : 'not_done')}
+              onClick={() => {
+                setStatusAction(prev => prev === 'not_done' ? null : 'not_done')
+                setPhotoFile(null)
+                setPhotoPreview(null)
+              }}
               style={{
                 height: '48px',
                 border: `2px solid ${statusAction === 'not_done' ? colors.red : colors.line}`,
@@ -494,6 +512,68 @@ export default function TaskPage() {
               × Not done
             </button>
           </div>
+
+          {/* Photo — required when marking Done */}
+          {statusAction === 'done' && (
+            <div style={{ marginBottom: '4px' }}>
+              <div style={{
+                fontSize: '13px', fontWeight: 700,
+                color: photoFile ? colors.text : colors.red,
+                marginBottom: '8px',
+              }}>
+                Completion photo <span style={{ fontWeight: 400, color: colors.red }}>* required</span>
+              </div>
+
+              <input
+                ref={photoInputRef}
+                type="file"
+                accept="image/*"
+                capture="environment"
+                style={{ display: 'none' }}
+                onChange={e => {
+                  const f = e.target.files?.[0] ?? null
+                  setPhotoFile(f)
+                  setPhotoPreview(f ? URL.createObjectURL(f) : null)
+                }}
+              />
+
+              {photoPreview ? (
+                <div style={{ position: 'relative', display: 'inline-block', width: '100%' }}>
+                  <img
+                    src={photoPreview}
+                    alt="Completion photo"
+                    style={{ width: '100%', maxHeight: '200px', objectFit: 'cover', borderRadius: radius.card, border: `1px solid ${colors.line}` }}
+                  />
+                  <button
+                    onClick={() => { setPhotoFile(null); setPhotoPreview(null) }}
+                    style={{
+                      position: 'absolute', top: '8px', right: '8px',
+                      width: '28px', height: '28px', borderRadius: '50%',
+                      background: 'rgba(0,0,0,0.55)', border: 'none',
+                      color: '#fff', fontSize: '16px', cursor: 'pointer',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    }}
+                  >×</button>
+                </div>
+              ) : (
+                <button
+                  onClick={() => photoInputRef.current?.click()}
+                  style={{
+                    width: '100%', height: '80px',
+                    border: `2px dashed ${colors.red}`,
+                    borderRadius: radius.card,
+                    background: colors.redSoft,
+                    color: colors.red,
+                    fontSize: '14px', fontWeight: 700,
+                    cursor: 'pointer',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px',
+                  }}
+                >
+                  <span style={{ fontSize: '20px' }}>📷</span> Add photo
+                </button>
+              )}
+            </div>
+          )}
 
           {statusAction === 'not_done' && (
             <>
@@ -628,11 +708,13 @@ export default function TaskPage() {
             ? 'Saving…'
             : predecessorViolations.length > 0
               ? 'Fix dates to save'
-              : statusAction === 'not_done' && !notDoneDate
-                ? 'Pick a reschedule date'
-                : statusAction === 'not_done' && !selectedReason
-                  ? 'Pick a reason'
-                  : 'Save changes'}
+              : statusAction === 'done' && !photoFile
+                ? 'Add a completion photo'
+                : statusAction === 'not_done' && !notDoneDate
+                  ? 'Pick a reschedule date'
+                  : statusAction === 'not_done' && !selectedReason
+                    ? 'Pick a reason'
+                    : 'Save changes'}
         </button>
       </div>
     </ScreenShell>
