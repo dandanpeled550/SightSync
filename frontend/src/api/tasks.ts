@@ -116,7 +116,15 @@ export async function uploadSchedule(file: File): Promise<ExtractionResult> {
     const body = await response.text().catch(() => '(no body)')
     throw new Error(`HTTP ${response.status} from ${url}: ${body}`)
   }
-  return response.json()
+  const text = await response.text()
+  if (!text.trim()) {
+    throw new Error('Backend returned empty response body (200 OK) — possible server timeout or CORS block')
+  }
+  try {
+    return JSON.parse(text) as ExtractionResult
+  } catch {
+    throw new Error(`Non-JSON 200 from backend: ${text.slice(0, 300)}`)
+  }
 }
 
 // Confirm extracted tasks — clears existing tasks and inserts these

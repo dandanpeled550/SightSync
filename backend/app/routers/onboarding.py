@@ -5,6 +5,7 @@ POST /projects/{project_id}/upload-schedule
 POST /projects/{project_id}/confirm-schedule
 """
 
+import asyncio
 from datetime import date, timedelta
 from typing import Optional
 
@@ -73,7 +74,9 @@ async def upload_schedule(
         raise HTTPException(status_code=400, detail="Only .xlsx files are supported")
 
     xlsx_bytes = await file.read()
-    result: ExtractionResult = extract_tasks_from_xlsx(xlsx_bytes)
+    # Run the blocking AI call in a thread pool — keeps the event loop free
+    # so uvicorn can handle keepalives during the 10-60s OpenAI/Claude API call.
+    result: ExtractionResult = await asyncio.to_thread(extract_tasks_from_xlsx, xlsx_bytes)
 
     return ExtractionResultOut(
         tasks=[
