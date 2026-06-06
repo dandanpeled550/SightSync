@@ -321,7 +321,7 @@ def generate_daily_log_pdf(log_id: int, db: Session, owner_name: str = "—") ->
         img_col_w = (CW - 8) / 2
         task_photos: list[tuple[str, RLImage]] = []
         for e, task in entries:
-            if e.action == "done" and e.photo_url:
+            if e.photo_url:
                 data = _load_photo(e.photo_url, db)
                 if data:
                     img = _make_rl_image(data, img_col_w, 60 * mm)
