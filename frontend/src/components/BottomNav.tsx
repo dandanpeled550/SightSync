@@ -10,7 +10,6 @@ const tabs = [
   { label: 'Alerts',    icon: '🔔', path: '/alerts' },
   { label: 'Safety',    icon: '🛡',  path: '/safety' },
   { label: 'Reports',   icon: '▣',  path: '/report' },
-  { label: 'Site',      icon: '☷',  path: '/site' },
 ]
 
 export default function BottomNav() {
@@ -36,7 +35,7 @@ export default function BottomNav() {
     }}>
       <div style={{
         display: 'grid',
-        gridTemplateColumns: 'repeat(6, 1fr)',
+        gridTemplateColumns: 'repeat(5, 1fr)',
         padding: '6px 14px 8px',
       }}>
       {tabs.map(tab => {
