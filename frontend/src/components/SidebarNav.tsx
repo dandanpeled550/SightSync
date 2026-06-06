@@ -70,7 +70,6 @@ export default function SidebarNav() {
           <div style={{ fontSize: '20px', fontWeight: 900, letterSpacing: '-0.03em', color: colors.text, lineHeight: 1.1 }}>
             simple<span style={{ color: colors.primary }}>.</span>
           </div>
-          <div style={{ fontSize: '13px', color: colors.muted, marginTop: '2px' }}>Construction diary</div>
         </div>
       </div>
 
