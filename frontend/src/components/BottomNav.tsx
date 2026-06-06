@@ -5,10 +5,10 @@ import { useWindowSize } from '../hooks/useWindowSize'
 const HIDDEN_ON = ['/task', '/summary', '/export', '/onboard']
 
 const tabs = [
-  { label: 'Home',      icon: '🏠', path: '/' },
-  { label: 'Plans',     icon: '📅', path: '/plans' },
-  { label: 'Alerts',    icon: '🔔', path: '/alerts' },
-  { label: 'Safety',    icon: '🛡',  path: '/safety' },
+  { label: 'Home',      icon: '⌂',  path: '/' },
+  { label: 'Plans',     icon: '≡',  path: '/plans' },
+  { label: 'Alerts',    icon: '△',  path: '/alerts' },
+  { label: 'Safety',    icon: '◉',  path: '/safety' },
   { label: 'Reports',   icon: '▣',  path: '/report' },
 ]
 

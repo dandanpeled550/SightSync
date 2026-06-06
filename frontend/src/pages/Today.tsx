@@ -10,24 +10,18 @@ import { fetchTodayTasks, markTaskDone, type Task } from '../api/tasks'
 import { fetchAttendance } from '../api/crew'
 import { useProject } from '../contexts/ProjectContext'
 
-const TRADE_ICONS: Record<string, string> = {
-  electrical: '⚡',
-  plumbing:   '🔧',
-  concrete:   '🏗',
-  framing:    '🪵',
-  safety:     '🛡',
-  cleanup:    '🧹',
-  materials:  '📦',
-  inspection: '🔎',
-}
-
 function getTradeIcon(trade: string | null): string {
-  if (!trade) return '📋'
-  const lower = trade.toLowerCase()
-  for (const key of Object.keys(TRADE_ICONS)) {
-    if (lower.includes(key)) return TRADE_ICONS[key]
-  }
-  return '📋'
+  if (!trade) return '?'
+  const l = trade.toLowerCase()
+  if (l.includes('electrical'))  return 'E'
+  if (l.includes('plumbing'))    return 'P'
+  if (l.includes('concrete'))    return 'C'
+  if (l.includes('framing'))     return 'F'
+  if (l.includes('safety'))      return 'S'
+  if (l.includes('cleanup'))     return 'CL'
+  if (l.includes('materials'))   return 'M'
+  if (l.includes('inspection'))  return 'I'
+  return trade.slice(0, 2).toUpperCase()
 }
 
 function getTradeColorSoft(trade: string | null): string {
@@ -208,7 +202,7 @@ export default function Today() {
               placeItems: 'center',
               fontSize: '36px',
             }}>
-              ✅
+              ✓
             </div>
             <div style={{ fontSize: '22px', fontWeight: 900, letterSpacing: '-0.04em', color: colors.text }}>
               All clear
@@ -246,7 +240,9 @@ export default function Today() {
               display: 'grid',
               placeItems: 'center',
               background: getTradeColorSoft(task.trade_tag),
-              fontSize: '20px',
+              fontSize: '13px',
+              fontWeight: 800,
+              letterSpacing: '-0.01em',
             }}>
               {getTradeIcon(task.trade_tag)}
             </div>
@@ -326,7 +322,7 @@ export default function Today() {
             }}
           >
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-              <span style={{ fontSize: '22px', lineHeight: 1 }}>👷</span>
+              <span style={{ fontSize: '22px', lineHeight: 1 }}>◎</span>
               <span style={{ fontSize: '14px', fontWeight: 800, color: colors.text }}>
                 Crew on site
               </span>

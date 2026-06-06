@@ -90,7 +90,7 @@ export default function Register() {
             background: gradients.bluePrimary,
             marginBottom: '16px',
           }}>
-            <span style={{ fontSize: '28px' }}>🏗</span>
+            <span style={{ fontSize: '22px', fontWeight: 900 }}>S</span>
           </div>
           <h1 style={{
             margin: '0 0 6px',

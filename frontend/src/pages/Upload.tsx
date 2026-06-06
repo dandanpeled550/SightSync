@@ -179,7 +179,7 @@ export default function Upload() {
 
       {/* Hero */}
       <div style={{ padding: '40px 24px 20px', textAlign: 'center' }}>
-        <div style={{ fontSize: '48px', lineHeight: 1, marginBottom: '12px' }}>☁️</div>
+        <div style={{ fontSize: '48px', lineHeight: 1, marginBottom: '12px' }}>↑</div>
         <h1 style={{ margin: '0 0 8px', fontSize: '26px', fontWeight: 900, letterSpacing: '-0.04em', color: colors.text }}>
           Upload
         </h1>

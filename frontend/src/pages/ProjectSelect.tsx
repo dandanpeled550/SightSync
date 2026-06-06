@@ -235,7 +235,7 @@ export default function ProjectSelect() {
               placeItems: 'center',
               fontSize: '32px',
             }}>
-              🏗
+              ▦
             </div>
             <div>
               <div style={{ fontSize: '20px', fontWeight: 900, letterSpacing: '-0.04em', color: colors.text, marginBottom: '6px' }}>
@@ -303,7 +303,7 @@ export default function ProjectSelect() {
                   fontSize: '22px',
                   flexShrink: 0,
                 }}>
-                  🏗
+                  ▦
                 </div>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{

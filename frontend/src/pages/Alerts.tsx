@@ -5,24 +5,18 @@ import { fetchAllTasks, fetchTaskEntries, type Task, type TaskLogEntry } from '.
 import { fetchTodayLog } from '../api/daily_log'
 import { useProject } from '../contexts/ProjectContext'
 
-const TRADE_ICONS: Record<string, string> = {
-  electrical: '⚡',
-  plumbing:   '🔧',
-  concrete:   '🏗',
-  framing:    '🪵',
-  safety:     '🛡',
-  cleanup:    '🧹',
-  materials:  '📦',
-  inspection: '🔎',
-}
-
 function getTradeIcon(trade: string | null): string {
-  if (!trade) return '📋'
-  const lower = trade.toLowerCase()
-  for (const key of Object.keys(TRADE_ICONS)) {
-    if (lower.includes(key)) return TRADE_ICONS[key]
-  }
-  return '📋'
+  if (!trade) return '?'
+  const l = trade.toLowerCase()
+  if (l.includes('electrical'))  return 'E'
+  if (l.includes('plumbing'))    return 'P'
+  if (l.includes('concrete'))    return 'C'
+  if (l.includes('framing'))     return 'F'
+  if (l.includes('safety'))      return 'S'
+  if (l.includes('cleanup'))     return 'CL'
+  if (l.includes('materials'))   return 'M'
+  if (l.includes('inspection'))  return 'I'
+  return trade.slice(0, 2).toUpperCase()
 }
 
 function formatDateShort(iso: string): string {
@@ -205,7 +199,7 @@ export default function Alerts() {
           <div style={{ padding: '8px 20px' }}>
             {upcomingTasks.length === 0 ? (
               <EmptyState
-                icon="🔔"
+                icon="△"
                 title="No upcoming tasks"
                 body="Tasks starting within the next 7 days will appear here."
               />
@@ -253,7 +247,7 @@ export default function Alerts() {
           <div style={{ padding: '8px 20px' }}>
             {delayedTasks.length === 0 ? (
               <EmptyState
-                icon="✅"
+                icon="✓"
                 title="No delayed tasks"
                 body="Tasks marked as not done will appear here with their new schedule."
               />
@@ -397,7 +391,7 @@ function DelayedCard({ delayed }: { delayed: DelayedTask }) {
         fontSize: '20px',
         flexShrink: 0,
       }}>
-        ⚠️
+        !
       </div>
 
       {/* Info */}

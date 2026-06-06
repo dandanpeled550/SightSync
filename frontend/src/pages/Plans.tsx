@@ -86,7 +86,7 @@ export default function Plans() {
             <div style={{
               width: '80px', height: '80px', borderRadius: '50%',
               background: colors.primarySoft, display: 'grid', placeItems: 'center', fontSize: '36px',
-            }}>📅</div>
+            }}>≡</div>
             <div style={{ fontSize: '22px', fontWeight: 900, letterSpacing: '-0.04em', color: colors.text }}>
               No schedule yet
             </div>

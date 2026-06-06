@@ -79,7 +79,7 @@ export default function SafetyHistory() {
               placeItems: 'center',
               fontSize: '36px',
             }}>
-              🛡
+              ◉
             </div>
             <div style={{ fontSize: '22px', fontWeight: 900, letterSpacing: '-0.04em', color: colors.text }}>
               No incidents

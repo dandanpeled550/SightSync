@@ -18,15 +18,15 @@ function formatTodayLong(): string {
 }
 
 function weatherIcon(conditions: string | null): string {
-  if (!conditions) return '🌤'
+  if (!conditions) return 'PC'
   const c = conditions.toLowerCase()
-  if (c.includes('thunder') || c.includes('storm')) return '⛈'
-  if (c.includes('rain') || c.includes('drizzle') || c.includes('shower')) return '🌧'
-  if (c.includes('snow') || c.includes('sleet') || c.includes('blizzard')) return '❄️'
-  if (c.includes('fog') || c.includes('mist')) return '🌫'
-  if (c.includes('cloud') || c.includes('overcast')) return '☁️'
-  if (c.includes('clear') || c.includes('sunny')) return '☀️'
-  return '🌤'
+  if (c.includes('thunder') || c.includes('storm')) return 'Tstm'
+  if (c.includes('rain') || c.includes('drizzle') || c.includes('shower')) return 'Rain'
+  if (c.includes('snow') || c.includes('sleet') || c.includes('blizzard')) return 'Snow'
+  if (c.includes('fog') || c.includes('mist')) return 'Fog'
+  if (c.includes('cloud') || c.includes('overcast')) return 'Cld'
+  if (c.includes('clear') || c.includes('sunny')) return 'Sun'
+  return 'PC'
 }
 
 interface StatCardProps {
@@ -222,7 +222,7 @@ export default function Report() {
             loading={loading}
           />
           <StatCard
-            icon="👷"
+            icon="◎"
             value={String(crewPresent)}
             label="Crew on site"
             loading={loading}
@@ -230,7 +230,7 @@ export default function Report() {
             bg={crewPresent > 0 ? colors.greenSoft : undefined}
           />
           <StatCard
-            icon="✅"
+            icon="✓"
             value={String(tasksDone)}
             label="Completed"
             loading={loading}
@@ -238,7 +238,7 @@ export default function Report() {
             bg={tasksDone > 0 ? colors.greenSoft : undefined}
           />
           <StatCard
-            icon="❌"
+            icon="×"
             value={String(tasksDelayed)}
             label="Not done"
             loading={loading}
@@ -246,7 +246,7 @@ export default function Report() {
             bg={tasksDelayed > 0 ? colors.redSoft : undefined}
           />
           <StatCard
-            icon="📦"
+            icon="□"
             value={String(materialCount)}
             label="Materials"
             loading={loading}
@@ -254,7 +254,7 @@ export default function Report() {
             bg={materialCount > 0 ? colors.blueSoft : undefined}
           />
           <StatCard
-            icon="🛡"
+            icon="◉"
             value={String(incidentCount)}
             label="Safety"
             loading={loading}
@@ -281,7 +281,7 @@ export default function Report() {
           }}
         >
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <span style={{ fontSize: '18px', lineHeight: 1 }}>👷</span>
+            <span style={{ fontSize: '18px', lineHeight: 1 }}>◎</span>
             <span style={{ fontSize: '14px', fontWeight: 700, color: colors.text }}>
               Mark attendance
             </span>
@@ -322,7 +322,7 @@ export default function Report() {
                   width: '32px', height: '32px', borderRadius: '10px',
                   background: '#fff', display: 'grid', placeItems: 'center', fontSize: '16px', flexShrink: 0,
                 }}>
-                  ✅
+                  ✓
                 </div>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ fontSize: '13px', fontWeight: 800, color: colors.text, letterSpacing: '-0.02em', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>

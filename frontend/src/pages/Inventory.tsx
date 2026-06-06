@@ -186,7 +186,7 @@ export default function Inventory() {
                   }}
                 >
                   <div style={{ flex: 3, fontWeight: 700, fontSize: '14px', color: colors.text, display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    {lowStock && <span title="Low stock" style={{ fontSize: '13px' }}>⚠️</span>}
+                    {lowStock && <span title="Low stock" style={{ fontSize: '13px', fontWeight: 800, color: colors.orange }}>!</span>}
                     {item.name}
                   </div>
                   <div style={{ flex: 1, textAlign: 'center', fontSize: '13px', color: colors.muted }}>{item.unit || '—'}</div>
@@ -204,7 +204,7 @@ export default function Inventory() {
                   </div>
                   <div style={{ width: '88px', display: 'flex', gap: '4px' }}>
                     <button style={s.btnEdit} onClick={() => startEdit(item)} title="Edit">✎</button>
-                    <button style={s.btnDelete} onClick={() => handleDelete(item.id)} title="Delete">🗑</button>
+                    <button style={s.btnDelete} onClick={() => handleDelete(item.id)} title="Delete">✕</button>
                   </div>
                 </div>
               )

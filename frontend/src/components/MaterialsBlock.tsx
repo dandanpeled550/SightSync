@@ -123,7 +123,7 @@ export default function MaterialsBlock({ logId, readOnly = false }: Props) {
               <div style={{ flex: 1 }}>
                 <span style={{ fontWeight: 700, fontSize: '13px', color: colors.text }}>{m.material_name}</span>
                 {m.inventory_item_id != null && (
-                  <span style={s.inventoryBadge}>📦 inventory</span>
+                  <span style={s.inventoryBadge}>inventory</span>
                 )}
                 {m.notes && <span style={{ fontSize: '11px', color: colors.muted, marginLeft: '6px' }}>{m.notes}</span>}
               </div>
@@ -146,13 +146,13 @@ export default function MaterialsBlock({ logId, readOnly = false }: Props) {
               style={{ ...s.modeBtn, ...(fromInventory ? s.modeBtnActive : {}) }}
               onClick={() => switchMode(true)}
             >
-              📦 From inventory
+              From inventory
             </button>
             <button
               style={{ ...s.modeBtn, ...(!fromInventory ? s.modeBtnActive : {}) }}
               onClick={() => switchMode(false)}
             >
-              ✏️ Enter manually
+              Enter manually
             </button>
           </div>
 

@@ -401,7 +401,7 @@ export default function TaskPage() {
           {dateChanged && !cascadeLoading && downstreamCascade.length > 0 && (
             <div>
               <div style={{ fontSize: '12px', fontWeight: 700, color: colors.orange, marginBottom: '6px' }}>
-                ⚡ {downstreamCascade.length} task{downstreamCascade.length !== 1 ? 's' : ''} will be rescheduled
+                {downstreamCascade.length} task{downstreamCascade.length !== 1 ? 's' : ''} will be rescheduled
               </div>
               <div style={{ border: `1px solid ${colors.line}`, borderRadius: radius.card, overflow: 'hidden', background: colors.surface2 }}>
                 {downstreamCascade.map((item, i) => (
@@ -626,7 +626,7 @@ export default function TaskPage() {
               {!notDoneCascadeLoading && notDoneCascade.filter(c => c.task_id !== numId).length > 0 && (
                 <div>
                   <div style={{ fontSize: '12px', fontWeight: 700, color: colors.orange, marginBottom: '6px' }}>
-                    ⚡ {notDoneCascade.filter(c => c.task_id !== numId).length} downstream task{notDoneCascade.filter(c => c.task_id !== numId).length !== 1 ? 's' : ''} will be rescheduled
+                    {notDoneCascade.filter(c => c.task_id !== numId).length} downstream task{notDoneCascade.filter(c => c.task_id !== numId).length !== 1 ? 's' : ''} will be rescheduled
                   </div>
                   <div style={{ border: `1px solid ${colors.line}`, borderRadius: radius.card, overflow: 'hidden', background: colors.surface2 }}>
                     {notDoneCascade.filter(c => c.task_id !== numId).map((item, i, arr) => (
@@ -677,7 +677,6 @@ export default function TaskPage() {
             alignItems: 'center',
             gap: '8px',
           }}>
-            <span>⚡</span>
             <span>{cascadedCount} downstream task{cascadedCount !== 1 ? 's' : ''} automatically rescheduled</span>
           </div>
         )}

@@ -6,12 +6,12 @@ import { fetchAttendance, type AttendanceRecord } from '../api/crew'
 import { fetchWeather, type DailyForecast } from '../api/weather'
 import { useProject } from '../contexts/ProjectContext'
 
-const WMO_EMOJI: Record<number, string> = {
-  0: '☀️', 1: '🌤', 2: '⛅', 3: '☁️',
-  51: '🌦', 61: '🌧', 71: '🌨', 95: '⛈',
+const WMO_LABEL: Record<number, string> = {
+  0: 'Sun', 1: 'Clr', 2: 'PC', 3: 'Cld',
+  51: 'Driz', 61: 'Rain', 71: 'Snow', 95: 'Tstm',
 }
-function weatherEmoji(code: number): string {
-  return WMO_EMOJI[code] ?? '🌡'
+function weatherLabel(code: number): string {
+  return WMO_LABEL[code] ?? '—'
 }
 
 function initials(name: string): string {
@@ -131,7 +131,7 @@ export default function AsidePanel() {
                   gap: '2px',
                 }}>
                   <span style={{ fontSize: '10px', fontWeight: 600, color: colors.muted }}>{dow}</span>
-                  <span style={{ fontSize: '18px', lineHeight: 1 }}>{weatherEmoji(day.weather_code)}</span>
+                  <span style={{ fontSize: '11px', fontWeight: 700, color: colors.muted }}>{weatherLabel(day.weather_code)}</span>
                   <span style={{ fontSize: '12px', fontWeight: 800, color: colors.text, letterSpacing: '-0.02em' }}>
                     {Math.round(day.max_temp)}°
                   </span>

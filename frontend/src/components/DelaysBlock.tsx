@@ -63,7 +63,7 @@ export default function DelaysBlock({ logId }: Props) {
               background: '#fff', display: 'grid', placeItems: 'center',
               fontSize: '16px', flexShrink: 0, marginTop: '1px',
             }}>
-              ⚠️
+              !
             </div>
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{

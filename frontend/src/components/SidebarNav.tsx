@@ -3,14 +3,14 @@ import { colors, gradients } from '../constants/theme'
 import { useAuth } from '../contexts/AuthContext'
 
 const navItems = [
-  { label: 'Home',    icon: '🏠', path: '/' },
-  { label: 'Plans',   icon: '📅', path: '/plans' },
-  { label: 'Upload',  icon: '⬆️', path: '/onboard' },
-  { label: 'Alerts',  icon: '🔔', path: '/alerts' },
-  { label: 'Safety',  icon: '🛡',  path: '/safety' },
-  { label: 'Reports', icon: '▣',  path: '/report' },
-  { label: 'Crew',      icon: '👷', path: '/crew' },
-  { label: 'Inventory', icon: '📦', path: '/inventory' },
+  { label: 'Home',      icon: '⌂',  path: '/' },
+  { label: 'Plans',     icon: '≡',  path: '/plans' },
+  { label: 'Upload',    icon: '↑',  path: '/onboard' },
+  { label: 'Alerts',    icon: '△',  path: '/alerts' },
+  { label: 'Safety',    icon: '◉',  path: '/safety' },
+  { label: 'Reports',   icon: '▣',  path: '/report' },
+  { label: 'Crew',      icon: '◎',  path: '/crew' },
+  { label: 'Inventory', icon: '□',  path: '/inventory' },
 ]
 
 export default function SidebarNav() {

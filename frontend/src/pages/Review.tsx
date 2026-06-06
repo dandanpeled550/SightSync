@@ -51,7 +51,7 @@ export default function Review() {
           gap: '20px',
           textAlign: 'center',
         }}>
-          <div style={{ fontSize: '48px' }}>📋</div>
+          <div style={{ fontSize: '48px' }}>≡</div>
           <p style={{ margin: 0, fontSize: '16px', color: colors.muted }}>
             No schedule data found. Upload a schedule first.
           </p>
@@ -151,7 +151,7 @@ export default function Review() {
         alignItems: 'center',
         gap: '10px',
       }}>
-        <span style={{ fontSize: '20px' }}>✅</span>
+        <span style={{ fontSize: '20px' }}>✓</span>
         <div>
           <div style={{ fontWeight: 700, fontSize: '14px', color: colors.green }}>
             {confidencePct}% confidence
@@ -173,7 +173,7 @@ export default function Review() {
             gap: '10px',
             textAlign: 'center',
           }}>
-            <div style={{ fontSize: '36px' }}>🗑</div>
+            <div style={{ fontSize: '36px' }}>✕</div>
             <div style={{ fontSize: '16px', fontWeight: 700, color: colors.text }}>All tasks removed</div>
             <div style={{ fontSize: '13px', color: colors.muted }}>Re-upload to start over.</div>
           </div>
@@ -412,14 +412,14 @@ function TaskCard({ task, onSave, onDelete }: TaskCardProps) {
           title="Edit task"
           style={iconActionStyle}
         >
-          ✏️
+          ✎
         </button>
         <button
           onClick={onDelete}
           title="Delete task"
           style={{ ...iconActionStyle, color: colors.red, borderColor: colors.redBorder }}
         >
-          🗑
+          ✕
         </button>
       </div>
 
