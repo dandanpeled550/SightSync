@@ -4,6 +4,7 @@ import ProtectedRoute from './components/ProtectedRoute'
 import Login from './pages/Login'
 import Register from './pages/Register'
 import ProjectSelect from './pages/ProjectSelect'
+import OnboardUpload from './pages/OnboardUpload'
 import Today from './pages/Today'
 import Task from './pages/Task'
 import NewTask from './pages/NewTask'
@@ -24,6 +25,7 @@ export const router = createBrowserRouter([
   { path: '/login', element: <Login /> },
   { path: '/register', element: <Register /> },
   { path: '/projects', element: <ProtectedRoute><ProjectSelect /></ProtectedRoute> },
+  { path: '/onboard-upload', element: <ProtectedRoute><OnboardUpload /></ProtectedRoute> },
   {
     element: <ProtectedRoute><DesktopShell /></ProtectedRoute>,
     children: [

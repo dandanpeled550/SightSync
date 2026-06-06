@@ -48,8 +48,9 @@ export default function ProjectSelect() {
       setProjects(prev => [...prev, newProject])
       setShowForm(false)
       setForm(emptyForm)
-      // Auto-select the newly created project
-      handleSelect(newProject)
+      // Select the new project then go to onboarding upload
+      setCurrentProject(newProject)
+      navigate('/onboard-upload')
     } catch {
       setCreateError('Failed to create project. Please try again.')
     } finally {
