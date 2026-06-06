@@ -29,7 +29,7 @@ export default function Upload() {
     try {
       const result: ExtractionResult = await uploadSchedule(file)
       if (result.error) {
-        setError(result.error)
+        setError(`${result.error} (text_len=${result.raw_text_length})`)
       } else {
         navigate('/onboard/review', { state: { result } })
       }
