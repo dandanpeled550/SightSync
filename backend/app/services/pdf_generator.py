@@ -37,7 +37,7 @@ B_MAR = 20 * mm
 CW = PAGE_W - L_MAR - R_MAR
 
 
-def _make_numbered_canvas(project_name: str, log_date: str, location: str):
+def _make_numbered_canvas(project_name: str, log_date: str, location: str, owner_name: str = "—"):
     """Returns a canvas class that draws branded page header/footer on every page."""
 
     class _NumberedCanvas(rl_canvas.Canvas):
@@ -96,9 +96,14 @@ def _make_numbered_canvas(project_name: str, log_date: str, location: str):
             date_off = self.stringWidth("Date:  ", "Helvetica-Bold", 9)
             self.drawString(mid + date_off, meta_y, log_date)
 
+            owner_label = "Project Owner: "
+            label_w = self.stringWidth(owner_label, "Helvetica-Bold", 9)
+            val_w = self.stringWidth(owner_name, "Helvetica", 9)
+            start_x = PAGE_W - R_MAR - label_w - val_w
+            self.setFont("Helvetica-Bold", 9)
+            self.drawString(start_x, meta_y, owner_label)
             self.setFont("Helvetica", 9)
-            owner_str = "Project Owner: —"
-            self.drawString(PAGE_W - R_MAR - self.stringWidth(owner_str, "Helvetica", 9), meta_y, owner_str)
+            self.drawString(start_x + label_w, meta_y, owner_name)
 
             # Footer
             footer_y = 10 * mm
@@ -113,7 +118,7 @@ def _make_numbered_canvas(project_name: str, log_date: str, location: str):
     return _NumberedCanvas
 
 
-def generate_daily_log_pdf(log_id: int, db: Session) -> bytes:
+def generate_daily_log_pdf(log_id: int, db: Session, owner_name: str = "—") -> bytes:
     log = db.query(DailyLog).filter(DailyLog.id == log_id).first()
     if not log:
         raise ValueError(f"Log {log_id} not found")
@@ -196,15 +201,19 @@ def generate_daily_log_pdf(log_id: int, db: Session) -> bytes:
     # ── WEATHER CONDITIONS ────────────────────────────────────────────────────
     story += [section_heading("WEATHER CONDITIONS"), sp(4)]
     if log.weather_temp_min is not None and log.weather_temp_max is not None:
-        avg_t = round((log.weather_temp_min + log.weather_temp_max) / 2)
         cond  = log.weather_conditions or "—"
         col_w = CW / 3
 
-        def wx_cell(label: str, temp: float) -> Table:
+        precip_str = f"{log.weather_precipitation} mm" if log.weather_precipitation is not None else "—"
+        wind_str   = f"{log.weather_wind_speed} km/h" if log.weather_wind_speed is not None else "—"
+
+        def wx_cell(label: str, main_value: str, sub_value: str) -> Table:
+            main_ps = _ps("wm", fontName="Helvetica-Bold", fontSize=22, textColor=NAVY,
+                          alignment=TA_CENTER, leading=28)
             cell = Table(
                 [[Paragraph(label, time_ps)],
-                 [Paragraph(f"{int(temp)}°C", temp_ps)],
-                 [Paragraph(cond, time_ps)]],
+                 [Paragraph(main_value, main_ps)],
+                 [Paragraph(sub_value, time_ps)]],
                 colWidths=[col_w - 2 * mm],
             )
             cell.setStyle(TableStyle([
@@ -217,15 +226,15 @@ def generate_daily_log_pdf(log_id: int, db: Session) -> bytes:
             return cell
 
         wx_tbl = Table(
-            [[wx_cell("6:00 AM", log.weather_temp_min),
-              wx_cell("12:00 PM", log.weather_temp_max),
-              wx_cell("4:00 PM", avg_t)]],
+            [[wx_cell("Daily Low",  f"{int(log.weather_temp_min)}°C", cond),
+              wx_cell("Daily High", f"{int(log.weather_temp_max)}°C", cond),
+              wx_cell("Wind & Rain", wind_str, precip_str)]],
             colWidths=[col_w, col_w, col_w],
         )
         wx_tbl.setStyle(TableStyle([
-            ("GRID",    (0, 0), (-1, -1), 0.5, LINE_CLR),
-            ("VALIGN",  (0, 0), (-1, -1), "MIDDLE"),
-            ("ALIGN",   (0, 0), (-1, -1), "CENTER"),
+            ("GRID",          (0, 0), (-1, -1), 0.5, LINE_CLR),
+            ("VALIGN",        (0, 0), (-1, -1), "MIDDLE"),
+            ("ALIGN",         (0, 0), (-1, -1), "CENTER"),
             ("TOPPADDING",    (0, 0), (-1, -1), 0),
             ("BOTTOMPADDING", (0, 0), (-1, -1), 0),
         ]))
@@ -349,6 +358,6 @@ def generate_daily_log_pdf(log_id: int, db: Session) -> bytes:
         story,
         onFirstPage=_draw_background,
         onLaterPages=_draw_background,
-        canvasmaker=_make_numbered_canvas(project_name, log_date, location),
+        canvasmaker=_make_numbered_canvas(project_name, log_date, location, owner_name),
     )
     return buffer.getvalue()

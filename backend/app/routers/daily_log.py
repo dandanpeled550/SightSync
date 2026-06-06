@@ -176,7 +176,7 @@ def export_pdf(
         raise HTTPException(status_code=404, detail="Daily log not found")
 
     try:
-        pdf_bytes = pdf_generator_service.generate_daily_log_pdf(log_id, db)
+        pdf_bytes = pdf_generator_service.generate_daily_log_pdf(log_id, db, owner_name=current_user.name)
     except ValueError as exc:
         raise HTTPException(status_code=404, detail=str(exc))
 
